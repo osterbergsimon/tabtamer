@@ -167,6 +167,10 @@ async function getUngroupedTabs() {
 // Phase 2: Classify all ungrouped tabs on browser start or install
 
 async function startupScan() {
+  // T5.10: Show processing indicator in toolbar badge during startup scan
+  browser.browserAction.setBadgeText({ text: '…' });
+  browser.browserAction.setBadgeBackgroundColor({ color: '#888888' });
+
   try {
     const ungroupedTabs = await getUngroupedTabs();
 
@@ -180,6 +184,9 @@ async function startupScan() {
     console.log('TabTamer: startup scan complete');
   } catch (err) {
     console.error('TabTamer: startup scan error', err);
+  } finally {
+    // Restore normal badge (group count or OFF) after scan completes
+    await updateBadge();
   }
 }
 
@@ -913,9 +920,8 @@ browser.runtime.onStartup.addListener(async () => {
   await loadManagedGroups();
   // T5.6: Assign colors to existing groups without one
   assignColorsToGroups();
+  // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
   startupScan();
-  // T4.7: Update badge on startup
-  updateBadge();
   // Phase 2: Create periodic alarms
   createAlarms();
 });
@@ -944,9 +950,7 @@ browser.runtime.onInstalled.addListener(async (details) => {
     // T5.6: Assign colors to existing groups without one (one-time migration)
     assignColorsToGroups();
 
-    // T4.7: Update badge on install/update
-    updateBadge();
-
+    // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
     // Run startup scan on install/update to classify existing tabs
     startupScan();
 

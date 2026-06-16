@@ -268,6 +268,8 @@ function setupCacheDashboardEvents() {
         return;
       }
 
+      const oldGroup = row.dataset.group;
+
       try {
         const result = await browser.storage.local.get(CACHE_KEY);
         const cache = result[CACHE_KEY] || {};
@@ -278,6 +280,49 @@ function setupCacheDashboardEvents() {
         row.dataset.group = newGroup;
         row.querySelector('.cache-group-text').textContent = newGroup;
         showToast(`Updated "${domain}" → "${newGroup}"`, 'success');
+
+        // If the group name changed, offer to move tabs from old group to new group
+        if (oldGroup !== newGroup) {
+          try {
+            const oldGroups = await browser.tabGroups.query({ title: oldGroup });
+            if (oldGroups.length > 0 && oldGroups[0].id) {
+              const moveTabs = confirm(
+                `Group name changed from "${oldGroup}" to "${newGroup}".\n\n` +
+                `Move existing tabs from "${oldGroup}" to "${newGroup}"?`
+              );
+              if (moveTabs) {
+                // Find or create the new group
+                const newGroups = await browser.tabGroups.query({ title: newGroup });
+                let targetGroupId;
+                if (newGroups.length > 0) {
+                  targetGroupId = newGroups[0].id;
+                } else {
+                  // Need a window to create the group — use the first window
+                  const windows = await browser.windows.getAll({ populate: false });
+                  if (windows.length > 0) {
+                    const newGroupObj = await browser.tabGroups.create({
+                      title: newGroup,
+                      windowId: windows[0].id
+                    });
+                    targetGroupId = newGroupObj.id;
+                  }
+                }
+
+                if (targetGroupId) {
+                  const tabsInOldGroup = await browser.tabs.query({ groupId: oldGroups[0].id });
+                  const tabIds = tabsInOldGroup.map(t => t.id);
+                  if (tabIds.length > 0) {
+                    await browser.tabs.group({ tabIds, groupId: targetGroupId });
+                    showToast(`Moved ${tabIds.length} tab(s) from "${oldGroup}" to "${newGroup}"`, 'success');
+                  }
+                }
+              }
+            }
+          } catch (moveErr) {
+            console.error('TabTamer: failed to move tabs after cache edit', moveErr);
+            // Non-fatal — cache was already updated
+          }
+        }
       } catch (err) {
         console.error('TabTamer: failed to update cache entry', err);
         showToast('Failed to update cache entry', 'error');
@@ -442,6 +487,7 @@ async function handleCacheFileSelected(event) {
     }
 
     loadCacheStats();
+    loadCacheDashboard();
   } catch (err) {
     console.error('TabTamer: failed to import cache', err);
     showToast('Failed to import cache', 'error');
@@ -475,6 +521,7 @@ async function clearCache() {
     await browser.storage.local.set({ [CACHE_KEY]: {} });
     showToast('Domain cache cleared');
     loadCacheStats();
+    loadCacheDashboard();
   } catch (err) {
     console.error('TabTamer: failed to clear cache', err);
     showToast('Failed to clear cache', 'error');
