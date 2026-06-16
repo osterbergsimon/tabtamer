@@ -3,6 +3,9 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 
+QUIT_FILE=".loop-quit"
+MAX_PHASES=20
+
 count_tasks() {
   local spec="$1"
   [[ -f "$spec" ]] && grep -c '^- \[ \]' "$spec" 2>/dev/null || echo 0
@@ -36,8 +39,34 @@ if [[ ! -f specs/SPEC.md ]]; then
   run_iteratr "Spec writer" specs/SPEC-write-next.md "opencode-go/deepseek-v4-pro"
 fi
 
+phase=0
 while true; do
+  # Quit conditions
+  if [[ -f "$QUIT_FILE" ]]; then
+    echo "=== Quit file detected ($QUIT_FILE), exiting ==="
+    rm -f "$QUIT_FILE"
+    break
+  fi
+  if [[ $phase -ge $MAX_PHASES ]]; then
+    echo "=== Reached max phases ($MAX_PHASES), exiting ==="
+    break
+  fi
+
+  # Snapshot HEAD to detect no-op builds
+  local before
+  before=$(git log -1 --format=%H -- . 2>/dev/null || echo "")
+
   run_iteratr "Phase build" specs/SPEC.md
+  ((phase++))
+
+  # Check if build actually changed any source files
+  local after
+  after=$(git log -1 --format=%H -- . 2>/dev/null || echo "")
+  if [[ -n "$before" && "$before" == "$after" ]]; then
+    echo "=== Build was a no-op (no files changed), running final spec-writer ==="
+    run_iteratr "Spec writer" specs/SPEC-write-next.md "opencode-go/deepseek-v4-pro"
+    break
+  fi
 
   run_iteratr "Spec writer" specs/SPEC-write-next.md "opencode-go/deepseek-v4-pro"
 
