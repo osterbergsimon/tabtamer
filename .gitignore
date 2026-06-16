@@ -1,0 +1,5 @@
+.iteratr/
+*.xpi
+*.zip
+.DS_Store
+Thumbs.db

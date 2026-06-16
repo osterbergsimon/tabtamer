@@ -1,0 +1,14 @@
+# iteratr configuration for TabTamer
+# Generated for use with opencode-go
+
+# Use the fast cheap model for iteration loops
+model: opencode-go/deepseek-v4-flash
+
+# Don't auto-commit — review changes first
+auto_commit: false
+
+# Store session data in .iteratr/
+data_dir: .iteratr
+
+# Log level for debugging
+log_level: info

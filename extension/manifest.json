@@ -1,0 +1,60 @@
+{
+  "manifest_version": 2,
+  "name": "TabTamer",
+  "version": "1.5.0",
+  "description": "Auto-group new tabs using LLM-powered classification",
+
+  "content_security_policy": "script-src 'self'; object-src 'self';",
+
+  "icons": {
+    "48": "icons/icon-48.png"
+  },
+
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "storage",
+    "alarms",
+    "notifications",
+    "contextMenus",
+    "https://opencode.ai/*"
+  ],
+
+  "background": {
+    "scripts": ["background.js"]
+  },
+
+  "content_scripts": [{
+    "matches": ["*://*/*"],
+    "js": ["content.js"],
+    "run_at": "document_start"
+  }],
+
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+
+  "browser_action": {
+    "default_icon": "icons/icon-48.png",
+    "default_title": "TabTamer"
+  },
+
+  "commands": {
+    "toggle-tabtamer": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+G"
+      },
+      "description": "Toggle TabTamer on/off"
+    },
+    "open-tabtamer-options": {
+      "description": "Open TabTamer settings"
+    }
+  },
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "tabtamer@tux.codes"
+    }
+  }
+}

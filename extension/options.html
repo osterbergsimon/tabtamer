@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TabTamer Settings</title>
+  <style>
+    /* ─── Reset & Base ───────────────────────────────────────────── */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #ffffff;
+      --surface: #f5f5f7;
+      --border: #d1d1d6;
+      --text: #1c1c1e;
+      --text-muted: #6c6c70;
+      --primary: #007aff;
+      --primary-hover: #0062cc;
+      --danger: #ff3b30;
+      --danger-hover: #d6302a;
+      --success: #34c759;
+      --shadow: rgba(0, 0, 0, 0.08);
+      --radius: 10px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme]) {
+        --bg: #1c1c1e;
+        --surface: #2c2c2e;
+        --border: #48484a;
+        --text: #f5f5f7;
+        --text-muted: #98989e;
+        --primary: #0a84ff;
+        --primary-hover: #409cff;
+        --danger: #ff453a;
+        --danger-hover: #ff6b62;
+        --success: #30d158;
+        --shadow: rgba(0, 0, 0, 0.3);
+      }
+    }
+
+    /* ─── Forced Theme Overrides ────────────────────────────────── */
+    :root[data-theme="light"] {
+      --bg: #ffffff;
+      --surface: #f5f5f7;
+      --border: #d1d1d6;
+      --text: #1c1c1e;
+      --text-muted: #6c6c70;
+      --primary: #007aff;
+      --primary-hover: #0062cc;
+      --danger: #ff3b30;
+      --danger-hover: #d6302a;
+      --success: #34c759;
+      --shadow: rgba(0, 0, 0, 0.08);
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #1c1c1e;
+      --surface: #2c2c2e;
+      --border: #48484a;
+      --text: #f5f5f7;
+      --text-muted: #98989e;
+      --primary: #0a84ff;
+      --primary-hover: #409cff;
+      --danger: #ff453a;
+      --danger-hover: #ff6b62;
+      --success: #30d158;
+      --shadow: rgba(0, 0, 0, 0.3);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ─── Layout ────────────────────────────────────────────────── */
+    .container {
+      max-width: 480px;
+      width: 100%;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    /* ─── Card ──────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 1px 3px var(--shadow);
+    }
+
+    .card + .card {
+      margin-top: 16px;
+    }
+
+    /* ─── Form Fields ───────────────────────────────────────────── */
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    label .optional {
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    input[type="text"],
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+    }
+
+    select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2398989e' d='M1.41.59 6 5.17 10.59.59 12 2l-6 6-6-6Z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+
+    /* ─── Checkbox Row ──────────────────────────────────────────── */
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 0;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .checkbox-row label {
+      margin-bottom: 0;
+      cursor: pointer;
+      font-weight: 400;
+      font-size: 14px;
+    }
+
+    /* ─── Input Row (input + inline button) ────────────────────── */
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .input-row input {
+      flex: 1;
+    }
+
+    .input-row .btn {
+      flex: none;
+      white-space: nowrap;
+      padding: 10px 16px;
+    }
+
+    /* ─── Buttons ───────────────────────────────────────────────── */
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .button-group .btn {
+      flex: 1;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    .btn-test {
+      background: transparent;
+      color: var(--primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-test:hover:not(:disabled) {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--border);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: var(--danger-hover);
+      border-color: var(--danger-hover);
+    }
+
+    /* ─── Toast / Status ────────────────────────────────────────── */
+    .toast {
+      margin-top: 16px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+      animation: fadeIn 0.25s ease;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    .toast-success {
+      background: color-mix(in srgb, var(--success) 15%, transparent);
+      color: var(--success);
+      border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+    }
+
+    .toast-error {
+      background: color-mix(in srgb, var(--danger) 15%, transparent);
+      color: var(--danger);
+      border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+    }
+
+    .toast-warning {
+      background: color-mix(in srgb, #ff9f0a 15%, transparent);
+      color: #ff9f0a;
+      border: 1px solid color-mix(in srgb, #ff9f0a 30%, transparent);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Cache Stats ───────────────────────────────────────────── */
+    .cache-stats {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* ─── Cache Dashboard ──────────────────────────────────────── */
+    .btn-cache-action {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--primary);
+      transition: background 0.2s;
+    }
+    .btn-cache-action:hover {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-cache-save {
+      color: var(--success);
+    }
+    .btn-cache-save:hover {
+      background: var(--success);
+      color: #fff;
+    }
+    .btn-cache-delete {
+      color: var(--danger);
+    }
+    .btn-cache-delete:hover {
+      background: var(--danger-hover);
+      border-color: var(--danger-hover);
+      color: #fff;
+    }
+
+    /* ─── Loading States ────────────────────────────────────────── */
+    .btn.loading {
+      animation: btn-pulse 1.5s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes btn-pulse {
+      0%, 100% { opacity: 0.5; }
+      50%      { opacity: 1; }
+    }
+
+    /* ─── Separator ─────────────────────────────────────────────── */
+    .separator {
+      height: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TabTamer</h1>
+    <p class="subtitle">Auto-group your tabs with LLM-powered classification <span id="version-display"></span></p>
+
+    <!-- ─── Settings Form ────────────────────────────────────────── -->
+    <form id="settings-form" class="card">
+      <div class="field">
+        <label for="api-key">API Key</label>
+        <div class="input-row">
+          <input type="password" id="api-key" name="apiKey"
+                 placeholder="sk-..." autocomplete="off" spellcheck="false">
+          <button type="button" class="btn btn-test" id="test-api-key-btn">Test</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="model">Model</label>
+        <select id="model" name="model">
+          <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+          <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <div class="checkbox-row">
+          <input type="checkbox" id="enabled" name="enabled" checked>
+          <label for="enabled">Extension enabled</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="theme">Theme</label>
+        <select id="theme" name="theme">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+
+      <div class="separator"></div>
+
+      <div class="button-group">
+        <button type="submit" class="btn btn-primary" id="save-btn">Save</button>
+        <button type="button" class="btn btn-danger" id="clear-cache-btn">Clear Cache</button>
+      </div>
+      <div class="button-group">
+        <button type="button" class="btn btn-test" id="export-cache-btn">Export Cache</button>
+        <button type="button" class="btn btn-test" id="import-cache-btn">Import Cache</button>
+      </div>
+      <input type="file" id="cache-file-input" accept=".json" style="display:none;">
+      <p id="cache-stats" class="cache-stats"></p>
+    </form>
+
+    <!-- ─── Cost Tracking ─────────────────────────────────────────── -->
+    <div class="card" id="cost-card">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">API Usage</span>
+          <p style="font-size: 24px; font-weight: 700; margin-top: 4px;">
+            <span id="cost-calls">0</span> calls &middot; ~<span id="cost-tokens">0</span> tokens
+          </p>
+        </div>
+        <button type="button" class="btn btn-danger" id="reset-costs-btn" style="flex: none; font-size: 12px; padding: 6px 14px;">Reset costs</button>
+      </div>
+    </div>
+
+    <!-- ─── Domain Cache Dashboard ────────────────────────────────── -->
+    <div class="card" id="cache-dashboard-card">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Domain Cache</span>
+        <span id="dashboard-cache-count" style="font-size: 12px; color: var(--text-muted);"></span>
+      </div>
+      <input type="text" id="cache-search" placeholder="Search domain or group…" style="width: 100%; padding: 8px 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none; margin-bottom: 12px;">
+      <div id="cache-table-container" style="max-height: 300px; overflow-y: auto;">
+        <table id="cache-table" style="width: 100%; border-collapse: collapse; font-size: 13px; display: none;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border);">
+              <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 40%;">Domain</th>
+              <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 40%;">Group</th>
+              <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 20%;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="cache-table-body"></tbody>
+        </table>
+      </div>
+      <p id="cache-empty-message" style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">No cached domains yet</p>
+    </div>
+
+    <!-- ─── Keyboard Shortcuts ────────────────────────────────────── -->
+    <div class="card" id="shortcuts-card">
+      <p style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px;">Keyboard Shortcuts</p>
+      <div id="shortcuts-list" style="font-size: 14px;">
+        <p style="color: var(--text-muted);">Loading…</p>
+      </div>
+      <p style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+        You can change these in <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">about:addons</code> → TabTamer → gear icon → Manage Extension Shortcuts
+      </p>
+    </div>
+
+    <!-- ─── Status Toast ─────────────────────────────────────────── -->
+    <div id="toast" class="toast" role="alert"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
