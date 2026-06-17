@@ -431,11 +431,15 @@ async function getPopupState() {
     // T9.14: Read cost tracking data for popup display
     let totalCost = 0;
     let totalCalls = 0;
+    let totalEstimatedTokens = 0;
+    let totalLiveTokens = 0;
     try {
       const costResult = await browser.storage.local.get(COSTS_KEY);
       const costs = costResult[COSTS_KEY] || {};
       totalCost = costs.totalCost || 0;
       totalCalls = costs.calls || 0;
+      totalEstimatedTokens = costs.estimatedTokens || 0;
+      totalLiveTokens = costs.liveTokens || 0;
     } catch (err) {
       console.warn('TabTamer: getPopupState — error reading costs', err.message);
     }
@@ -449,7 +453,9 @@ async function getPopupState() {
       processingCount: _pendingClassificationCount,
       hibernatedCount: _hibernatedCount,
       totalCost,
-      totalCalls
+      totalCalls,
+      totalEstimatedTokens,
+      totalLiveTokens
     };
   } catch (err) {
     console.error('TabTamer: getPopupState error', err);
@@ -462,7 +468,9 @@ async function getPopupState() {
       processingCount: 0,
       hibernatedCount: 0,
       totalCost: 0,
-      totalCalls: 0
+      totalCalls: 0,
+      totalEstimatedTokens: 0,
+      totalLiveTokens: 0
     };
   }
 }
@@ -958,12 +966,16 @@ async function classifyAndAssign(tabId, url, title, domain) {
     }
 
     const data = await response.json();
+    const usageActual = data.usage?.total_tokens;
     const groupName = data.choices?.[0]?.message?.content?.trim();
+
+    // Compute dynamic token estimate from prompt length
+    const estimatedTokens = Math.ceil((systemPrompt.length + userMessage.length) / 4);
 
     if (!groupName) {
       console.warn(`TabTamer: empty LLM response for ${domain}`);
       // T7.2: Still track cost — tokens were consumed by the API call
-      await updateCosts(TOKENS_CLASSIFY);
+      await updateCosts(estimatedTokens, usageActual);
       return; // Leave tab ungrouped
     }
 
@@ -972,7 +984,7 @@ async function classifyAndAssign(tabId, url, title, domain) {
     console.log(`TabTamer: classified ${domain} → "${normalizedName}"`);
 
     // Track cost only for successful classifications (not retries)
-    await updateCosts(TOKENS_CLASSIFY);
+    await updateCosts(estimatedTokens, usageActual);
     await setCachedGroup(domain, normalizedName);
     await assignToGroup(tabId, normalizedName);
 
@@ -1067,9 +1079,13 @@ async function suggestRulesFromCache() {
     }
 
     const data = await response.json();
+    const usageActual = data.usage?.total_tokens;
     const content = data.choices?.[0]?.message?.content?.trim();
 
     if (!content) {
+      // Still track cost — tokens were consumed
+      const estimatedTokens = Math.ceil((systemPrompt.length + userMessage.length) / 4);
+      await updateCosts(estimatedTokens, usageActual);
       return { success: false, error: 'Empty response from LLM.' };
     }
 
@@ -1095,9 +1111,9 @@ async function suggestRulesFromCache() {
         reason: s.reason || ''
       }));
 
-    // Track cost (estimated tokens for the prompt length)
+    // Track cost (estimated tokens for the prompt length + actual from response)
     const estimatedTokens = Math.ceil((systemPrompt.length + userMessage.length) / 4);
-    await updateCosts(estimatedTokens);
+    await updateCosts(estimatedTokens, usageActual);
 
     console.log(`TabTamer: suggest rules — got ${validSuggestions.length} valid suggestions`);
 
@@ -1240,15 +1256,20 @@ browser.alarms.onAlarm.addListener((alarm) => {
 });
 
 // ─── Cost Tracking ──────────────────────────────────────────────────────
-// Phase 2: Track cumulative API calls and estimated token usage
+// Phase 2: Track cumulative API calls and estimated/live token usage
 
-async function updateCosts(tokens) {
+async function updateCosts(estimated, actual) {
   try {
     const result = await browser.storage.local.get(COSTS_KEY);
-    const costs = result[COSTS_KEY] || { calls: 0, estimatedTokens: 0, totalCost: 0 };
+    const costs = result[COSTS_KEY] || { calls: 0, estimatedTokens: 0, liveTokens: 0, totalCost: 0 };
     costs.calls += 1;
-    costs.estimatedTokens += tokens;
-    costs.totalCost = (costs.totalCost || 0) + tokens * COST_PER_TOKEN;
+    costs.estimatedTokens += estimated;
+    if (actual != null) {
+      costs.liveTokens = (costs.liveTokens || 0) + actual;
+    }
+    // Use live tokens for cost if available, otherwise estimated
+    const tokensForCost = actual != null ? actual : estimated;
+    costs.totalCost = (costs.totalCost || 0) + tokensForCost * COST_PER_TOKEN;
     // Round to 6 decimal places to avoid floating-point artifacts
     costs.totalCost = Math.round(costs.totalCost * 1e6) / 1e6;
     await browser.storage.local.set({ [COSTS_KEY]: costs });
@@ -1260,8 +1281,9 @@ async function updateCosts(tokens) {
 async function logCostSummary() {
   try {
     const result = await browser.storage.local.get(COSTS_KEY);
-    const costs = result[COSTS_KEY] || { calls: 0, estimatedTokens: 0 };
-    console.log(`TabTamer: cost summary — ${costs.calls} API calls, ~${costs.estimatedTokens} estimated tokens`);
+    const costs = result[COSTS_KEY] || { calls: 0, estimatedTokens: 0, liveTokens: 0 };
+    const livePart = costs.liveTokens ? `, ${costs.liveTokens} live tokens` : '';
+    console.log(`TabTamer: cost summary — ${costs.calls} API calls, ~${costs.estimatedTokens} estimated tokens${livePart}`);
   } catch (err) {
     console.error('TabTamer: cost summary error', err);
   }
@@ -1411,12 +1433,14 @@ function _buildMergePrompt(groups, tabCountByGroup) {
 }
 
 // T9.11: Extracted helper to parse and validate LLM merge response
+// Returns { mergeMap, usage } — usage contains token counts from the API response
 async function _parseMergeResponse(response) {
   const data = await response.json();
+  const usage = data.usage || null;
   const content = data.choices?.[0]?.message?.content?.trim();
   if (!content) {
     console.warn('TabTamer: group merge — empty LLM response');
-    return null;
+    return { mergeMap: null, usage };
   }
 
   let mergeMap;
@@ -1424,15 +1448,15 @@ async function _parseMergeResponse(response) {
     mergeMap = JSON.parse(content);
   } catch (parseErr) {
     console.error('TabTamer: group merge — invalid JSON response', parseErr);
-    return null;
+    return { mergeMap: null, usage };
   }
 
   if (!mergeMap || typeof mergeMap !== 'object') {
     console.error('TabTamer: group merge — unexpected response format');
-    return null;
+    return { mergeMap: null, usage };
   }
 
-  return mergeMap;
+  return { mergeMap, usage };
 }
 
 // T9.11: Extracted helper to apply merges (rename groups / move tabs)
@@ -1556,13 +1580,17 @@ async function mergeSimilarGroups() {
     }
 
     // T9.11: Parse LLM response via extracted helper
-    const mergeMap = await _parseMergeResponse(response);
+    const { mergeMap, usage } = await _parseMergeResponse(response);
     if (!mergeMap) {
       return; // Invalid response — leave without merging
     }
 
+    // Compute dynamic token estimate from prompt length
+    const estimatedTokens = Math.ceil((systemPrompt.length + userMessage.length) / 4);
+    const actualTokens = usage?.total_tokens;
+
     // Track cost only for successful merges (not retries)
-    await updateCosts(TOKENS_MERGE);
+    await updateCosts(estimatedTokens, actualTokens);
 
     // T9.11: Apply merges via extracted helper
     const mergeCount = await _applyMerges(mergeMap, mergeableGroups);

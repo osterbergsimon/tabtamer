@@ -26,6 +26,7 @@ const cacheStats = document.getElementById('cache-stats');
 const resetCostsBtn = document.getElementById('reset-costs-btn');
 const costCalls = document.getElementById('cost-calls');
 const costTokens = document.getElementById('cost-tokens');
+const costLiveTokens = document.getElementById('cost-live-tokens');
 const toast = document.getElementById('toast');
 
 // ─── Suggest Rules DOM refs (T10.9) ──────────────────────────────────────────
@@ -988,9 +989,10 @@ async function clearCache() {
 async function loadCosts() {
   try {
     const result = await browser.storage.local.get(COSTS_KEY);
-    const costs = result[COSTS_KEY] || { calls: 0, estimatedTokens: 0 };
+    const costs = result[COSTS_KEY] || { calls: 0, estimatedTokens: 0, liveTokens: 0 };
     costCalls.textContent = costs.calls;
     costTokens.textContent = costs.estimatedTokens;
+    costLiveTokens.textContent = costs.liveTokens || 0;
   } catch (err) {
     console.error('TabTamer: failed to load costs', err);
     showToast('Failed to load cost data', 'error');
@@ -1000,9 +1002,10 @@ async function loadCosts() {
 async function resetCosts() {
   setButtonLoading(resetCostsBtn, true, 'Resetting…');
   try {
-    await browser.storage.local.set({ [COSTS_KEY]: { calls: 0, estimatedTokens: 0 } });
+    await browser.storage.local.set({ [COSTS_KEY]: { calls: 0, estimatedTokens: 0, liveTokens: 0 } });
     costCalls.textContent = '0';
     costTokens.textContent = '0';
+    costLiveTokens.textContent = '0';
     showToast('Costs reset');
   } catch (err) {
     console.error('TabTamer: failed to reset costs', err);
