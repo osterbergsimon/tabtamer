@@ -4,7 +4,7 @@
   "version": "1.10.0",
   "description": "Auto-group new tabs using LLM-powered classification",
 
-  "content_security_policy": "script-src 'self'; object-src 'self'; connect-src https://opencode.ai/*",
+  "content_security_policy": "script-src 'self'; object-src 'self'; connect-src https://opencode.ai/* https://openrouter.ai/* https://api.together.xyz/* http://localhost:11434/*",
 
   "icons": {
     "48": "icons/icon-48.png"
@@ -18,7 +18,10 @@
     "notifications",
     "contextMenus",
     "windows",
-    "https://opencode.ai/*"
+    "https://opencode.ai/*",
+    "https://openrouter.ai/*",
+    "https://api.together.xyz/*",
+    "http://localhost:11434/*"
   ],
 
   "background": {

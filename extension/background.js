@@ -884,8 +884,19 @@ async function classifyAndAssign(tabId, url, title, domain) {
       return;
     }
 
-    // Read model from settings, default to deepseek-v4-flash
-    const model = settings.model || 'deepseek-v4-flash';
+    // Read model and endpoint from settings
+    const model = resolveModel(settings);
+    const endpoint = resolveEndpoint(settings);
+
+    if (!endpoint) {
+      console.warn('TabTamer: no API endpoint configured — leaving tab ungrouped');
+      return;
+    }
+
+    if (!model) {
+      console.warn('TabTamer: no model configured — leaving tab ungrouped');
+      return;
+    }
 
     // System prompt: classify into 1-3 word group name, Title Case
     // T4.6: Include existing group names to reduce proliferation
@@ -920,10 +931,10 @@ async function classifyAndAssign(tabId, url, title, domain) {
       : 'Classify the following tab URL into a short group name (1-3 words, Title Case). Respond with only the group name.';
     const userMessage = `URL: ${url}\nTitle: ${title || '(no title)'}`;
 
-    console.log(`TabTamer: calling LLM for ${domain} (model: ${model})`);
+    console.log(`TabTamer: calling LLM for ${domain} (model: ${model}, endpoint: ${endpoint})`);
 
     // T5.5: Use unified retry-with-backoff instead of inline duplicate
-    const response = await retryWithBackoff(() => fetch(API_ENDPOINT, {
+    const response = await retryWithBackoff(() => fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -997,7 +1008,16 @@ async function suggestRulesFromCache() {
       return { success: false, error: 'API key not set. Please configure your API key first.' };
     }
 
-    const model = settings.model || 'deepseek-v4-flash';
+    const model = resolveModel(settings);
+    const endpoint = resolveEndpoint(settings);
+
+    if (!endpoint) {
+      return { success: false, error: 'No API endpoint configured. Please check your provider settings.' };
+    }
+
+    if (!model) {
+      return { success: false, error: 'No model configured. Please check your provider settings.' };
+    }
 
     // Sample up to 50 entries (prioritize diverse groups)
     const sampled = _sampleCacheEntries(entries, 50);
@@ -1024,7 +1044,7 @@ async function suggestRulesFromCache() {
 
     console.log('TabTamer: suggesting rules from cache — sending LLM request');
 
-    const response = await retryWithBackoff(() => fetch(API_ENDPOINT, {
+    const response = await retryWithBackoff(() => fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -1466,7 +1486,18 @@ async function mergeSimilarGroups() {
       return;
     }
 
-    const model = settings.model || 'deepseek-v4-flash';
+    const model = resolveModel(settings);
+    const endpoint = resolveEndpoint(settings);
+
+    if (!endpoint) {
+      console.log('TabTamer: group merge — no API endpoint configured, skipping');
+      return;
+    }
+
+    if (!model) {
+      console.log('TabTamer: group merge — no model configured, skipping');
+      return;
+    }
 
     // T8.2: Filter to TabTamer-managed groups only
     if (!_managedGroupIds) {
@@ -1502,7 +1533,7 @@ async function mergeSimilarGroups() {
     const { systemPrompt, userMessage } = _buildMergePrompt(mergeableGroups, tabCountByGroup);
 
     // T5.5: Use unified retry-with-backoff instead of inline duplicate; use MAX_RETRIES constant
-    const response = await retryWithBackoff(() => fetch(API_ENDPOINT, {
+    const response = await retryWithBackoff(() => fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,

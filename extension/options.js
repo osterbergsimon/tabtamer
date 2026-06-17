@@ -7,7 +7,13 @@
 
 const form = document.getElementById('settings-form');
 const apiKeyInput = document.getElementById('api-key');
-const modelSelect = document.getElementById('model');
+const providerPresetSelect = document.getElementById('provider-preset');
+const customEndpointInput = document.getElementById('custom-endpoint');
+const endpointField = document.getElementById('endpoint-field');
+const modelInput = document.getElementById('model');
+const modelHint = document.getElementById('model-hint');
+const costPerMillionInput = document.getElementById('cost-per-million');
+const fetchPricingBtn = document.getElementById('fetch-pricing-btn');
 const themeSelect = document.getElementById('theme');
 const enabledCheckbox = document.getElementById('enabled');
 const saveBtn = document.getElementById('save-btn');
@@ -227,14 +233,51 @@ async function loadSettings() {
     const settings = result[SETTINGS_KEY] || {};
 
     apiKeyInput.value = settings.apiKey || '';
-    modelSelect.value = settings.model || 'deepseek-v4-flash';
+    providerPresetSelect.value = settings.providerPreset || DEFAULT_PROVIDER;
+    customEndpointInput.value = settings.customEndpoint || '';
+    modelInput.value = settings.model || '';
+    costPerMillionInput.value = settings.costPerMillionTokens != null ? String(settings.costPerMillionTokens) : '1.00';
     themeSelect.value = settings.theme || 'system';
     enabledCheckbox.checked = settings.enabled !== false; // default enabled
     hibernateAfterSelect.value = settings.hibernateAfterMinutes != null ? String(settings.hibernateAfterMinutes) : '30';
     applyTheme(themeSelect.value);
+    
+    // Show/hide endpoint field and update model hint based on preset
+    onProviderPresetChange();
   } catch (err) {
     console.error('TabTamer: failed to load settings', err);
     showToast('Failed to load settings', 'error');
+  }
+}
+
+// Handle provider preset change: show/hide endpoint field, update model hint
+function onProviderPresetChange() {
+  const preset = providerPresetSelect.value;
+  
+  // Show endpoint field only for 'custom' preset
+  endpointField.style.display = preset === 'custom' ? 'block' : 'none';
+  
+  // Update model hint
+  if (preset === 'custom') {
+    modelHint.textContent = 'Enter your model name for the custom endpoint.';
+  } else {
+    const presetData = PROVIDER_PRESETS[preset];
+    if (presetData) {
+      const defaultModel = modelInput.value || presetData.defaultModel;
+      modelInput.placeholder = presetData.defaultModel;
+      // If model input is empty, suggest the default
+      if (!modelInput.value) {
+        modelInput.placeholder = presetData.defaultModel;
+      }
+      modelHint.textContent = `Default: ${presetData.defaultModel} — ~$${presetData.costPerMillion}/M tokens`;
+      
+      // Auto-fill cost per million if user hasn't set it
+      const currentCost = parseFloat(costPerMillionInput.value);
+      if (isNaN(currentCost) || currentCost === 1.0) {
+        // Only auto-fill if it's still the default value
+        costPerMillionInput.value = String(presetData.costPerMillion);
+      }
+    }
   }
 }
 
@@ -246,6 +289,10 @@ async function saveSettings(e) {
   setButtonLoading(saveBtn, true, 'Saving…');
 
   const apiKey = apiKeyInput.value.trim();
+  const providerPreset = providerPresetSelect.value;
+  const customEndpoint = customEndpointInput.value.trim();
+  const model = modelInput.value.trim();
+  const costPerMillionTokens = parseFloat(costPerMillionInput.value) || 0;
   const theme = themeSelect.value;
   const enabled = enabledCheckbox.checked;
 
@@ -258,9 +305,16 @@ async function saveSettings(e) {
     return;
   }
 
+  // If custom preset, endpoint is required
+  if (providerPreset === 'custom' && !customEndpoint) {
+    setButtonLoading(saveBtn, false);
+    showToast('Custom endpoint URL is required', 'error');
+    return;
+  }
+
   // If auto-grouping is enabled but no API key is set, warn but allow save
   let showedWarning = false;
-  if (enabled && !apiKey) {
+  if (enabled && !apiKey && providerPreset !== 'ollama') {
     showToast('Auto-grouping requires an API key', 'warning');
     showedWarning = true;
     // Continue saving despite the warning
@@ -270,7 +324,10 @@ async function saveSettings(e) {
 
   const settings = {
     apiKey,
-    model: modelSelect.value,
+    providerPreset,
+    customEndpoint,
+    model,
+    costPerMillionTokens,
     theme,
     enabled,
     hibernateAfterMinutes: hibernateAfterSelect.value === 'never' ? 'never' : parseInt(hibernateAfterSelect.value, 10),
@@ -971,11 +1028,31 @@ async function testApiKey() {
     return;
   }
 
-  const model = modelSelect.value;
+  // Build settings object from current form values
+  const settings = {
+    providerPreset: providerPresetSelect.value,
+    customEndpoint: customEndpointInput.value.trim(),
+    model: modelInput.value.trim(),
+  };
+  const endpoint = resolveEndpoint(settings);
+  const model = resolveModel(settings);
+
+  if (!endpoint) {
+    showToast('No API endpoint configured', 'error');
+    setButtonLoading(testApiKeyBtn, false);
+    return;
+  }
+
+  if (!model) {
+    showToast('No model configured', 'error');
+    setButtonLoading(testApiKeyBtn, false);
+    return;
+  }
+
   setButtonLoading(testApiKeyBtn, true, 'Testing…');
 
   try {
-    const response = await fetch(API_ENDPOINT, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -1002,6 +1079,25 @@ async function testApiKey() {
   } finally {
     setButtonLoading(testApiKeyBtn, false);
   }
+}
+
+// T10.5: Handle provider preset change
+function handleProviderPresetChange() {
+  onProviderPresetChange();
+}
+
+// T10.5: Fetch pricing for selected provider
+async function handleFetchPricing() {
+  const preset = providerPresetSelect.value;
+  const presetData = PROVIDER_PRESETS[preset];
+  
+  if (!presetData || preset === 'custom') {
+    showToast('Pricing info not available for this provider', 'warning');
+    return;
+  }
+
+  costPerMillionInput.value = String(presetData.costPerMillion);
+  showToast(`Updated pricing: ~$${presetData.costPerMillion}/M tokens`, 'success');
 }
 
 // ─── Keyboard Shortcuts Display ────────────────────────────────────────────
@@ -1531,7 +1627,7 @@ function loadVersion() {
 
 // ─── Unsaved Changes Warning: mark dirty on form field changes (T9.17) ──
 
-[apiKeyInput, modelSelect, themeSelect, enabledCheckbox, hibernateAfterSelect].forEach(el => {
+[apiKeyInput, providerPresetSelect, customEndpointInput, modelInput, costPerMillionInput, themeSelect, enabledCheckbox, hibernateAfterSelect].forEach(el => {
   const eventType = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
   el.addEventListener(eventType, _markDirty);
 });
@@ -1603,6 +1699,12 @@ cacheFileInput.addEventListener('change', handleCacheFileSelected);
 resetCostsBtn.addEventListener('click', resetCosts);
 testApiKeyBtn.addEventListener('click', testApiKey);
 saveExcludedDomainsBtn.addEventListener('click', saveExcludedDomains);
+
+// T10.5: Multi-provider event listeners
+providerPresetSelect.addEventListener('change', handleProviderPresetChange);
+if (fetchPricingBtn) {
+  fetchPricingBtn.addEventListener('click', handleFetchPricing);
+}
 
 // ─── Rules event listeners (T7.9) ────────────────────────────────────────────
 

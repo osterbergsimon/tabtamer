@@ -75,11 +75,63 @@ const MAX_CONCURRENT = 2;
 const MAX_RETRIES = 5;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// API
+// Provider Presets — Multi-Provider Support (T10.5)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// OpenAI-compatible endpoint used for classification and merge operations
-const API_ENDPOINT = 'https://opencode.ai/zen/go/v1/chat/completions';
+const PROVIDER_PRESETS = {
+  opencode: {
+    label: 'Opencode',
+    endpoint: 'https://opencode.ai/zen/go/v1/chat/completions',
+    defaultModel: 'deepseek-v4-flash',
+    costPerMillion: 1.0
+  },
+  openrouter: {
+    label: 'OpenRouter',
+    endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+    defaultModel: 'openai/gpt-4o-mini',
+    costPerMillion: 0.15
+  },
+  together: {
+    label: 'Together AI',
+    endpoint: 'https://api.together.xyz/v1/chat/completions',
+    defaultModel: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
+    costPerMillion: 0.20
+  },
+  ollama: {
+    label: 'Ollama (Local)',
+    endpoint: 'http://localhost:11434/v1/chat/completions',
+    defaultModel: 'llama3.2',
+    costPerMillion: 0
+  },
+  custom: {
+    label: 'Custom',
+    endpoint: '',
+    defaultModel: '',
+    costPerMillion: 0
+  }
+};
+
+// Default provider preset key
+const DEFAULT_PROVIDER = 'opencode';
+
+// Helper: resolve the full endpoint URL from settings
+// Returns the endpoint string, or the default if settings are missing
+function resolveEndpoint(settings) {
+  const preset = settings.providerPreset || DEFAULT_PROVIDER;
+  if (preset === 'custom') {
+    return settings.customEndpoint || '';
+  }
+  return PROVIDER_PRESETS[preset]?.endpoint || PROVIDER_PRESETS[DEFAULT_PROVIDER].endpoint;
+}
+
+// Helper: resolve the model from settings
+function resolveModel(settings) {
+  const preset = settings.providerPreset || DEFAULT_PROVIDER;
+  if (preset === 'custom') {
+    return settings.model || '';
+  }
+  return settings.model || PROVIDER_PRESETS[preset]?.defaultModel || PROVIDER_PRESETS[DEFAULT_PROVIDER].defaultModel;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Classification Constants

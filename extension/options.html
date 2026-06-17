@@ -533,11 +533,40 @@
         </div>
 
         <div class="field">
-          <label for="model">Model</label>
-          <select id="model" name="model">
-            <option value="deepseek-v4-flash">deepseek-v4-flash</option>
-            <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+          <label for="provider-preset">Provider</label>
+          <select id="provider-preset" name="providerPreset">
+            <option value="opencode">Opencode</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="together">Together AI</option>
+            <option value="ollama">Ollama (Local)</option>
+            <option value="custom">Custom</option>
           </select>
+        </div>
+
+        <div class="field" id="endpoint-field" style="display:none;">
+          <label for="custom-endpoint">Custom API Endpoint</label>
+          <input type="text" id="custom-endpoint" name="customEndpoint"
+                 placeholder="https://your-api.com/v1/chat/completions"
+                 autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="field">
+          <label for="model">Model</label>
+          <input type="text" id="model" name="model"
+                 placeholder="deepseek-v4-flash"
+                 autocomplete="off" spellcheck="false"
+                 style="width: 100%; padding: 10px 12px; font-size: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none;">
+          <p id="model-hint" style="font-size: 11px; color: var(--text-muted); margin-top: 4px;"></p>
+        </div>
+
+        <div class="field">
+          <label for="cost-per-million">$/M tokens <span class="optional">(for cost estimates)</span></label>
+          <div class="input-row">
+            <input type="number" id="cost-per-million" name="costPerMillionTokens"
+                   min="0" step="0.01" value="1.00"
+                   style="width: 120px;">
+            <button type="button" class="btn btn-test" id="fetch-pricing-btn" style="font-size: 12px; padding: 10px 14px;">Fetch Pricing</button>
+          </div>
         </div>
 
         <div class="field">
