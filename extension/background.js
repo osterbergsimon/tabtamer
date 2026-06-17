@@ -1260,6 +1260,20 @@ browser.alarms.onAlarm.addListener((alarm) => {
 
 async function updateCosts(estimated, actual) {
   try {
+    // Read user's configurable cost-per-million-tokens rate from settings
+    let costPerMillion = 1.0; // default $1/M tokens
+    try {
+      const settingsResult = await browser.storage.local.get(SETTINGS_KEY);
+      const settings = settingsResult[SETTINGS_KEY] || {};
+      if (settings.costPerMillionTokens != null) {
+        costPerMillion = parseFloat(settings.costPerMillionTokens) || 0;
+      }
+    } catch (settingsErr) {
+      console.warn('TabTamer: could not read pricing settings, using default $1/M', settingsErr);
+    }
+
+    const costPerToken = costPerMillion / 1000000;
+
     const result = await browser.storage.local.get(COSTS_KEY);
     const costs = result[COSTS_KEY] || { calls: 0, estimatedTokens: 0, liveTokens: 0, totalCost: 0 };
     costs.calls += 1;
@@ -1269,7 +1283,7 @@ async function updateCosts(estimated, actual) {
     }
     // Use live tokens for cost if available, otherwise estimated
     const tokensForCost = actual != null ? actual : estimated;
-    costs.totalCost = (costs.totalCost || 0) + tokensForCost * COST_PER_TOKEN;
+    costs.totalCost = (costs.totalCost || 0) + tokensForCost * costPerToken;
     // Round to 6 decimal places to avoid floating-point artifacts
     costs.totalCost = Math.round(costs.totalCost * 1e6) / 1e6;
     await browser.storage.local.set({ [COSTS_KEY]: costs });

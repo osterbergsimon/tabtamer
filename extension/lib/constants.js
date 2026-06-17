@@ -44,10 +44,6 @@ const TOAST_IMPORT_MS = 5000;
 // T6.8: Classification uses a short prompt + 5-word response (~150 tokens)
 // Merge uses a longer prompt with group list + JSON response (~500 tokens)
 
-// Estimated cost per token in USD (used for popup cost display)
-// Based on typical LLM API pricing (~$1 per 1M tokens)
-const COST_PER_TOKEN = 0.000001;
-
 // Helper: estimate token count from text length (~4 chars per token)
 function estimateTokens(text) {
   return Math.ceil(text.length / 4);
