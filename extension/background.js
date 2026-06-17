@@ -752,18 +752,6 @@ async function assignToGroup(tabId, groupName) {
       console.log(`TabTamer: created new group "${groupName}" (id: ${groupId}, color: ${groupColor})`);
     }
 
-    // T5.6: Ensure existing groups without a color get one assigned
-    try {
-      const currentGroup = await browser.tabGroups.get(groupId);
-      if (!currentGroup.color) {
-        const assignedColor = await getGroupColor(groupName);
-        await browser.tabGroups.update(groupId, { color: assignedColor });
-        console.log(`TabTamer: assigned color "${assignedColor}" to existing group "${groupName}"`);
-      }
-    } catch (grpErr) {
-      console.warn(`TabTamer: could not update color for group "${groupName}"`, grpErr.message);
-    }
-
     // T4.2: Track this group as TabTamer-managed
     await markGroupManaged(groupId);
 
