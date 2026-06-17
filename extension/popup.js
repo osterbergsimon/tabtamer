@@ -102,8 +102,15 @@ function renderState(state) {
     // Format cost with up to 4 decimal places, trim trailing zeros
     const formattedCost = state.totalCost.toFixed(4).replace(/\.?0+$/, '');
     document.getElementById('cost-value').textContent = `$${formattedCost} (${state.totalCalls} call${state.totalCalls !== 1 ? 's' : ''})`;
+
+    // Show token counts (estimated + live)
+    document.getElementById('tokens-row').style.display = 'flex';
+    const est = state.totalEstimatedTokens || 0;
+    const live = state.totalLiveTokens || 0;
+    document.getElementById('tokens-value').textContent = live > 0 ? `~${est} est / ${live} live` : `~${est} estimated`;
   } else {
     document.getElementById('cost-row').style.display = 'none';
+    document.getElementById('tokens-row').style.display = 'none';
   }
 
   // Group names with tab counts (T10.13: filter by search term)
