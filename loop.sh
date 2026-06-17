@@ -6,11 +6,15 @@ cd "$(dirname "$0")"
 QUIT_FILE=".loop-quit"
 MAX_PHASES=20
 REVIEW_INTERVAL=5
+LOG_FILE="build.log"
 
 count_tasks() {
   local spec="$1"
   [[ -f "$spec" ]] && grep -c '^- \[ \]' "$spec" 2>/dev/null || echo 0
 }
+
+# strip ANSI escape codes for clean log
+strip_ansi() { sed -r 's/\x1B\[[0-9;]*[a-zA-Z]//g' "$@"; }
 
 run_iteratr() {
   local label="$1" spec="$2" model="${3:-}"
@@ -22,6 +26,7 @@ run_iteratr() {
   [[ ${iters:-0} -lt 3 ]] && iters=3
 
   echo "  [$label] $tasks tasks, $iters iterations max"
+  # Write raw output to terminal + raw log; also write clean log (no ANSI)
   timeout "$((tasks * 120 + 60))" \
     iteratr build \
       --spec "$spec" \
@@ -29,7 +34,8 @@ run_iteratr() {
       --headless \
       --auto-commit \
       --iterations "$iters" \
-      ${model:+--model "$model"} </dev/null 2>&1 | tee -a build.log || true
+      ${model:+--model "$model"} </dev/null 2>&1 \
+      | tee >(strip_ansi >> "${LOG_FILE}.clean") | tee -a "$LOG_FILE" || true
   rm -rf .iteratr
 }
 
@@ -59,7 +65,7 @@ while true; do
     break
   fi
   if [[ -f specs/.review-warning ]]; then
-    echo "WARNING: reviewer flagged issues (specs/.review-warning), pausing."
+    echo "WARNING: reviewer flagged issues:"
     cat specs/.review-warning
     rm -f specs/.review-warning
     break
@@ -69,11 +75,25 @@ while true; do
   phase=$((phase + 1))
   status_line "$phase" "BUILD"
 
-  before=$(git log -1 --format=%H -- . 2>/dev/null || echo "")
+  before_sha=$(git rev-parse HEAD 2>/dev/null || echo "")
 
   run_iteratr "Build" specs/SPEC.md
 
-  after=$(git log -1 --format=%H -- . 2>/dev/null || echo "")
+  after_sha=$(git rev-parse HEAD 2>/dev/null || echo "")
+
+  # ── No-op detection: did the build change any source files? ──
+  changed_files=""
+  if [[ -n "$before_sha" && "$before_sha" != "$after_sha" ]]; then
+    changed_files=$(git diff --name-only "$before_sha" "$after_sha" -- . ':!.iteratr' ':!specs/' ':!build.log*' ':!.loop-quit' 2>/dev/null || echo "")
+  fi
+
+  if [[ -z "$changed_files" ]]; then
+    echo "  Build was a no-op (no source files changed). Running final spec-writer..."
+    run_iteratr "Spec writer" specs/SPEC-write-next.md "opencode-go/deepseek-v4-pro"
+    break
+  fi
+
+  echo "  Changed: $(echo "$changed_files" | tr '\n' ' ' | xargs)"
 
   # ── Archive old spec ──
   archive_name="SPEC-phase$(printf '%02d' "$phase")-$(date +%Y%m%d-%H%M%S).md"
@@ -84,15 +104,8 @@ while true; do
 
   # ── Status summary ──
   ver=$(grep -oP '"version":\s*"\K[^"]+' extension/manifest.json 2>/dev/null || echo "?")
-  commit_count=$(git log --oneline -- . ':!.iteratr' ':!specs/archive' 2>/dev/null | wc -l)
-  echo "  Version: $ver | Commits: $commit_count | Phases: $phase/$MAX_PHASES"
-
-  # ── No-op detection ──
-  if [[ -n "$before" && "$before" == "$after" ]]; then
-    echo "  Build was a no-op (no files changed). Running final spec-writer..."
-    run_iteratr "Spec writer" specs/SPEC-write-next.md "opencode-go/deepseek-v4-pro"
-    break
-  fi
+  commit_count=$(git log --oneline -- . ':!.iteratr' ':!specs/archive' ':!build.log*' 2>/dev/null | wc -l)
+  echo "  Version: $ver | Source commits: $commit_count | Phases: $phase/$MAX_PHASES"
 
   # ── Spec writer ──
   status_line "$phase" "SPEC-WRITER"
@@ -118,4 +131,4 @@ while true; do
 done
 
 echo ""
-echo "Loop finished after $phase phases."
+echo "Loop finished after $phase phases. Log: $LOG_FILE | Clean log: $LOG_FILE.clean"
