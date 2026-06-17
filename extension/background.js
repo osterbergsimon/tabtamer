@@ -452,7 +452,7 @@ async function batchClassifyTabs(tabEntries) {
     if (!apiKey) {
       console.warn('TabTamer: batch classify — API key not set, falling back to individual');
       for (const entry of tabEntries) {
-        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+        await classifyWithContent(entry.tabId, entry.url, entry.title, entry.domain);
       }
       return;
     }
@@ -462,7 +462,7 @@ async function batchClassifyTabs(tabEntries) {
     if (!endpoint || !model) {
       console.warn('TabTamer: batch classify — no endpoint/model, falling back to individual');
       for (const entry of tabEntries) {
-        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+        await classifyWithContent(entry.tabId, entry.url, entry.title, entry.domain);
       }
       return;
     }
@@ -525,7 +525,7 @@ async function batchClassifyTabs(tabEntries) {
     if (!response) {
       console.warn('TabTamer: batch classify — LLM call failed after retries, falling back to individual');
       for (const entry of tabEntries) {
-        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+        await classifyWithContent(entry.tabId, entry.url, entry.title, entry.domain);
       }
       return;
     }
@@ -541,7 +541,7 @@ async function batchClassifyTabs(tabEntries) {
     if (!content) {
       console.warn('TabTamer: batch classify — empty response, falling back to individual');
       for (const entry of tabEntries) {
-        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+        await classifyWithContent(entry.tabId, entry.url, entry.title, entry.domain);
       }
       return;
     }
@@ -552,7 +552,7 @@ async function batchClassifyTabs(tabEntries) {
     } catch (parseErr) {
       console.error('TabTamer: batch classify — invalid JSON parse, falling back to individual', parseErr);
       for (const entry of tabEntries) {
-        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+        await classifyWithContent(entry.tabId, entry.url, entry.title, entry.domain);
       }
       return;
     }
@@ -560,7 +560,7 @@ async function batchClassifyTabs(tabEntries) {
     if (!result || !Array.isArray(result.groups)) {
       console.warn('TabTamer: batch classify — response missing groups array, falling back to individual');
       for (const entry of tabEntries) {
-        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+        await classifyWithContent(entry.tabId, entry.url, entry.title, entry.domain);
       }
       return;
     }
@@ -596,7 +596,7 @@ async function batchClassifyTabs(tabEntries) {
     for (let i = 0; i < tabEntries.length; i++) {
       if (!assigned.has(i)) {
         console.log(`TabTamer: batch classify — tab ${i} (${tabEntries[i].domain}) not assigned, classifying individually`);
-        await classifyAndAssign(tabEntries[i].tabId, tabEntries[i].url, tabEntries[i].title, tabEntries[i].domain);
+        await classifyWithContent(tabEntries[i].tabId, tabEntries[i].url, tabEntries[i].title, tabEntries[i].domain);
       }
     }
 
@@ -605,7 +605,7 @@ async function batchClassifyTabs(tabEntries) {
     console.error('TabTamer: batch classify error, falling back to individual', err);
     for (const entry of tabEntries) {
       try {
-        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+        await classifyWithContent(entry.tabId, entry.url, entry.title, entry.domain);
       } catch (innerErr) {
         console.error(`TabTamer: batch classify fallback error for tab ${entry.tabId}`, innerErr);
       }
@@ -678,7 +678,7 @@ async function startupScan() {
             _pendingClassificationCount++;
             updateBadge(true);
             try {
-              await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+              await classifyWithContent(entry.tabId, entry.url, entry.title, entry.domain);
             } finally {
               _pendingClassificationCount = Math.max(0, _pendingClassificationCount - 1);
               updateBadge(_pendingClassificationCount > 0);
@@ -1093,10 +1093,10 @@ async function handleTab(tabId, url, title) {
       return;
     }
 
-    // TAS-3: Not cached — call LLM API
+    // TAS-3: Not cached — call LLM API with content-aware classification (T12.5)
     console.log(`TabTamer: cache miss — ${domain}, calling LLM`);
     try {
-      await classifyAndAssign(tabId, url, title, domain);
+      await classifyWithContent(tabId, url, title, domain);
     } catch (err) {
       if (err.message && err.message.includes('Invalid tab ID')) {
         console.log(`TabTamer: tab ${tabId} closed before classification`);
@@ -1460,6 +1460,163 @@ async function classifyAndAssign(tabId, url, title, domain) {
   } catch (err) {
     console.error(`TabTamer: classification error for ${domain}`, err);
     // Leave tab ungrouped on error
+  }
+}
+
+// ─── Content-Aware Classification (T12.5) ────────────────────────────────────
+// Enriches the LLM prompt with extracted page content so classification is
+// based on topic/project rather than domain alone.
+
+async function classifyWithContent(tabId, url, title, domain) {
+  try {
+    // Early check: if tab no longer exists, skip API call to avoid wasting costs
+    try {
+      await browser.tabs.get(tabId);
+    } catch (tabErr) {
+      console.log(`TabTamer: tab ${tabId} closed before classification — skipping`);
+      return;
+    }
+
+    // Read settings
+    const settings = await getSettings();
+    const apiKey = settings.apiKey;
+
+    if (!apiKey) {
+      console.warn('TabTamer: API key not set — leaving tab ungrouped');
+      await notifyMissingApiKey();
+      return;
+    }
+
+    // T12.5: Check if content-based classification is enabled (default: true)
+    const contentEnabled = settings.contentClassificationEnabled !== false;
+
+    let contentData = null;
+    if (contentEnabled) {
+      try {
+        // Try to extract page content with 3-second timeout
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Content extraction timed out')), 3000)
+        );
+        contentData = await Promise.race([
+          browser.tabs.sendMessage(tabId, { type: 'extractContent' }),
+          timeoutPromise
+        ]);
+
+        // Validate response — at least one field should have content
+        if (!contentData || typeof contentData !== 'object' ||
+            (!contentData.title && !contentData.h1 && !contentData.text)) {
+          contentData = null;
+        }
+      } catch (extractErr) {
+        console.log(`TabTamer: content extraction failed for tab ${tabId} — falling back to URL-only`, extractErr.message);
+        contentData = null;
+      }
+    }
+
+    // If content extraction failed or is disabled, fall through to URL-only classification
+    if (!contentData) {
+      return classifyAndAssign(tabId, url, title, domain);
+    }
+
+    // Content was successfully extracted — use enriched prompt
+    const model = resolveModel(settings);
+    const endpoint = resolveEndpoint(settings);
+
+    if (!endpoint) {
+      console.warn('TabTamer: no API endpoint configured — leaving tab ungrouped');
+      return;
+    }
+    if (!model) {
+      console.warn('TabTamer: no model configured — leaving tab ungrouped');
+      return;
+    }
+
+    // System prompt: bias toward TOPIC/PROJECT names when content is available
+    const allGroups = await browser.tabGroups.query({});
+    const allTabs = await browser.tabs.query({});
+    const tabCountByGroupId = {};
+    for (const tab of allTabs) {
+      if (tab.groupId > 0) {
+        tabCountByGroupId[tab.groupId] = (tabCountByGroupId[tab.groupId] || 0) + 1;
+      }
+    }
+    const groupsWithTitles = allGroups.filter(g => g.title);
+    groupsWithTitles.sort((a, b) => (tabCountByGroupId[b.id] || 0) - (tabCountByGroupId[a.id] || 0));
+
+    let promptGroupList = '';
+    if (groupsWithTitles.length > 0) {
+      const topGroups = groupsWithTitles.slice(0, MAX_GROUP_NAMES_IN_PROMPT);
+      promptGroupList = topGroups.map(g => g.title).join(', ');
+      if (groupsWithTitles.length > MAX_GROUP_NAMES_IN_PROMPT) {
+        const remaining = groupsWithTitles.length - MAX_GROUP_NAMES_IN_PROMPT;
+        promptGroupList += `, ...and ${remaining} more`;
+      }
+    }
+
+    const systemPrompt = (promptGroupList
+      ? `Classify the following tab into a short group name (1-3 words, Title Case). Prefer reusing an existing group if applicable. Existing groups: [${promptGroupList}]. `
+      : 'Classify the following tab into a short group name (1-3 words, Title Case). '
+    ) + 'If page content is provided, classify by TOPIC or PROJECT, not by domain. Different domains about the same project should get the same group name. Only create a new name if none fit. Return ONLY the group name.';
+
+    const userMessage = `URL: ${url}\nTitle: ${title || '(no title)'}\nPage heading: ${contentData.h1 || ''}\nPage content: ${contentData.text || ''}`;
+
+    console.log(`TabTamer: calling LLM for ${domain} with page content (model: ${model}, endpoint: ${endpoint})`);
+
+    const response = await retryWithBackoff(() => fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        max_tokens: CLASSIFY_MAX_TOKENS,
+        temperature: 0
+      })
+    }), { label: `content-classification for ${domain}` });
+
+    if (!response) {
+      await notifyClassifyFailure(domain);
+      return;
+    }
+
+    const data = await response.json();
+    const usageActual = data.usage?.total_tokens;
+    const groupName = data.choices?.[0]?.message?.content?.trim();
+
+    const estimatedTokens = Math.ceil((systemPrompt.length + userMessage.length) / 4);
+
+    if (!groupName) {
+      console.warn(`TabTamer: empty LLM response for ${domain} (with content)`);
+      await updateCosts(estimatedTokens, usageActual);
+      return;
+    }
+
+    const normalizedName = normalizeGroupName(groupName);
+    console.log(`TabTamer: classified ${domain} → "${normalizedName}" (with content)`);
+
+    await updateCosts(estimatedTokens, usageActual);
+    await setCachedGroup(domain, normalizedName);
+    await assignToGroup(tabId, normalizedName);
+
+    // T10.8: Suggest saving this domain→group mapping as a permanent rule
+    _showRuleSuggestion(domain, normalizedName).catch(err =>
+      console.warn('TabTamer: _showRuleSuggestion failed', err)
+    );
+
+    // T7.10: Track this classification for the popup
+    _addRecentClassification({
+      domain,
+      group: normalizedName,
+      source: 'llm',
+      timestamp: Date.now()
+    });
+  } catch (err) {
+    console.error(`TabTamer: content classification error for ${domain}`, err);
   }
 }
 
