@@ -1119,17 +1119,7 @@ async function isDomainExcluded(domain) {
 // ─── Cache ───────────────────────────────────────────────────────────────────
 // TAS-2: Read/write domain→group mappings in browser.storage.local
 
-// T10.15: Helper: extract group name from a cache entry (handles both old string format and new object format)
-function _getCacheGroup(entry) {
-  if (!entry) return null;
-  return typeof entry === 'string' ? entry : (entry.group || null);
-}
-
-// T10.15: Helper: get timestamp from a cache entry (new format only, returns null for old format)
-function _getCacheTimestamp(entry) {
-  if (!entry || typeof entry === 'string') return null;
-  return entry.timestamp || null;
-}
+// T10.15: Cache helpers moved to lib/utils.js — _getCacheGroupName, _getCacheTimestamp
 
 // T10.15: Helper: create a cache entry value with timestamp
 function _makeCacheEntry(groupName) {
@@ -1162,7 +1152,7 @@ async function getCachedGroup(domain) {
     const result = await browser.storage.local.get(CACHE_KEY);
     const cache = result[CACHE_KEY] || {};
     const entry = cache[domain];
-    return entry ? _getCacheGroup(entry) : null;
+    return entry ? _getCacheGroupName(entry) : null;
   } catch (err) {
     console.error('TabTamer: cache read error', err);
     return null;
@@ -1462,7 +1452,7 @@ async function suggestRulesFromCache() {
     const result = await browser.storage.local.get(CACHE_KEY);
     const cache = result[CACHE_KEY] || {};
     // T10.15: Normalize entries (support both old string and new object format)
-    const entries = Object.entries(cache).map(([domain, value]) => [domain, _getCacheGroup(value)]);
+    const entries = Object.entries(cache).map(([domain, value]) => [domain, _getCacheGroupName(value)]);
 
     if (entries.length === 0) {
       return { success: false, error: 'Cache is empty — no domains to analyze.' };
@@ -2237,7 +2227,7 @@ async function updateCacheForRename(oldName, newName) {
     let updatedCount = 0;
     for (const [domain, value] of Object.entries(cache)) {
       // T10.15: Normalize entry to get group name (handles both old string and new object format)
-      const groupName = _getCacheGroup(value);
+      const groupName = _getCacheGroupName(value);
       if (groupName === oldName) {
         // Preserve timestamp if present, otherwise create new entry with timestamp
         const entryTs = _getCacheTimestamp(value);

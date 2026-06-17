@@ -403,18 +403,6 @@ async function loadCacheStats() {
   }
 }
 
-// T10.15: Extract group name from a cache entry (handles both old string format and new object format)
-function _getCacheGroupName(entry) {
-  if (!entry) return null;
-  return typeof entry === 'string' ? entry : (entry.group || null);
-}
-
-// T10.15: Extract timestamp from a cache entry (returns null for old string format)
-function _getCacheTimestamp(entry) {
-  if (!entry || typeof entry === 'string') return null;
-  return entry.timestamp || null;
-}
-
 // T10.15: Format a timestamp for display
 function _formatTimestamp(ts) {
   if (!ts) return 'Unknown';

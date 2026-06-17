@@ -106,3 +106,17 @@ function normalizeGroupName(name) {
     })
     .join(' ');
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Cache Helpers — T10.15: Handle both old string format and new object format
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function _getCacheGroupName(entry) {
+  if (!entry) return null;
+  return typeof entry === 'string' ? entry : (entry.group || null);
+}
+
+function _getCacheTimestamp(entry) {
+  if (!entry || typeof entry === 'string') return null;
+  return entry.timestamp || null;
+}
