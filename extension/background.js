@@ -347,9 +347,14 @@ async function getUngroupedTabs() {
 // T11.9: Pre-LLM classification check — runs rules and cache matching only.
 // Returns { matched: true } if the tab was assigned via rule or cache.
 // Returns { matched: false, domain } if LLM classification is needed.
-async function _classifyTabPreLLM(tabId, url, title) {
+async function _classifyTabPreLLM(tabId, url, title, isEnabledParam = undefined) {
   // Check if extension is enabled
-  if (!(await isEnabled())) return { matched: true };
+  // isEnabledParam is provided by startupScan() to avoid redundant storage reads;
+  // standalone callers omit it so isEnabled() is called internally.
+  if (isEnabledParam === undefined) {
+    isEnabledParam = await isEnabled();
+  }
+  if (!isEnabledParam) return { matched: true };
 
   // Skip tabs in manually-managed groups
   try {
@@ -631,13 +636,16 @@ async function startupScan() {
     const settings = await getSettings();
     const batchEnabled = settings.batchClusteringEnabled !== false;
 
+    // T12.2: Cache isEnabled() result — read once for the entire startup scan
+    const enabled = await isEnabled();
+
     // Phase 1: Process all tabs through rules and cache (no LLM)
     // Collect tabs that need LLM classification for batch processing
     const tabsNeedingLLM = [];
 
     const preLLMPromises = ungroupedTabs.map(tab =>
       runWithConcurrencyLimit(async () => {
-        const result = await _classifyTabPreLLM(tab.id, tab.url, tab.title);
+        const result = await _classifyTabPreLLM(tab.id, tab.url, tab.title, enabled);
         if (!result.matched && result.domain) {
           tabsNeedingLLM.push({ tabId: tab.id, url: tab.url, title: tab.title, domain: result.domain });
         }
