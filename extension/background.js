@@ -1334,7 +1334,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 browser.runtime.onStartup.addListener(async () => {
   console.log('TabTamer: browser started — running startup scan');
   // T3.5: Clear the "notified no API key" flag so users get one fresh reminder per session
-  browser.storage.local.remove('tabtamerNotifiedNoApiKey');
+  await browser.storage.local.remove('tabtamerNotifiedNoApiKey');
   // T4.2: Load managed group IDs from storage BEFORE startup scan
   await loadManagedGroups();
   // T8.11: Load custom group colors
