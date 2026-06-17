@@ -1,32 +1,71 @@
 // TabTamer — content script
 // T3.4 / T6.2: Notify background of SPA navigations (pushState/replaceState/popstate/hashchange)
+// T7.5: Guard against double-patching; only restore our wrapper; retry connect with backoff
 
-const origPush = history.pushState;
-const origReplace = history.replaceState;
+// Guard: prevent double-patching if script is re-injected
+if (window.__tabtamerPatched) {
+  // Already patched by a previous execution of this script — do nothing
+} else {
+  window.__tabtamerPatched = true;
 
-// T5.3: Restore original history methods if extension is reloaded/disabled
-// Establish a port to detect when the extension context is invalidated
-const _port = browser.runtime.connect({name: "tabtamer-content"});
-_port.onDisconnect.addListener(() => {
-  history.pushState = origPush;
-  history.replaceState = origReplace;
-});
+  const origPush = history.pushState;
+  const origReplace = history.replaceState;
 
-history.pushState = function (...args) {
-  origPush.apply(this, args);
-  browser.runtime.sendMessage({ type: 'spaNavigate', url: location.href }).catch(() => {});
-};
+  // Named wrapper functions so we can identity-check before restoring (T7.5)
+  function tabtamerPushState(...args) {
+    origPush.apply(this, args);
+    browser.runtime.sendMessage({ type: 'spaNavigate', url: location.href }).catch(() => {});
+  }
 
-history.replaceState = function (...args) {
-  origReplace.apply(this, args);
-  browser.runtime.sendMessage({ type: 'spaNavigate', url: location.href }).catch(() => {});
-};
+  function tabtamerReplaceState(...args) {
+    origReplace.apply(this, args);
+    browser.runtime.sendMessage({ type: 'spaNavigate', url: location.href }).catch(() => {});
+  }
 
-window.addEventListener('popstate', () => {
-  browser.runtime.sendMessage({ type: 'spaNavigate', url: location.href }).catch(() => {});
-});
+  // Connect to background with exponential backoff retry
+  // Apply patches only after a successful connection (or after all retries exhausted)
+  (function connectWithRetry(retriesLeft) {
+    let port;
+    try {
+      port = browser.runtime.connect({ name: 'tabtamer-content' });
+    } catch (err) {
+      if (retriesLeft > 0) {
+        // Exponential backoff: ~500ms, 1s, 2s
+        const delay = 500 * Math.pow(2, 3 - retriesLeft);
+        setTimeout(() => connectWithRetry(retriesLeft - 1), delay);
+      } else {
+        console.warn(
+          'TabTamer: content script — could not connect to background after retries,',
+          'patching without restore-on-disconnect. ERR:', err
+        );
+        // Apply patches anyway so SPA notifications still work
+        history.pushState = tabtamerPushState;
+        history.replaceState = tabtamerReplaceState;
+      }
+      return;
+    }
 
-// T6.2: Catch hash-based SPA routers (e.g., example.com/#/page)
-window.addEventListener('hashchange', () => {
-  browser.runtime.sendMessage({ type: 'spaNavigate', url: location.href }).catch(() => {});
-});
+    // T5.3 + T7.5: On disconnect, only restore if our wrapper is still in place
+    port.onDisconnect.addListener(() => {
+      if (history.pushState === tabtamerPushState) {
+        history.pushState = origPush;
+      }
+      if (history.replaceState === tabtamerReplaceState) {
+        history.replaceState = origReplace;
+      }
+    });
+
+    // Apply patches now that we have a connection with cleanup
+    history.pushState = tabtamerPushState;
+    history.replaceState = tabtamerReplaceState;
+  })(3); // 3 retries
+
+  window.addEventListener('popstate', () => {
+    browser.runtime.sendMessage({ type: 'spaNavigate', url: location.href }).catch(() => {});
+  });
+
+  // T6.2: Catch hash-based SPA routers (e.g., example.com/#/page)
+  window.addEventListener('hashchange', () => {
+    browser.runtime.sendMessage({ type: 'spaNavigate', url: location.href }).catch(() => {});
+  });
+}
