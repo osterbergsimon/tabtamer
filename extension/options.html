@@ -742,6 +742,12 @@
           <span id="dashboard-cache-count" style="font-size: 12px; color: var(--text-muted); font-weight: 400;"></span>
         </div>
         <input type="text" id="cache-search" placeholder="Search domain or group…" style="width: 100%; padding: 8px 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none; margin-bottom: 12px;">
+        <div class="button-group" style="margin-bottom: 8px;">
+          <button type="button" class="btn btn-test" id="export-cache-btn">Export Cache</button>
+          <button type="button" class="btn btn-test" id="import-cache-btn">Import Cache</button>
+          <button type="button" class="btn btn-primary" id="suggest-rules-btn">Suggest Rules from Cache</button>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin: -4px 0 12px 0;">Let the LLM review your cache and suggest permanent rules.</p>
         <div id="cache-table-container" style="max-height: 300px; overflow-y: auto;">
           <table id="cache-table" style="width: 100%; border-collapse: collapse; font-size: 13px; display: none;">
             <thead>
@@ -773,13 +779,6 @@
 
         <div class="button-group">
           <button type="button" class="btn btn-danger" id="clear-cache-btn">Clear Cache</button>
-        </div>
-        <div class="button-group">
-          <button type="button" class="btn btn-test" id="export-cache-btn">Export Cache</button>
-          <button type="button" class="btn btn-test" id="import-cache-btn">Import Cache</button>
-        </div>
-        <div class="button-group">
-          <button type="button" class="btn btn-primary" id="suggest-rules-btn">Suggest Rules from Cache</button>
         </div>
         <input type="file" id="cache-file-input" accept=".json" style="display:none;">
       </div>
