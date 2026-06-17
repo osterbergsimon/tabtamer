@@ -297,6 +297,52 @@
       font-style: italic;
     }
 
+    /* ─── Source Indicators (T11.12) ────────────────────────────── */
+    .source-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .source-dot.rule {
+      background: #34c759;
+    }
+
+    .source-dot.cache {
+      background: #ff9f0a;
+    }
+
+    .source-dot.llm {
+      background: #0a84ff;
+    }
+
+    .recent-item-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    /* ─── Source Legend (T11.12) ────────────────────────────────── */
+    .source-legend {
+      display: flex;
+      gap: 10px;
+      padding: 6px 0 2px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
+
+    .source-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
     /* ─── Footer ────────────────────────────────────────────────── */
     .footer {
       padding: 8px 14px 12px;
@@ -435,6 +481,11 @@
   <div class="recent-section">
     <div class="recent-title">Recent Classifications</div>
     <div id="recent-list"></div>
+    <div id="source-legend" class="source-legend" style="display:none;">
+      <span class="source-legend-item"><span class="source-dot rule"></span> Rule</span>
+      <span class="source-legend-item"><span class="source-dot cache"></span> Cache</span>
+      <span class="source-legend-item"><span class="source-dot llm"></span> LLM</span>
+    </div>
   </div>
 
   <!-- Footer -->

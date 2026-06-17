@@ -150,21 +150,28 @@ function renderState(state) {
   }
 
   // Recent classifications
+  const sourceLegend = document.getElementById('source-legend');
   if (state.recentClassifications && state.recentClassifications.length > 0) {
     recentList.innerHTML = state.recentClassifications
       .map(item => {
         const domain = item.domain || 'unknown';
         const group = item.group || '?';
+        const source = item.source || 'llm';
         const time = item.timestamp ? formatTime(item.timestamp) : '';
         return `<div class="recent-item">
-          <span class="recent-domain" title="${escapeHtml(domain)}">${escapeHtml(domain)}</span>
+          <div class="recent-item-left">
+            <span class="source-dot ${escapeHtml(source)}"></span>
+            <span class="recent-domain" title="${escapeHtml(domain)}">${escapeHtml(domain)}</span>
+          </div>
           <span class="recent-group">${escapeHtml(group)}</span>
           ${time ? `<span style="font-size: 10px; color: var(--text-muted); margin-left: 4px;">${time}</span>` : ''}
         </div>`;
       })
       .join('');
+    sourceLegend.style.display = 'flex';
   } else {
     recentList.innerHTML = '<span class="recent-empty">No recent classifications</span>';
+    sourceLegend.style.display = 'none';
   }
 }
 

@@ -384,6 +384,7 @@ async function _classifyTabPreLLM(tabId, url, title) {
     _addRecentClassification({
       domain,
       group: ruleGroup,
+      source: 'rule',
       timestamp: Date.now()
     });
     return { matched: true };
@@ -419,6 +420,7 @@ async function _classifyTabPreLLM(tabId, url, title) {
     _addRecentClassification({
       domain,
       group: cachedGroup,
+      source: 'cache',
       timestamp: Date.now()
     });
     return { matched: true };
@@ -572,6 +574,7 @@ async function batchClassifyTabs(tabEntries) {
           _addRecentClassification({
             domain: tabEntries[idx].domain,
             group: normalizedName,
+            source: 'llm',
             timestamp: Date.now()
           });
           // Show rule suggestion for this domain
@@ -1031,6 +1034,7 @@ async function handleTab(tabId, url, title) {
       _addRecentClassification({
         domain,
         group: ruleGroup,
+        source: 'rule',
         timestamp: Date.now()
       });
       return;
@@ -1073,6 +1077,7 @@ async function handleTab(tabId, url, title) {
       _addRecentClassification({
         domain,
         group: cachedGroup,
+        source: 'cache',
         timestamp: Date.now()
       });
       return;
@@ -1439,6 +1444,7 @@ async function classifyAndAssign(tabId, url, title, domain) {
     _addRecentClassification({
       domain,
       group: normalizedName,
+      source: 'llm',
       timestamp: Date.now()
     });
   } catch (err) {
