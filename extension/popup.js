@@ -302,6 +302,16 @@ optionsLink.addEventListener('click', (e) => {
   window.close(); // Close the popup after opening options
 });
 
+// ─── Platform-aware shortcut display ────────────────────────────
+// T11.10: Show correct modifier key (Cmd on Mac, Ctrl elsewhere)
+function updateShortcutHint() {
+  const hint = document.querySelector('.footer-hint');
+  if (!hint) return;
+  const isMac = navigator.platform.includes('Mac') || navigator.userAgent.includes('Mac OS');
+  const modifier = isMac ? 'Cmd' : 'Ctrl';
+  hint.innerHTML = `Press <kbd>${modifier}+Shift+E</kbd> to open popup`;
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -319,6 +329,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.documentElement.removeAttribute('data-theme');
   }
 
+  updateShortcutHint();
   await loadPopupState();
   await updateClassifyBtnText();
 });

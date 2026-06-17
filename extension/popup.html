@@ -301,7 +301,29 @@
     .footer {
       padding: 8px 14px 12px;
       display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .footer-actions {
+      display: flex;
       gap: 8px;
+    }
+
+    .footer-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+
+    .footer-hint kbd {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-family: var(--font);
+      font-size: 10px;
     }
 
     .footer-btn {
@@ -417,9 +439,12 @@
 
   <!-- Footer -->
   <div class="footer">
-    <button class="footer-btn" id="classify-btn">Classify Tab</button>
-    <a href="#" class="footer-btn" id="options-link">Settings</a>
-    <button class="footer-btn" id="refresh-btn">Refresh</button>
+    <div class="footer-actions">
+      <button class="footer-btn" id="classify-btn">Classify Tab</button>
+      <a href="#" class="footer-btn" id="options-link">Settings</a>
+      <button class="footer-btn" id="refresh-btn">Refresh</button>
+    </div>
+    <div class="footer-hint">Press <kbd>Ctrl+Shift+E</kbd> to open popup</div>
   </div>
 
   <div id="loading-state" class="loading-state" style="display:none;">

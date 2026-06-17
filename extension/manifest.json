@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "TabTamer",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Auto-group new tabs using LLM-powered classification",
 
   "content_security_policy": "script-src 'self'; object-src 'self'; connect-src https://opencode.ai/* https://openrouter.ai/* https://api.together.xyz/* http://localhost:11434/*",
@@ -60,6 +60,12 @@
         "default": "Ctrl+Shift+K"
       },
       "description": "Open Smart Tab Search"
+    },
+    "_execute_browser_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+E"
+      },
+      "description": "Open TabTamer popup"
     }
   },
 
