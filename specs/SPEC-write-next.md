@@ -17,50 +17,61 @@ Ask: what would make this extension 10× better? What would a daily user love?
 
 ## Tasks
 
-- [ ] **Task 1: Deep inspection — read everything, list ALL findings**
-  Read every source file: `extension/manifest.json`, `extension/background.js`,
-  `extension/options.html`, `extension/options.js`. Also read `DESIGN.md` and
-  `TESTING.md`. Do NOT read anything in `specs/archive/`.
+- [ ] **Task 1: Source code audit — bugs, quality, security**
+  Read every source file with a critical eye: `extension/manifest.json`,
+  `extension/background.js`, `extension/options.html`, `extension/options.js`.
+  Also read `DESIGN.md` and `TESTING.md`. Do NOT read `specs/archive/`.
 
-  Document every finding, grouped by category. Be exhaustive:
-
-  - **Bugs**: real bugs, edge cases, race conditions, silent failures
-  - **Missing features**: things DESIGN.md mentions but aren't built, open questions
-  - **UX issues**: confusing flows, missing feedback, accessibility
-  - **Code quality**: dead code, magic numbers, too-large functions, duplicate logic
-  - **Security**: exposed keys, missing CSP, over-broad permissions
+  Find problems:
+  - **Bugs**: real logic errors, edge cases, race conditions, silent failures
+  - **Code quality**: dead code, magic numbers, functions too large, duplicate logic
+  - **Security**: exposed keys in logs/code, missing CSP, overly broad permissions
   - **Performance**: wasted API calls, missing debounce, startup flood
-  - **Documentation**: stale docs, incorrect test expectations
 
-  Also — and this is equally important — think about FEATURES:
-  - What would make a power user's life better after daily use?
-  - What would make someone recommend this extension to a colleague?
-  - Examples of the kind of ambition we want: group color/label customization,
-    smart tab search within groups, import/export of domain→group mappings,
-    user-customizable group rules ("always put `github.com/*` in 'Code'"),
-    a toolbar button showing group stats, drag-and-drop group reordering,
-    adaptive group naming (LLM re-classifies group name if content drifts),
-    multi-window support, tab hibernation for idle groups, integration
-    with Firefox containers, a popup showing recent classifications with
-    confidence scores.
-  - Think: what's the NEXT big feature that would make this feel like a
-    v2.0 product, not just incremental polish?
+  Write findings in the iteration summary. Be specific: file, line pattern,
+  what's wrong. Do NOT write the spec yet.
 
-  Mark this task complete in iteration #1. Write an iteration summary listing
-  your concrete findings. Do NOT write the spec yet — that's Task 2.
+- [ ] **Task 2: UX & feature gap analysis**
+  Re-read the same files, now from a user's perspective:
+  - **UX gaps**: confusing flows, missing feedback, accessibility issues,
+    no progress indication, poor error messages
+  - **Missing features**: things DESIGN.md mentions but aren't built,
+    open questions from docs that are still unresolved
+  - **Polish**: rough edges, inconsistent styling, missing dark mode toggle,
+    no keyboard shortcuts, no loading states
 
-- [ ] **Task 2: Write the next SPEC.md from your findings**
-  This runs in iteration #2. Your Task 1 summary contains the findings.
+  Write findings in the iteration summary. Do NOT write the spec yet.
+
+- [ ] **Task 3: Feature ideation — think big**
+  You are not just a bug-finder. You are a product designer. Read the code
+  one more time, then brainstorm real feature ideas:
+  - What would make a power user's daily life better?
+  - What would make someone recommend this extension?
+  - What's the ONE feature that could make this feel like v2.0?
+
+  Concrete examples of the ambition level: group color/label customization,
+  smart tab search within groups, import/export domain→group cache,
+  user-customizable group rules, a toolbar popup with stats/confidence,
+  adaptive group renaming, multi-window support, tab hibernation for idle
+  groups, Firefox Container integration, drag-and-drop group reorder.
+
+  Pick the best 1-3 feature ideas. Write them in the iteration summary.
+  Do NOT write the spec yet.
+
+- [ ] **Task 4: Write the next SPEC.md from all findings**
+  Combine all findings from Tasks 1-3. The iteration summaries contain
+  everything you need.
 
   **If you found real improvements (≥3):**
   Write a fresh `specs/SPEC.md`:
-  - `# TabTamer — Phase N` (increment from current)
+  - `# TabTamer — Phase N` (if no previous phase, start at Phase 1;
+    otherwise increment from the last phase in specs/archive/ or git log)
   - `## Overview` — what this phase achieves, why it matters
   - `## Files to modify` tree
   - `## Tasks` — one checkbox per finding, prioritised:
     1. Bugs (blockers first)
-    2. Missing features / feature gaps
-    3. Big new features (the ambitious ones — at least 1-2 per spec!)
+    2. Missing features / gaps
+    3. Big new features (at least 1-2 per spec!)
     4. UX polish
     5. Documentation
   - `## Design notes`
@@ -74,7 +85,7 @@ Ask: what would make this extension 10× better? What would a daily user love?
       any action.
     ```
 
-  **If Task 1 found nothing worth doing:**
+  **If all tasks found nothing worth doing:**
   Write ONLY:
   ```
   # TabTamer — Complete
@@ -82,4 +93,4 @@ Ask: what would make this extension 10× better? What would a daily user love?
   ```
 
   Do NOT touch source files — only write `specs/SPEC.md`.
-  Mark this task complete, write iteration-summary, call session-complete.
+  After writing: mark complete, write iteration-summary, call session-complete.
