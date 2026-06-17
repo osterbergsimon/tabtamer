@@ -55,6 +55,12 @@ async function retryWithBackoff(fetchFn, options = {}) {
         continue;
       }
 
+      // Auth errors — don't retry, they won't resolve on their own
+      if (response.status === 401 || response.status === 403) {
+        console.error(`TabTamer: ${label} — auth error ${response.status}, not retrying`);
+        return null;
+      }
+
       // Non-429 error — exponential backoff
       if (attempt < maxRetries) {
         console.warn(`TabTamer: ${label} — API error ${response.status}, retrying in ${delay}s (attempt ${attempt})`);
