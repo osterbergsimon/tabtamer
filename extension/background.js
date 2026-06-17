@@ -291,15 +291,13 @@ async function loadManagedGroups() {
     const result = await browser.storage.local.get(MANAGED_GROUPS_KEY);
     _managedGroupIds = new Set(result[MANAGED_GROUPS_KEY] || []);
   } catch (err) {
-    // T7.4: On failure, set to null (unknown state) instead of silently keeping
-    // empty Set (which would cause ALL tabs in groups to be skipped as "manually managed")
+    // T11.7: On failure, use empty Set — operations check size > 0 before using
     console.warn('TabTamer: loadManagedGroups — storage read failed, treating groups as unmanaged', err);
-    _managedGroupIds = null;
+    _managedGroupIds = new Set();
   }
 }
 
 async function markGroupManaged(groupId) {
-  if (!_managedGroupIds) _managedGroupIds = new Set();
   _managedGroupIds.add(groupId);
   try {
     await browser.storage.local.set({
@@ -353,7 +351,7 @@ async function _classifyTabPreLLM(tabId, url, title) {
   // Skip tabs in manually-managed groups
   try {
     const tabInfo = await browser.tabs.get(tabId);
-    if (tabInfo.groupId > 0 && _managedGroupIds !== null && !_managedGroupIds.has(tabInfo.groupId)) {
+    if (tabInfo.groupId > 0 && _managedGroupIds.size > 0 && !_managedGroupIds.has(tabInfo.groupId)) {
       console.log(`TabTamer: tab ${tabId} in manually-managed group — skipping`);
       return { matched: true };
     }
@@ -778,7 +776,7 @@ async function getPopupState() {
     let managedGroupTabCounts = {};
     try {
       const groups = await browser.tabGroups.query({});
-      const managedGroups = groups.filter(g => _managedGroupIds && _managedGroupIds.has(g.id));
+      const managedGroups = groups.filter(g => _managedGroupIds.size > 0 && _managedGroupIds.has(g.id));
       groupNames = managedGroups.map(g => g.title).filter(Boolean);
 
       // T9.13: Count tabs per group for popup display (single query + JS counting)
@@ -888,7 +886,7 @@ function updateBadge(processing) {
       } else {
         // T7.13: Show only TabTamer-managed groups count
         const groups = await browser.tabGroups.query({});
-        const managedCount = groups.filter(g => _managedGroupIds && _managedGroupIds.has(g.id)).length;
+        const managedCount = groups.filter(g => _managedGroupIds.size > 0 && _managedGroupIds.has(g.id)).length;
         // T7.12: Show processing indicator if classifications are in-flight
         // Use the passed flag if provided, otherwise fall back to tracking counter
         const isProcessing = processing !== undefined ? processing : _pendingClassificationCount > 0;
@@ -991,7 +989,7 @@ async function handleTab(tabId, url, title) {
     // T4.2: Skip tabs in manually-managed groups (user-created groups)
     try {
       const tabInfo = await browser.tabs.get(tabId);
-      if (tabInfo.groupId > 0 && _managedGroupIds !== null && !_managedGroupIds.has(tabInfo.groupId)) {
+      if (tabInfo.groupId > 0 && _managedGroupIds.size > 0 && !_managedGroupIds.has(tabInfo.groupId)) {
         console.log(`TabTamer: tab ${tabId} in manually-managed group — skipping`);
         return;
       }
@@ -1893,7 +1891,7 @@ async function hibernateIdleTabs() {
     }
 
     // Filter to managed groups only
-    if (!_managedGroupIds) {
+    if (_managedGroupIds.size === 0) {
       console.log('TabTamer: hibernate — no managed group IDs, skipping');
       return;
     }
@@ -2113,7 +2111,7 @@ async function mergeSimilarGroups() {
     }
 
     // T8.2: Filter to TabTamer-managed groups only
-    if (!_managedGroupIds) {
+    if (_managedGroupIds.size === 0) {
       console.log('TabTamer: group merge — managed group IDs unavailable, skipping');
       return;
     }
@@ -2209,7 +2207,7 @@ async function mergeSimilarGroups() {
 async function assignColorsToGroups() {
   try {
     // T8.2: Filter to managed groups only
-    if (!_managedGroupIds) {
+    if (_managedGroupIds.size === 0) {
       console.log('TabTamer: assignColorsToGroups — no managed group IDs, skipping');
       return;
     }
@@ -2292,9 +2290,7 @@ async function rebuildMoveToGroupMenu() {
 
   try {
     const groups = await browser.tabGroups.query({});
-    const managedGroups = _managedGroupIds
-      ? groups.filter(g => _managedGroupIds.has(g.id))
-      : [];
+    const managedGroups = groups.filter(g => _managedGroupIds.has(g.id));
 
     if (managedGroups.length === 0) {
       // Show a disabled placeholder so users know the feature exists
