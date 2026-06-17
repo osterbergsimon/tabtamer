@@ -1,0 +1,407 @@
+Session 'SPEC-write-next' reset successfully.
+=== Session: SPEC-write-next ===
+Starting at iteration #0
+Max iterations: 4
+Tasks: 0 remaining, 0 completed
+
+Let me understand the task:
+
+1. I need to read the spec above (already provided in the prompt)
+2. Load ALL tasks from the spec into the system using task-add
+3. This is iteration #0, planning phase
+4. Don't start implementing anything
+5. Call iteration-summary when done
+
+The spec has two tasks:
+- Task 1: Deep inspection — read everything, list ALL findings (priority: this seems like a critical/high priority task since it's the foundation)
+- Task 2: Write the next SPEC.md from findings (depends on Task 1)
+
+Let me add both tasks. Task 1 should be done in iteration #1, Task 2 in iteration #2.
+
+Let me set priorities:
+- Task 1: priority 0 (critical) — foundation, must be done first
+- Task 2: priority 0 (critical) — but depends on Task 1
+
+Let me also check if there are existing tasks first.
+[tool: iteratr-tools__task-list] ...
+
+[tool: iteratr-tools__task-list] ...
+[tool: iteratr-tools__task-list] ✓ (output: 8 bytes)
+No tasks exist yet. Let me add both tasks from the spec. I'll also check what's in the archive directory to determine the next phase number.Good, no tasks exist yet. Let me also peek at the archive to determine the phase numbering, then add the tasks.
+[tool: ls] ...
+
+[tool: ls] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1347 bytes)
+[tool: ls] ✓ (output: 63 bytes)
+The archive shows two previous phases: phase01 and phase02. So the next phase should be Phase 3. Manifest version is 1.6.0.
+
+Now let me add the two tasks from the spec.Now I have the full picture. The last archived phase was Phase 2, so the next spec is Phase 3. Let me add both tasks.
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+[tool: iteratr-tools__task-add] ✓ (output: 870 bytes)
+Tasks added. Now I need to call iteration-summary with a count. Let me summarize what was done in this iteration (Iteration #0 - Planning).Tasks loaded. Let me record the iteration summary.
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+[tool: iteratr-tools__iteration-summary] ✓ (output: 33 bytes)
+Done. I've completed the planning iteration. Now I should tell the user what's been set up.## Iteration #0 Complete — Planning
+
+**2 tasks loaded** into the system:
+
+| ID | Priority | Content |
+|----|----------|---------|
+| **TAS-1** | 0 (critical) | Deep inspection — read all source files, document every finding (bugs, missing features, UX, code quality, security, performance, docs) + brainstorm ambitious v2.0 features |
+| **TAS-2** | 0 (critical) | Write `specs/SPEC.md` (Phase 3) from Task 1 findings, or declare project complete if nothing worth doing |
+
+**Context gathered:**
+- Previous phases: `SPEC-phase01` and `SPEC-phase02` already archived
+- Current manifest version: `1.6.0`
+- Next spec will be **Phase 3**
+
+The next iteration (#1) should execute **TAS-1** — deep inspection of all source files. Ready to proceed.
+--- Agent finished: end_turn | Duration: 19.149s | Model: opencode-go/deepseek-v4-pro | Tokens: in=5060 out=1154 cache_read=18304 cache_write=0 ---
+
+✓ Iteration #0 (planning) complete
+
+Let me analyze the current state. I'm in an iteratr session, and I need to execute Task 1: Deep inspection of all source files. Let me start by reading all the relevant files.
+
+The spec says to read:
+- `extension/manifest.json`
+- `extension/background.js`
+- `extension/options.html`
+- `extension/options.js`
+- Also `DESIGN.md` and `TESTING.md`
+- And `extension/content.js` (mentioned in the task description but not in the spec overview)
+
+Let me first mark Task 1 as in_progress, then read all files.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 38 bytes)
+Good, Task 1 is now in_progress. Now let me read all the source files. Let me start with multiple reads in parallel.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1347 bytes)
+[tool: read] ✓ (output: 7485 bytes)
+[tool: read] ✓ (output: 19333 bytes)
+[tool: read] ✓ (output: 10693 bytes)
+[tool: read] ✓ (output: 45938 bytes)
+[tool: read] ✓ (output: 34127 bytes)
+Now let me also check if there's a `content.js` file, and let me look at the project structure more broadly.Now let me check for `content.js` and also look at the project structure:
+[tool: find] ...
+
+[tool: find] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: find] ✓ (output: 8664 bytes)
+[tool: bash] ✓ (output: 419 bytes)
+Now let me read the content.js file and also check for any specs files and other relevant files.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: read] ✓ (output: 1350 bytes)
+[tool: read] ✓ (output: 923 bytes)
+[tool: read] ✓ (output: 1058 bytes)
+[tool: bash] ✓ (output: 259 bytes)
+Let me also check what's in the specs/archive/ to understand the phase numbering, and read the iteratr.yml for workflow context.
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: bash] ✓ (output: 241 bytes)
+[tool: read] ✓ (output: 96 bytes)
+[tool: read] ✓ (output: 373 bytes)
+[tool: read] ✓ (output: 5059 bytes)
+Now I have a comprehensive view of the codebase. Let me also check the git log to understand the phase history for determining the next phase number.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1328 bytes)
+Now I have a complete picture. Let me compile all findings. The archive shows phases 01 and 02. The current version is 1.6.0. The last phase was Phase 2 (from the archive). The next phase should be Phase 3.
+
+Let me now systematically compile all findings, grouped by category.
+
+---
+
+## Bugs
+
+1. **Race condition in `assignToGroup`**: When creating a new group, `assignToGroup` calls `browser.tabGroups.create` which creates a group in the tab's window. But there's a race: between `browser.tabs.get(tabId)` to get windowId and `browser.tabGroups.create`, the tab could be moved to a different window or closed. The try/catch at the end catches Invalid Tab ID, but the inner `browser.tabs.get(tabId)` call inside the `else` block (line 581) is not wrapped in try/catch — if the tab is closed between the outer check and this inner get, it throws uncaught.
+
+2. **No `permissions` for `contextMenus`** — but it uses `browser.contextMenus.create` which should work with the `contextMenus` permission. Wait, let me check: the manifest has `"contextMenus"` in permissions. Yes it does. That's fine.
+
+3. **`COMMAND + storage.local.remove` race**: In `onStartup` (line 1022), `browser.storage.local.remove('tabtamerNotifiedNoApiKey')` is called without `await`, then `loadManagedGroups()` is awaited. But `assignColorsToGroups()` and `startupScan()` are fired without await. If `startupScan` classifies tabs and tries to read settings while the remove hasn't completed yet, no issue since they're independent. But this is a fire-and-forget pattern with no error handling on the `remove`.
+
+4. **Startup scan missing `isExcluded` check in the handleTab pipeline**: Actually `handleTab` does call `isDomainExcluded`. Wait, hold on — let me re-read...
+   - `handleTab` line 380: `if (await isDomainExcluded(domain))` — yes, it does check. OK that's fine.
+
+5. **`cache-stats` element used by ID but accidentally overwritten**: In `options.js` line 165, `cacheStats.textContent = ...` uses the global `cacheStats` variable (from `getElementById`). But `loadCacheDashboard` also accesses `dashboardCacheCount` which is separate. No bug there.
+
+6. **If tab is closed during `classifyAndAssign`, cache is not saved but costs are tracked**: In `classifyAndAssign` lines 628-633, there's an early check if the tab exists. If the tab was closed, it returns early without costs. OK. But what if the tab closes between the LLM response and `assignToGroup`? The cost is tracked at line 696, then `setCachedGroup` at line 697, then `assignToGroup` at line 698. If `assignToGroup` throws (tab closed), the domain IS cached (since setCachedGroup succeeded), but the group may not exist. This could lead to a future cache hit pointing to a non-existent group. Actually, on next visit, `assignToGroup` would create the group or find an existing one — so it's not really a bug, just an inconsistency where a domain is cached but the tab was never actually grouped.
+
+7. **`groupId > 0` check unreliable**: In `handleTab` line 361, it checks `tabInfo.groupId > 0`. According to MDN, `browser.tabs.Tab.groupId` is `-1` if the tab is not in a group, and a positive integer otherwise. But the check `> 0` is correct. However... wait, could `groupId` be undefined? Let's see — the Firefox Tab type says groupId is a number. Should be fine.
+
+8. **Debounce timer race with tab close**: The `onRemoved` listener (line 273) cleans up debounce timers. But what if the debounce timer fires between `clearTimeout` and `delete`? Actually no — `clearTimeout` then `delete` is fine. But there's a subtle issue: the `setTimeout` callback captures `tab.url` and `tab.title` from the closure at the time of `onUpdated`, which might be stale if the tab navigated further and was then closed. The `handleTab` function should handle this because it calls `browser.tabs.get(tabId)` early on. But in `handleTab`, the first operations (before the `browser.tabs.get` check) are `isEnabled()` and then `browser.tabs.get` (line 360). If the tab was closed, it catches the error. OK, so it's handled.
+
+9. **`onUpdated` listener doesn't check `changeInfo.status`**: The listener fires for all URL changes, including intermediate URLs during redirects. But it should probably only fire when `changeInfo.status === 'complete'`. Currently it fires for every URL change (including about:blank → target during load). The debounce helps, but it would be more efficient to wait for 'complete' status. Actually, looking more carefully: the listener fires on `changeInfo.url` which happens when the tab's URL changes (could be before the page loads). The debounce at 500ms helps coalesce. But if the page takes longer than 500ms to complete loading, it might classify a tab before the page has finished loading, potentially using a stale title. This is a minor issue.
+
+10. **`notifyMissingApiKey` notification fire-once per session** — but `onStartup` clears the flag (line 1022). Then during startup scan, if the API key is missing, it will notify again. This is arguably correct behavior (remind once per session), but the notification could fire during startup scan before the user has a chance to set the key.
+
+11. **`options.js` `saveExcludedDomains` validation is weak**: It only checks for spaces. It doesn't validate that the domains are well-formed (e.g., `*.` prefix validity, no URLs). A user could enter `https://example.com/path` which would never match because `isDomainExcluded` does exact/suffix matching.
+
+12. **`mergeSimilarGroups` does not verify group still exists before merging**: After getting the merge map from the LLM, it queries groups. But what if a group was deleted between the query at line 818 and the merge at line 910? The `browser.tabGroups.query({ title: newName })` could fail silently. Actually, the group query would just return empty, and then it falls to the rename branch. This could cause issues.
+
+13. **Import cache overwrite confirmation uses stale count**: In `handleCacheFileSelected`, line 516: the overwrite confirmation dialog reads the cache again asynchronously. But `Object.keys((await browser.storage.local.get(CACHE_KEY))[CACHE_KEY] || {}).length` — this is inside the confirm callback but `confirm()` is synchronous. Wait, actually looking more carefully: the `await` is inside the template string, but template strings evaluate synchronously! This is a real bug — `await` inside a template string doesn't work as expected. Let me re-read...
+
+```js
+const confirmOverwrite = confirm(
+  `Replace the entire cache with ${importedCount} imported entr${importedCount === 1 ? 'y' : 'ies'}?\n` +
+  `This will delete all ${Object.keys((await browser.storage.local.get(CACHE_KEY))[CACHE_KEY] || {}).length} existing entries.`
+);
+```
+
+WAIT — `await` inside a template literal IS valid in an async function. Template literals can contain expressions, and `await` is an expression. So `(await browser.storage.local.get(CACHE_KEY))` evaluates first, then `[CACHE_KEY]` on the result, then `Object.keys(...)`. This would actually work. But it's a second read of storage — the count could be slightly stale but that's minor.
+
+14. **`content.js` port connection may fail silently**: The content script connects with `browser.runtime.connect({name: "tabtamer-content"})` but doesn't handle the case where the extension isn't running yet. The `_port.onDisconnect` listener restores original history methods, but if the connection fails immediately, `pushState` and `replaceState` are already monkey-patched and won't be restored.
+
+15. **`browser.tabs.onUpdated` fires with `changeInfo.url` before the tab has a `title`**: The listener captures `tab.title` from the event, but at that point the title might be empty or the URL string (Firefox shows the URL as the title during loading). The LLM gets `(no title)` as fallback, but this reduces classification quality for the first navigation.
+
+16. **Cost tracking only happens on successful classifications**: In `classifyAndAssign` line 696, `updateCosts(TOKENS_CLASSIFY)` is called only after a successful response. But the API call consumed tokens even if the response was empty or unparseable. Actually, looking at the flow: if the response is ok but the content is empty (line 687-689), it returns without tracking costs. Tokens were consumed. This undercounts costs.
+
+---
+
+## Missing Features (things DESIGN.md mentions but aren't built)
+
+1. **DESIGN.md says "Cache is cleared when the extension updates"** — but there's no update handler that clears the cache. The `onInstalled` handler runs `startupScan` but doesn't clear cache. This is actually fine (design doc is outdated), but the DESIGN.md is misleading.
+
+2. **No "Clear Cache on Update" mechanism** — DESIGN.md mentions it, but it's not implemented (and might not be desired). The DESIGN.md should be updated.
+
+3. **No mechanism to manually assign a domain to a group** from the tab context menu — only "Re-classify with TabTamer" exists. A user can't say "always put this domain in Group X."
+
+4. **No popup** — The browser action just opens the options page. There's no quick popup showing recent classifications, group stats, or confidence scores. This is a big UX gap.
+
+5. **No per-group color customization** — Groups get deterministic colors via djb2 hash, but users can't choose or customize colors.
+
+---
+
+## UX Issues
+
+1. **No visual feedback when a tab is being classified**: The user doesn't know if/when TabTamer is processing. Only the badge shows status (group count or OFF). During classification, there's no loading indicator.
+
+2. **Badge only shows group count**: It doesn't show pending classifications or recent activity. The count of ALL groups is not very useful — the number of TabTamer-managed groups would be more relevant.
+
+3. **Toast auto-dismiss at 3 seconds is too fast** for some messages (e.g., import results with counts).
+
+4. **Cache dashboard edit flow is confusing**: The inline edit uses `confirm()` dialogs which are blocking and ugly. A more modern approach would use inline confirmation or undo capability.
+
+5. **No keyboard shortcut to re-classify current tab** — only right-click context menu.
+
+6. **Options page has no link back to the cache dashboard from settings** — the cache dashboard is always visible but could be collapsible for less scrolling.
+
+7. **No dark mode for the badge** — badge color is hardcoded (`#34c759` green, `#888888` gray). This could look bad on some Firefox themes.
+
+8. **No feedback when all tabs are already grouped after startup scan** — the badge shows count but no "all clear" message.
+
+9. **Excluded domains textarea doesn't show current count** — user doesn't know how many domains are excluded without counting lines.
+
+10. **No undo for cache operations** — deleting a cache entry is permanent with no undo.
+
+---
+
+## Code Quality
+
+1. **`options.js` has repeated storage key constants** (SETTINGS_KEY, CACHE_KEY, COSTS_KEY, EXCLUDED_DOMAINS_KEY) — these are also defined in `background.js`. If a key changes in one file, the other must be updated. Consider a shared constants module.
+
+2. **Magic numbers** — while most are extracted into named constants at the top of `background.js`, there are still some inline: the badge update debounce 500ms (line 323), search debounce 200ms in options.js (line 369), toast auto-dismiss 3000ms (line 79).
+
+3. **`loadManagedGroups` is called without error propagation** — if it fails, `_managedGroupIds` stays empty, and all groups become "manually managed" in the eyes of the code, meaning tabs in ANY group would be skipped. Wait no — the logic is: if a tab is in a group AND the group is NOT managed, skip it. If `_managedGroupIds` is empty, then ALL groups are "not managed," so ALL tabs in groups would be skipped. This is a potential silent failure: if storage read fails, TabTamer stops processing tabs in groups entirely.
+
+4. **`content.js` monkey-patches `history.pushState` and `replaceState` globally** — this is fragile. If another extension also monkey-patches these, there could be conflicts. The port-based restoration is good but doesn't handle the case where the extension is disabled/re-enabled without a page reload.
+
+5. **`background.js` is 1069 lines** — this is a large file. It could benefit from being split into modules (e.g., `cache.js`, `classifier.js`, `group-manager.js`, `utils.js`).
+
+6. **No input validation on API URL** — the endpoint is hardcoded. If the user wanted to use a different API provider, they'd need to modify the source.
+
+7. **`normalizeGroupName` preserves acronyms only if the word contains uppercase letters** — but the LLM is asked to return "Title Case" names. If the LLM returns "api" (all lowercase), it won't be recognized as an acronym and will become "Api". This is inconsistent.
+
+8. **Empty catch blocks** — `isEnabled()` line 527-529 catches all errors and returns `true` (enabled by default). This could mask real issues.
+
+9. **`browser.tabs.query` in `getUngroupedTabs`** uses `groupId: -1` but this is undocumented behavior — MDN says to use `{groupId: -1}` but the Firefox implementation may change. The spec says `groupId` is an optional integer. This works but is fragile.
+
+---
+
+## Security
+
+1. **API key stored in `browser.storage.local` without encryption** — The API key is stored as plaintext. While `browser.storage.local` is scoped to the extension, it's not encrypted at rest. A malicious extension with storage access could theoretically read it (but Firefox isolates extension storage). Still, it's a common concern.
+
+2. **Content script runs on ALL pages** (`"matches": ["*://*/*"]`) and at `document_start`. This means the history monkey-patching runs on every webpage, including sensitive ones (banking, email). While the content script only sends navigation events (no data scraping), it still injects code into every page. A more targeted approach could use optional permissions or a lighter content script.
+
+3. **No Content Security Policy review** — the CSP in manifest is `"script-src 'self'; object-src 'self';"` which is good, but there's no `connect-src` restriction. The extension can make requests to any URL, though permissions restrict it to `https://opencode.ai/*`.
+
+4. **Excluded domains feature uses substring matching** — `domain.endsWith(suffix)` for wildcards. This could have edge cases: `*.evil.com` would also match `not-evil.com`? No, because the pattern is `*.evil.com`, suffix becomes `.evil.com`, and `not-evil.com` doesn't end with `.evil.com`. But `evil.com` would match `*.evil.com`? Let's check: `isDomainExcluded` checks `pattern.startsWith('*.')` then `domain.endsWith(pattern.slice(1))`. `pattern.slice(1)` is `.evil.com`. `evil.com`.endsWith(`.evil.com`) → false. OK, that's fine. But what about `sub.evil.com`? `sub.evil.com`.endsWith(`.evil.com`) → true. Good.
+
+---
+
+## Performance
+
+1. **`startupScan` processes ALL ungrouped tabs concurrently** with `MAX_CONCURRENT=2` limit. But `Promise.all` on a large number of tabs could still create many pending promises. For 100+ ungrouped tabs, the browser could be overwhelmed with 2 concurrent classifications running back-to-back. A batching or time-spacing mechanism would be better.
+
+2. **`mergeSimilarGroups` queries ALL tabs per group**: For each group, it queries `browser.tabs.query({ groupId: g.id })` (line 829). With 20 groups, that's 20 queries. A single `browser.tabs.query({})` and then grouping by `tab.groupId` in JS would be more efficient.
+
+3. **`updateCacheForRename` iterates the entire cache**: For large caches (1000+ domains), this O(n) scan could be slow on the main background thread.
+
+4. **`logCostSummary` runs every 24 hours** (`COST_LOG_INTERVAL_MIN = 1440`) which is correct.
+
+5. **Badge update fires on every group assignment** — `assignToGroup` calls `updateBadge()` (line 608). During startup scan, this could cause dozens of badge updates. The debounce (500ms) coalesces these, but it still reads all groups each time `updateBadge` fires. For large group counts, this is wasteful.
+
+6. **`getUngroupedTabs` filters internal URLs in JS**: The `browser.tabs.query` with `groupId: -1` returns ungrouped tabs, but then the JS filter removes `about:` and `moz-extension:` URLs. This is correct but could miss other internal schemes. Not a big issue.
+
+7. **No caching of `browser.tabGroups.query({})`** — called in `classifyAndAssign` (line 651), `mergeSimilarGroups` (line 818), `assignColorsToGroups` (line 943), `updateBadge` (line 315). Multiple calls within a short window could benefit from a short-lived cache.
+
+---
+
+## Documentation
+
+1. **DESIGN.md says "Cache is cleared when the extension updates"** — this is incorrect. The cache persists across updates.
+
+2. **DESIGN.md cost estimate is outdated**: Says "~200 tokens × ~$0.10/M ≈ $0.00002" but the code uses 150 tokens for classify and 500 for merge. The DESIGN.md should reflect the actual token estimates.
+
+3. **TESTING.md still references Phase 2** — Test 15 mentions "Phase 2 references" that were supposedly cleaned up in commit T6.10. Let me check... Actually the test document looks comprehensive and was recently updated.
+
+4. **README.md has no mention of the excluded domains feature, cost tracking, or cache dashboard** — it's very brief.
+
+5. **No inline API documentation** for the LLM endpoint — a user might want to use a different OpenAI-compatible endpoint but there's no documentation on how to do so.
+
+6. **BUILD.md references `iteratr build --spec`** but the actual command might be different now.
+
+---
+
+## Ambitious v2.0 Features
+
+Now let me think about what would make a v2.0 product:
+
+1. **Custom group rules engine**: Let users define rules like "always put `github.com/*` in 'Code'" with glob/wildcard support. This eliminates LLM calls for known domains and gives users control. Rules could be: domain pattern → group name, with priority ordering.
+
+2. **Smart tab search within groups**: A popup that lets you search across tabs within groups, with fuzzy matching. "Find that PR about authentication..." — searches titles and URLs across all tabs in a group.
+
+3. **Group statistics dashboard**: A toolbar popup showing: number of tabs per group, newly classified tabs, tabs that haven't been visited in N days, estimated cost savings from caching.
+
+4. **Tab hibernation for idle groups**: Automatically unload (discard) tabs in groups that haven't been accessed in N hours/days. Firefox supports `browser.tabs.discard()`. This saves memory for tab hoarders.
+
+5. **Multi-window group awareness**: Currently, groups are created per-window (Firefox native behavior). TabTamer could show cross-window group statistics, merge groups across windows, or warn about duplicate groups.
+
+6. **Integration with Firefox Containers**: Automatically assign tabs to containers based on domain classification. E.g., "Work" group tabs go into the "Work" container.
+
+7. **Group color/label customization UI**: Let users pick colors for groups in the options page, with a preview.
+
+8. **Adaptive group renaming**: If a group's tabs drift in content (e.g., a "GitHub" group starts getting mostly documentation links), the LLM could suggest renaming to "Documentation" or splitting into two groups.
+
+9. **Import/export of full settings** (not just cache): Including excluded domains, API key (encrypted export?), rules.
+
+10. **Confidence scores in classification**: Show how confident the LLM is about a classification. Could be displayed in a popup or tooltip.
+
+11. **"Learning mode"**: The extension watches how the user manually groups tabs and learns their preferences, reducing LLM calls over time.
+
+12. **Batch re-classification**: Right-click on a group → "Re-classify all tabs in this group" to trigger fresh LLM classification for all domains in a group.
+
+13. **Offline/fallback mode**: If the LLM is unreachable, use a local keyword-based classifier (e.g., based on domain keywords and title heuristics) as a fallback.
+
+14. **Group sorting/ordering**: Allow users to reorder groups in the tab bar via drag-and-drop (if Firefox supports it).
+
+15. **TabTamer report**: A weekly/monthly summary of: tabs classified, groups created, cost incurred, top domains, groups merged. Sent as a Firefox notification.
+
+16. **Duplicate tab detection**: Warn or prevent opening duplicate URLs when they already exist in another tab (within the same group).
+
+17. **Keyboard shortcut to jump to a specific group**: `Ctrl+Shift+1` for group 1, etc.
+
+18. **Dark mode for the popup/badge** — already partially done for options page.
+
+19. **Pinned groups**: Mark certain groups as "pinned" so they always appear at the top of the tab bar.
+
+20. **Silent mode scheduler**: Only classify tabs during certain hours (e.g., don't make API calls at night).
+
+---
+
+Now let me think about which are the most impactful and genuine findings for the spec. I need to be exhaustive but also prioritize. The spec asks for categories: Bugs, Missing features, Big new features, UX polish, Documentation.
+
+Let me organize the absolute best and most concrete findings for Task 2. But Task 1 just asks me to document findings. So let me write a comprehensive summary now.
+
+I should also note that I was told NOT to write the spec yet — that's Task 2 in iteration #2.
+
+Let me finalize my findings and write the iteration summary.Now let me also check the archive specs briefly to understand the phase numbering (just look at their filenames, not content):
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 35 bytes)
+So Phase 6 was the last one built (archive shows phase01 and phase02 but the content of phase02 says Phase 6). Wait, that's confusing. Let me check phase01 too.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 35 bytes)
+Both archived specs say "Phase 6". So the last phase was Phase 6. The next would be Phase 7. Good to know.
+
+Now let me compile my thorough findings and mark Task 1 as complete.I now have a thorough understanding of the entire codebase. Let me compile my exhaustive findings and mark Task 1 complete.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 36 bytes)
+Now I need to write the iteration summary with all findings.
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+[tool: iteratr-tools__iteration-summary] ✓ (output: 33 bytes)
+Task 1 is complete. Now I should STOP per the rules — the workflow says "ONE task per iteration - complete fully, then STOP". Let me not pick up Task 2 yet.
+
+The iteration summary is written with all findings. Task 2 will be done in iteration #2.Task 1 is complete. I've exhaustively inspected every source file and documented **40+ findings** across 7 categories:
+
+- **8 bugs** (race conditions, cost undercounting, silent
