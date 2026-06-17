@@ -282,6 +282,8 @@ async function loadSettings() {
     customEndpointInput.value = settings.customEndpoint || '';
     modelInput.value = settings.model || '';
     costPerMillionInput.value = settings.costPerMillionTokens != null ? String(settings.costPerMillionTokens) : '1.00';
+    // Reset user-edited flag on fresh load
+    delete costPerMillionInput.dataset.userEdited;
     themeSelect.value = settings.theme || 'system';
     enabledCheckbox.checked = settings.enabled !== false; // default enabled
     batchClusteringCheckbox.checked = settings.batchClusteringEnabled !== false; // default enabled
@@ -317,10 +319,8 @@ function onProviderPresetChange() {
       }
       modelHint.textContent = `Default: ${presetData.defaultModel} — ~$${presetData.costPerMillion}/M tokens`;
       
-      // Auto-fill cost per million if user hasn't set it
-      const currentCost = parseFloat(costPerMillionInput.value);
-      if (isNaN(currentCost) || currentCost === 1.0) {
-        // Only auto-fill if it's still the default value
+      // Auto-fill cost per million if user hasn't manually edited it
+      if (costPerMillionInput.dataset.userEdited !== 'true') {
         costPerMillionInput.value = String(presetData.costPerMillion);
       }
     }
@@ -1761,6 +1761,11 @@ function loadVersion() {
 [apiKeyInput, providerPresetSelect, customEndpointInput, modelInput, costPerMillionInput, themeSelect, enabledCheckbox, batchClusteringCheckbox, hibernateAfterSelect].forEach(el => {
   const eventType = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
   el.addEventListener(eventType, _markDirty);
+});
+
+// Track manual edits to cost-per-million so preset switch doesn't overwrite user's value
+costPerMillionInput.addEventListener('input', () => {
+  costPerMillionInput.dataset.userEdited = 'true';
 });
 excludedDomainsInput.addEventListener('input', _markDirty);
 rulePatternInput.addEventListener('input', _markDirty);
