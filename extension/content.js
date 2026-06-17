@@ -25,3 +25,8 @@ history.replaceState = function (...args) {
 window.addEventListener('popstate', () => {
   browser.runtime.sendMessage({ type: 'spaNavigate', url: location.href }).catch(() => {});
 });
+
+// T6.2: Catch hash-based SPA routers (e.g., example.com/#/page)
+window.addEventListener('hashchange', () => {
+  browser.runtime.sendMessage({ type: 'spaNavigate', url: location.href }).catch(() => {});
+});
