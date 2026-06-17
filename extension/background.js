@@ -264,6 +264,15 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
+// T6.5: Clean up debounce timers when tabs are closed
+browser.tabs.onRemoved.addListener((tabId) => {
+  if (_debounceTimers.has(tabId)) {
+    clearTimeout(_debounceTimers.get(tabId));
+    _debounceTimers.delete(tabId);
+    console.log(`TabTamer: tab ${tabId} closed — cancelled pending debounce timer`);
+  }
+});
+
 // T3.4: Handle SPA navigations from content script
 browser.runtime.onMessage.addListener((message, sender) => {
   if (message.type === 'spaNavigate' && sender.tab && sender.tab.id && sender.tab.url) {
