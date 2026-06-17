@@ -1,5 +1,5 @@
 // TabTamer — content script
-// T3.4: Notify background of SPA navigations (pushState/replaceState/popstate)
+// T3.4 / T6.2: Notify background of SPA navigations (pushState/replaceState/popstate/hashchange)
 
 const origPush = history.pushState;
 const origReplace = history.replaceState;
