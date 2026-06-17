@@ -18,6 +18,21 @@ const themeSelect = document.getElementById('theme');
 const enabledCheckbox = document.getElementById('enabled');
 const batchClusteringCheckbox = document.getElementById('batch-clustering');
 const saveBtn = document.getElementById('save-btn');
+const resetDefaultsBtn = document.getElementById('reset-defaults-btn');
+
+// ─── Default settings values (T11.14) ────────────────────────────────────────
+
+const DEFAULTS = {
+  apiKey: '',
+  providerPreset: DEFAULT_PROVIDER,
+  customEndpoint: '',
+  model: '',
+  costPerMillionTokens: 1.00,
+  theme: 'system',
+  enabled: true,
+  batchClusteringEnabled: true,
+  hibernateAfterMinutes: '30',
+};
 const testApiKeyBtn = document.getElementById('test-api-key-btn');
 const clearCacheBtn = document.getElementById('clear-cache-btn');
 const exportCacheBtn = document.getElementById('export-cache-btn');
@@ -1800,6 +1815,57 @@ if (suggestModal) {
 }
 
 // ─── Event Listeners ────────────────────────────────────────────────
+
+// ─── Reset to Defaults (T11.14) ────────────────────────────────────────────
+
+async function resetToDefaults() {
+  const confirmed = await showConfirmModal(
+    'Reset all settings to their default values?\n\n' +
+    'This will restore factory defaults for all settings, costs, excluded domains, ' +
+    'rules, cache, and group colors. This action cannot be undone.'
+  );
+  if (!confirmed) return;
+
+  setButtonLoading(resetDefaultsBtn, true, 'Resetting…');
+
+  try {
+    // Reset settings to defaults
+    await browser.storage.local.set({ [SETTINGS_KEY]: { ...DEFAULTS } });
+
+    // Reset costs to zero
+    await browser.storage.local.set({ [COSTS_KEY]: { calls: 0, estimatedTokens: 0, liveTokens: 0 } });
+
+    // Reset excluded domains to empty
+    await browser.storage.local.set({ [EXCLUDED_DOMAINS_KEY]: [] });
+
+    // Reset group colors to empty
+    await browser.storage.local.set({ [GROUP_COLORS_KEY]: {} });
+
+    // Clear recent classifications
+    await browser.storage.local.set({ [RECENT_CLASSIFICATIONS_KEY]: [] });
+
+    // Reset local state
+    _groupColors = {};
+    _markClean();
+
+    // Reload all form sections
+    await loadSettings();
+    await loadCosts();
+    await loadExcludedDomains();
+    await loadRulesTable();
+    await loadCacheDashboard();
+    await loadCacheStats();
+
+    showToast('All settings reset to defaults', 'success');
+  } catch (err) {
+    console.error('TabTamer: failed to reset settings', err);
+    showToast('Failed to reset settings', 'error');
+  } finally {
+    setButtonLoading(resetDefaultsBtn, false);
+  }
+}
+
+resetDefaultsBtn.addEventListener('click', resetToDefaults);
 
 form.addEventListener('submit', saveSettings);
 themeSelect.addEventListener('change', () => applyTheme(themeSelect.value));
