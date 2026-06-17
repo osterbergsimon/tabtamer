@@ -271,10 +271,10 @@ function setupCacheDashboardEvents() {
       const oldGroup = row.dataset.group;
 
       try {
-        const result = await browser.storage.local.get(CACHE_KEY);
-        const cache = result[CACHE_KEY] || {};
-        cache[domain] = newGroup;
-        await browser.storage.local.set({ [CACHE_KEY]: cache });
+        const { conflict } = await updateCacheEntry(domain, newGroup);
+        if (conflict) {
+          console.warn(`TabTamer: resolved conflict for "${domain}" — saved user edit`);
+        }
 
         // Update the row data
         row.dataset.group = newGroup;
@@ -340,10 +340,7 @@ function setupCacheDashboardEvents() {
       if (!confirmed) return;
 
       try {
-        const result = await browser.storage.local.get(CACHE_KEY);
-        const cache = result[CACHE_KEY] || {};
-        delete cache[domain];
-        await browser.storage.local.set({ [CACHE_KEY]: cache });
+        await updateCacheEntry(domain, null);
         showToast(`Removed "${domain}" from cache`, 'success');
       } catch (err) {
         console.error('TabTamer: failed to delete cache entry', err);
@@ -379,6 +376,40 @@ function exitEditMode(row, domain) {
   row.querySelector('.btn-cache-delete').style.display = 'inline-block';
   row.querySelector('.btn-cache-save').style.display = 'none';
   row.querySelector('.btn-cache-cancel').style.display = 'none';
+}
+
+// ─── Atomic Cache Update (T6.4) ─────────────────────────────────────────────
+// Re-read-before-write pattern with conflict detection to minimize the race
+// window between options page edits and background script classifications.
+
+async function updateCacheEntry(domain, newGroup) {
+  // First read
+  const result1 = await browser.storage.local.get(CACHE_KEY);
+  const cache1 = result1[CACHE_KEY] || {};
+  const originalValue = cache1[domain] || null;
+
+  // Immediate re-read before write to detect concurrent modifications
+  const result2 = await browser.storage.local.get(CACHE_KEY);
+  const cache2 = result2[CACHE_KEY] || {};
+  const currentValue = cache2[domain] || null;
+
+  let conflict = false;
+  if (currentValue !== originalValue) {
+    console.warn(
+      `TabTamer: cache conflict for "${domain}" — value changed from "${originalValue}" to "${currentValue}" during edit; merging with user's edit`
+    );
+    conflict = true;
+  }
+
+  // Apply the user's edit to the freshest data
+  if (newGroup === null) {
+    delete cache2[domain];
+  } else {
+    cache2[domain] = newGroup;
+  }
+
+  await browser.storage.local.set({ [CACHE_KEY]: cache2 });
+  return { conflict };
 }
 
 // ─── Export cache ────────────────────────────────────────────────────────────
