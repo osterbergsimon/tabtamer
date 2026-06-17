@@ -17,7 +17,11 @@ const MANAGED_GROUPS_KEY = 'tabtamerManagedGroups';
 
 const DEBOUNCE_MS = 500;
 const CONCURRENCY_POLL_MS = 100;
-const ESTIMATED_TOKENS_PER_CALL = 200;
+// Per-call-type token estimates for accurate cost tracking
+// T6.8: Classification uses a short prompt + 5-word response (~150 tokens)
+// Merge uses a longer prompt with group list + JSON response (~500 tokens)
+const TOKENS_CLASSIFY = 150;
+const TOKENS_MERGE = 500;
 const CLEANUP_INTERVAL_MIN = 15;
 const MERGE_INTERVAL_MIN = 60;
 const COST_LOG_INTERVAL_MIN = 1440;
@@ -654,7 +658,7 @@ async function classifyAndAssign(tabId, url, title, domain) {
     console.log(`TabTamer: classified ${domain} → "${normalizedName}"`);
 
     // Track cost only for successful classifications (not retries)
-    await updateCosts();
+    await updateCosts(TOKENS_CLASSIFY);
     await setCachedGroup(domain, normalizedName);
     await assignToGroup(tabId, normalizedName);
   } catch (err) {
@@ -713,12 +717,12 @@ browser.alarms.onAlarm.addListener((alarm) => {
 // ─── Cost Tracking ──────────────────────────────────────────────────────
 // Phase 2: Track cumulative API calls and estimated token usage
 
-async function updateCosts() {
+async function updateCosts(tokens) {
   try {
     const result = await browser.storage.local.get(COSTS_KEY);
     const costs = result[COSTS_KEY] || { calls: 0, estimatedTokens: 0 };
     costs.calls += 1;
-    costs.estimatedTokens += ESTIMATED_TOKENS_PER_CALL;
+    costs.estimatedTokens += tokens;
     await browser.storage.local.set({ [COSTS_KEY]: costs });
   } catch (err) {
     console.error('TabTamer: cost tracking error', err);
@@ -850,7 +854,7 @@ async function mergeSimilarGroups() {
     }
 
     // Track cost only for successful merges (not retries)
-    await updateCosts();
+    await updateCosts(TOKENS_MERGE);
 
     // Apply merges: move tabs from source groups into target groups
     let mergeCount = 0;
