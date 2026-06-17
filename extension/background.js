@@ -1116,12 +1116,14 @@ async function mergeSimilarGroups() {
       return;
     }
 
-    // Count tabs per group to filter out singletons
-    // T5.4: Use per-group queries instead of fetching all tabs
+    // T9.6: Batch tab-count queries — single query + JS counting instead of N individual queries
+    const allTabs = await browser.tabs.query({});
     const tabCountByGroup = {};
-    for (const g of groups) {
-      const tabsInGroup = await browser.tabs.query({ groupId: g.id });
-      tabCountByGroup[g.id] = tabsInGroup.length;
+    for (const tab of allTabs) {
+      const gid = tab.groupId;
+      if (gid !== undefined && gid !== -1) {
+        tabCountByGroup[gid] = (tabCountByGroup[gid] || 0) + 1;
+      }
     }
 
     // Filter to groups with ≥2 tabs
