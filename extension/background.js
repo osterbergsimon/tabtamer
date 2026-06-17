@@ -775,6 +775,11 @@ browser.runtime.onMessage.addListener((message, sender) => {
     return handleApproveSuggestedRule(message.rule);
   }
 
+  if (message.type === 'startupScan') {
+    // T12.9: Scan Now from popup — fire-and-forget, returns when scan completes
+    return startupScan();
+  }
+
   if (message.type === 'togglePause') {
     return togglePause();
   }

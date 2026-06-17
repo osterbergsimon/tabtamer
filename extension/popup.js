@@ -9,6 +9,7 @@ const groupCount = document.getElementById('group-count');
 const groupNamesContainer = document.getElementById('group-names-container');
 const recentList = document.getElementById('recent-list');
 const classifyBtn = document.getElementById('classify-btn');
+const scanNowBtn = document.getElementById('scan-now-btn');
 const optionsLink = document.getElementById('options-link');
 const refreshBtn = document.getElementById('refresh-btn');
 const processingIndicator = document.getElementById('processing-indicator');
@@ -297,6 +298,30 @@ async function handleClassifyNow() {
 }
 
 classifyBtn.addEventListener('click', handleClassifyNow);
+
+// ─── Scan Now ──────────────────────────────────────────────────────────────
+// T12.9: Scan all ungrouped tabs immediately
+
+async function handleScanNow() {
+  try {
+    scanNowBtn.textContent = 'Scanning…';
+    scanNowBtn.disabled = true;
+    hideError();
+
+    // Fire-and-forget: the startupProgress messages will update the UI
+    await browser.runtime.sendMessage({ type: 'startupScan' });
+
+    // After scan completes, refresh the popup state
+    await loadPopupState();
+  } catch (err) {
+    console.error('TabTamer popup: scan now failed', err);
+    scanNowBtn.textContent = 'Scan Now';
+    scanNowBtn.disabled = false;
+    showError(`Scan failed: ${err.message || 'Unknown error'}`);
+  }
+}
+
+scanNowBtn.addEventListener('click', handleScanNow);
 
 refreshBtn.addEventListener('click', loadPopupState);
 
