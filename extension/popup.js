@@ -93,10 +93,14 @@ function renderState(state) {
     document.getElementById('hibernated-row').style.display = 'none';
   }
 
-  // Group names
+  // Group names with tab counts
   if (state.managedGroupNames && state.managedGroupNames.length > 0) {
     groupNamesContainer.innerHTML = state.managedGroupNames
-      .map(name => `<span class="group-tag">${escapeHtml(name)}</span>`)
+      .map(name => {
+        const count = (state.managedGroupTabCounts && state.managedGroupTabCounts[name]) || 0;
+        const display = count > 0 ? `${escapeHtml(name)} (${count})` : escapeHtml(name);
+        return `<span class="group-tag">${display}</span>`;
+      })
       .join('');
   } else {
     groupNamesContainer.innerHTML = '<span class="group-list-empty">No TabTamer-managed groups yet</span>';

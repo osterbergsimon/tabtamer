@@ -51,7 +51,11 @@ Ask: what would make this extension 10× better? What would a daily user love?
 
 - [ ] **Task 3: Feature ideation — think big**
   You are not just a bug-finder. You are a product designer. Read the code
-  one more time, then brainstorm real feature ideas:
+  one more time, then brainstorm real feature ideas.
+  **Remember the core intent**: a cheap LLM automatically categorizes tabs —
+  that's the differentiator. Rules and caching are optimizations on top of the
+  LLM, not replacements for it. Features should amplify the LLM's intelligence,
+  not bypass it.
   - What would make a power user's daily life better?
   - What would make someone recommend this extension?
   - What's the ONE feature that could make this feel like v2.0?

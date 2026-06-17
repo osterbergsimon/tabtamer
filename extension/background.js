@@ -355,12 +355,25 @@ async function getPopupState() {
 
     // Query only TabTamer-managed groups
     let groupNames = [];
+    let managedGroupTabCounts = {};
     try {
       const groups = await browser.tabGroups.query({});
-      groupNames = groups
-        .filter(g => _managedGroupIds && _managedGroupIds.has(g.id))
-        .map(g => g.title)
-        .filter(Boolean);
+      const managedGroups = groups.filter(g => _managedGroupIds && _managedGroupIds.has(g.id));
+      groupNames = managedGroups.map(g => g.title).filter(Boolean);
+
+      // T9.13: Count tabs per group for popup display (single query + JS counting)
+      const allTabs = await browser.tabs.query({});
+      const tabCountByGroupId = {};
+      for (const tab of allTabs) {
+        if (tab.groupId > 0) {
+          tabCountByGroupId[tab.groupId] = (tabCountByGroupId[tab.groupId] || 0) + 1;
+        }
+      }
+      for (const g of managedGroups) {
+        if (g.title) {
+          managedGroupTabCounts[g.title] = (managedGroupTabCounts[g.title] || 0) + (tabCountByGroupId[g.id] || 0);
+        }
+      }
     } catch (err) {
       console.warn('TabTamer: getPopupState — error querying groups', err.message);
     }
@@ -369,6 +382,7 @@ async function getPopupState() {
       enabled,
       managedGroupCount: groupNames.length,
       managedGroupNames: groupNames,
+      managedGroupTabCounts,
       recentClassifications: _recentClassifications,
       processingCount: _pendingClassificationCount,
       hibernatedCount: _hibernatedCount
@@ -379,6 +393,7 @@ async function getPopupState() {
       enabled: false,
       managedGroupCount: 0,
       managedGroupNames: [],
+      managedGroupTabCounts: {},
       recentClassifications: [],
       processingCount: 0,
       hibernatedCount: 0

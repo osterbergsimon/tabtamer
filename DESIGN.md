@@ -2,12 +2,14 @@
 
 ## Overview
 
-**TabTamer automatically categorizes open tabs into Firefox native tab groups.**
-New tabs are classified by a rules engine (instant, free) or an LLM
-(opencode-go) as a fallback. Domain→group mappings are cached, so the LLM is
-only called once per domain. A toolbar popup gives at-a-glance visibility into
-what's happening, and idle tabs in managed groups are automatically hibernated
-to free memory.
+**TabTamer uses a cheap LLM to automatically categorize open tabs into Firefox
+native tab groups.** Each new tab is sent to the LLM (opencode-go) for
+classification into a short group name (e.g. "NixOS", "GitHub", "Email") —
+this is the core intelligence that makes TabTamer different from pattern-based
+tab groupers. A rules engine and domain→group cache skip the LLM for known
+sites, so you only pay for first visits. A toolbar popup gives at-a-glance
+visibility, and idle tabs in managed groups are automatically hibernated to
+free memory.
 
 ## Architecture
 
@@ -84,9 +86,28 @@ Permissions needed:
 
 ### 3. Rules Engine
 
-User-customizable domain→group rules that skip the LLM entirely for known sites,
-saving API costs and latency. Rules are evaluated before the cache and LLM —
-the first matching enabled rule wins.
+**Optimization layer on top of LLM classification.** The LLM is the core
+intelligence; rules let you lock in its decisions permanently. Execution order:
+
+1. **Rules** (instant, free) — first enabled rule matching domain wins
+2. **Cache** (instant, free) — previously classified domains
+3. **LLM** (API call, ~$0.00002) — classifies unknown domains, populates cache
+
+Over time, cached domains can be promoted to rules — progressively migrating
+from pay-per-call to free rule-based matching.
+
+**LLM-assisted rule creation (future):** When the LLM classifies a domain,
+prompt the user *"Save `github.com → Code` as a rule?"* The LLM could also
+suggest rules proactively — e.g. batch-scanning the cache for patterns and
+proposing rules with confidence scores.
+
+**User override:** Users must always be able to bypass rules:
+- **Right-click → "Classify This Tab"** — forces LLM re-classification even
+  when a rule matches
+- **Manual rule management** — add, edit, disable, delete, or reorder rules
+  on the options page (full CRUD with inline validation)
+- **Per-tab override** — temporarily classify a tab to a different group
+  without changing the rule
 
 **Rule format** (stored in `browser.storage.local`):
 
@@ -106,10 +127,6 @@ wins. Rules run in priority order (drag-to-reorder in the options page).
 
 **Management**: Full CRUD via options page — add/edit/delete/disable/reorder
 rules with inline validation. Import/export rules as JSON.
-
-**Future: LLM-assisted rule creation** — when the LLM classifies a domain,
-prompt the user "Save `github.com → Code` as a rule?" to progressively migrate
-from pay-per-call to free rule-based matching.
 
 ### 4. Caching
 
