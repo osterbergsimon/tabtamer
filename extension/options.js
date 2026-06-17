@@ -61,6 +61,14 @@ const hibernateAfterSelect = document.getElementById('hibernate-after');
 
 // ─── Unsaved Changes Warning (T9.17) ────────────────────────────────
 
+// ─── Cache Undo Stack (T10.11) ──────────────────────────────
+// Stack of { action, domain, groupName } entries for cache edit/delete undo
+// Max 10 entries. Auto-clears after 10 seconds.
+
+let _cacheUndoStack = [];
+const MAX_UNDO_DEPTH = 10;
+const UNDO_TOAST_DURATION_MS = 10000;
+
 let _isDirty = false;
 
 function _markDirty() {
@@ -148,15 +156,35 @@ function getColorCss(colorName) {
 
 // ─── Toast helper ─────────────────────────────────────────────────────────────
 
-function showToast(message, type = 'success', duration) {
+function showToast(message, type = 'success', duration, onClick) {
   toast.textContent = message;
   toast.className = `toast toast-${type} show`;
   toast.setAttribute('role', 'alert');
+
+  // Clear previous click handler
+  toast.onclick = null;
+  toast.style.cursor = onClick ? 'pointer' : '';
+
+  if (onClick) {
+    toast.onclick = function() {
+      onClick();
+      toast.classList.remove('show');
+      toast.onclick = null;
+      toast.style.cursor = '';
+      toast.setAttribute('role', 'presentation');
+      if (window._toastTimer) {
+        clearTimeout(window._toastTimer);
+        window._toastTimer = null;
+      }
+    };
+  }
 
   // Auto-dismiss after configurable duration (default 3000ms, import results 5000ms)
   if (window._toastTimer) clearTimeout(window._toastTimer);
   window._toastTimer = setTimeout(() => {
     toast.classList.remove('show');
+    toast.onclick = null;
+    toast.style.cursor = '';
     toast.setAttribute('role', 'presentation');
   }, duration || TOAST_DURATION_MS);
 }
@@ -624,6 +652,12 @@ function setupCacheDashboardEvents() {
 
       const oldGroup = row.dataset.group;
 
+      // T10.11: Save to undo stack before editing (skip if no change)
+      if (oldGroup !== newGroup) {
+        _cacheUndoStack.push({ action: 'edit', domain, previousGroupName: oldGroup, groupName: newGroup });
+        if (_cacheUndoStack.length > MAX_UNDO_DEPTH) _cacheUndoStack.shift();
+      }
+
       try {
         const { conflict } = await updateCacheEntry(domain, newGroup);
         if (conflict) {
@@ -633,7 +667,11 @@ function setupCacheDashboardEvents() {
         // Update the row data
         row.dataset.group = newGroup;
         row.querySelector('.cache-group-text').textContent = newGroup;
-        showToast(`Updated "${domain}" → "${newGroup}"`, 'success');
+        if (oldGroup !== newGroup) {
+          showToast(`Updated "${domain}" — Undo`, 'warning', UNDO_TOAST_DURATION_MS, () => performCacheUndo());
+        } else {
+          showToast(`No change for "${domain}"`, 'success');
+        }
 
         // If the group name changed, offer to move tabs from old group to new group
         if (oldGroup !== newGroup) {
@@ -701,9 +739,14 @@ function setupCacheDashboardEvents() {
       const confirmed = await showConfirmModal(`Remove "${domain}" from the cache? The next visit will trigger a fresh LLM classification.`);
       if (!confirmed) return;
 
+      // T10.11: Save to undo stack before deleting
+      const deletedGroup = row.dataset.group;
+      _cacheUndoStack.push({ action: 'delete', domain, groupName: deletedGroup });
+      if (_cacheUndoStack.length > MAX_UNDO_DEPTH) _cacheUndoStack.shift();
+
       try {
         await updateCacheEntry(domain, null);
-        showToast(`Removed "${domain}" from cache`, 'success');
+        showToast(`Removed "${domain}" — Undo`, 'warning', UNDO_TOAST_DURATION_MS, () => performCacheUndo());
       } catch (err) {
         console.error('TabTamer: failed to delete cache entry', err);
         showToast('Failed to delete cache entry', 'error');
@@ -798,6 +841,33 @@ function exitEditMode(row, domain) {
   row.querySelector('.btn-cache-delete').style.display = 'inline-block';
   row.querySelector('.btn-cache-save').style.display = 'none';
   row.querySelector('.btn-cache-cancel').style.display = 'none';
+}
+
+// ─── Cache Undo (T10.11) ────────────────────────────────────────────
+
+async function performCacheUndo() {
+  const entry = _cacheUndoStack.pop();
+  if (!entry) {
+    showToast('Nothing to undo', 'warning');
+    return;
+  }
+
+  try {
+    if (entry.action === 'delete') {
+      // Restore the deleted cache entry
+      await updateCacheEntry(entry.domain, entry.groupName);
+      showToast(`Undo: restored "${entry.domain}" → "${entry.groupName}"`, 'success');
+    } else if (entry.action === 'edit') {
+      // Revert to the previous group name
+      await updateCacheEntry(entry.domain, entry.previousGroupName);
+      showToast(`Undo: reverted "${entry.domain}" to "${entry.previousGroupName}"`, 'success');
+    }
+    loadCacheDashboard();
+    loadCacheStats();
+  } catch (err) {
+    console.error('TabTamer: undo failed', err);
+    showToast('Undo failed — the cache may have been modified', 'error');
+  }
 }
 
 // ─── Atomic Cache Update (T6.4) ─────────────────────────────────────────────
