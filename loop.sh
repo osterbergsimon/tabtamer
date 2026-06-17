@@ -7,6 +7,10 @@ QUIT_FILE=".loop-quit"
 MAX_PHASES=20
 REVIEW_INTERVAL=5
 LOG_FILE="build.log"
+INTERRUPTED=0
+
+# Clean exit on Ctrl+C
+trap 'echo; echo "Interrupted after $phase phases."; INTERRUPTED=1' INT
 
 count_tasks() {
   local spec="$1"
@@ -55,6 +59,10 @@ mkdir -p specs/archive
 phase=0
 while true; do
   # ── Quit checks ──
+  if [[ $INTERRUPTED -eq 1 ]]; then
+    echo "Exiting (Ctrl+C)."
+    break
+  fi
   if [[ -f "$QUIT_FILE" ]]; then
     echo "Quit file detected ($QUIT_FILE), exiting."
     rm -f "$QUIT_FILE"
