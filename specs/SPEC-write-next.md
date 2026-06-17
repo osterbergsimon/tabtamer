@@ -56,11 +56,20 @@ Ask: what would make this extension 10× better? What would a daily user love?
   - What would make someone recommend this extension?
   - What's the ONE feature that could make this feel like v2.0?
 
-  Concrete examples of the ambition level: group color/label customization,
-  smart tab search within groups, import/export domain→group cache,
-  user-customizable group rules, a toolbar popup with stats/confidence,
-  adaptive group renaming, multi-window support, tab hibernation for idle
-  groups, Firefox Container integration, drag-and-drop group reorder.
+  Concrete examples of the ambition level:
+  - **LLM-assisted rule creation**: when the LLM classifies a domain, prompt
+    the user "Save `github.com → Code` as a rule?" to progressively migrate
+    from pay-per-call to free rule-based matching. Saves costs and latency.
+  - Adaptive group renaming: rename groups when their content drifts (e.g. a
+    "GitHub" group filling with docs pages becomes "Dev Resources").
+  - Firefox Container integration: auto-assign tabs to containers based on
+    group (e.g. "Work" tabs in a work container, personal in another).
+  - Tab hibernation for non-managed groups: detect and hibernate idle tabs
+    even outside TabTamer groups.
+  - Multi-window support: sync group visibility across windows, move tabs
+    between windows by group.
+  - Drag-and-drop group reorder in the toolbar popup.
+  - Smart tab search with fuzzy group filtering and keyboard-driven actions.
 
   Pick the best 1-3 feature ideas. Write them in the iteration summary.
   Do NOT write the spec yet.

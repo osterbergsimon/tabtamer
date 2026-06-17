@@ -82,7 +82,36 @@ Permissions needed:
 | **Auth** | `Authorization: Bearer <api-key>` |
 | **Cost/tab** | ~200 tokens × ~$0.10/M ≈ $0.00002 (first visit only) |
 
-### 3. Caching
+### 3. Rules Engine
+
+User-customizable domain→group rules that skip the LLM entirely for known sites,
+saving API costs and latency. Rules are evaluated before the cache and LLM —
+the first matching enabled rule wins.
+
+**Rule format** (stored in `browser.storage.local`):
+
+```json
+{
+  "tabtamerRules": [
+    { "pattern": "github.com", "groupName": "Code", "enabled": true },
+    { "pattern": "*.nixos.org", "groupName": "NixOS", "enabled": true },
+    { "pattern": "mail.google.com", "groupName": "Email", "enabled": false }
+  ]
+}
+```
+
+**Matching**: Glob patterns (`*` wildcard, `?` single char) are converted to
+anchored regex. The first enabled rule whose pattern matches the full domain
+wins. Rules run in priority order (drag-to-reorder in the options page).
+
+**Management**: Full CRUD via options page — add/edit/delete/disable/reorder
+rules with inline validation. Import/export rules as JSON.
+
+**Future: LLM-assisted rule creation** — when the LLM classifies a domain,
+prompt the user "Save `github.com → Code` as a rule?" to progressively migrate
+from pay-per-call to free rule-based matching.
+
+### 4. Caching
 
 Stored in `browser.storage.local`:
 
@@ -96,14 +125,34 @@ Stored in `browser.storage.local`:
   "settings": {
     "apiKey": "sk-...",
     "model": "deepseek-v4-flash",
-    "enabled": true
-  }
+    "customEndpoint": "",
+    "enabled": true,
+    "hibernateAfterMinutes": 30,
+    "toastDurationMs": 3000
+  },
+  "tabtamerRules": [
+    { "pattern": "*.github.com", "groupName": "Code", "enabled": true }
+  ],
+  "tabtamerGroupColors": {
+    "GitHub": "blue",
+    "Email": "purple"
+  },
+  "costs": {
+    "totalCalls": 142,
+    "estimatedTokens": 28400,
+    "totalCost": 0.00284
+  },
+  "hibernateOptOut": ["Email"],
+  "recentClassifications": [
+    { "domain": "github.com", "groupName": "Code", "source": "rule", "timestamp": 1718640000000 }
+  ]
 }
 ```
 
-Cache is cleared when the extension updates or manually via options page.
+Cache, rules, and colors are importable/exportable as JSON from the options page.
+Cache is cleared when the extension updates or manually.
 
-### 4. Smart Tab Search (Quick Switcher)
+### 5. Smart Tab Search (Quick Switcher)
 
 A command-palette-style tab switcher (`search.html` + `search.js`) activated via
 `Ctrl+Shift+K` (configurable in `manifest.json` commands).
@@ -120,7 +169,7 @@ A command-palette-style tab switcher (`search.html` + `search.js`) activated via
 - `search.js` queries `browser.tabs.query({})` and `browser.tabGroups.query({})` to build the tab list
 - The search UI selects the tab via `browser.tabs.update()` and closes itself
 
-### 5. Group Color Customization
+### 6. Group Color Customization
 
 Users can override the deterministic djb2 hash color for any TabTamer-managed group
 via the options page cache dashboard.
@@ -135,6 +184,75 @@ via the options page cache dashboard.
 - Custom colors persist across sessions and survive group renames (migrated to new name)
 - The options page cache dashboard shows a color dropdown picker next to each cache entry
 
+### 7. Toolbar Popup
+
+A lightweight popup (`popup.html` + `popup.js`) accessible via the toolbar icon,
+providing at-a-glance visibility and quick actions without opening the full
+options page.
+
+**Features:**
+- **Pause toggle** — turn auto-grouping on/off instantly
+- **Group stats** — count of managed groups with color swatches and names
+- **Recent classifications** — last 10 tabs classified (domain → group, with timestamp)
+- **Classify This Tab** — classify the current active tab on demand
+- **Processing indicator** — shows "Classifying…" spinner during active LLM calls
+- **Error state** — graceful "Could not load" with retry button
+- **Dark mode** — theme-aware styling matching the options page
+- **Refresh button** — reload popup state manually
+
+**Architecture:**
+- Popup requests state from background via `browser.runtime.sendMessage`
+- Background responds with enabled status, group list, recent classifications,
+  processing state, and hibernation count
+- Buttons (toggle, classify, refresh) send messages back to background
+
+### 8. Tab Hibernation
+
+Automatically discards idle tabs in TabTamer-managed groups to free memory.
+Runs on a periodic alarm (default: every 15 minutes).
+
+**Behavior:**
+- Only hibernates tabs in groups created by TabTamer
+- Tab must be idle longer than configurable threshold (default: 30 minutes)
+- Already discarded tabs are skipped
+- Per-group opt-out via options page (checkboxes in cache dashboard)
+- Badge shows 💤 count of hibernated tabs
+- Tab access times tracked on navigation and activation events
+
+**Settings:**
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `hibernateAfterMinutes` | 30 | Idle time before discard (or "never" to disable) |
+| `hibernateOptOut` | `[]` | Group names excluded from hibernation |
+
+### 9. Import / Export
+
+Both the domain→group cache and the rules engine support JSON import/export
+via the options page.
+
+**Cache:**
+- Export downloads `tabtamer-cache.json` with the full cache object
+- Import merges entries into the existing cache (duplicates are overwritten)
+- Imported entries skip the LLM immediately (they're pre-cached)
+- File picker with validation; errors shown via toast
+
+**Rules:**
+- Export downloads `tabtamer-rules.json` with the full rules array
+- Import replaces the entire rules array (not a merge)
+- Validation: each entry must have `pattern` and `groupName` properties
+
+### 10. Content Script (SPA Navigation)
+
+`content.js` runs on every page (`document_start`) to detect single-page app
+navigation events that wouldn't fire `tabs.onUpdated`:
+
+- `pushState` / `replaceState` — monkey-patched to fire `spaNavigate`
+- `popstate` — back/forward navigation
+- `hashchange` — fragment-only navigation
+
+Messages are sent to background.js, which applies debounce (1.5s per tab) to
+avoid re-classifying during rapid redirects (e.g. OAuth flows).
+
 ## Flow
 
 ### New tab classification
@@ -142,12 +260,15 @@ via the options page cache dashboard.
 ```
 1. tabs.onUpdated fires (or spaNavigate message from content script)
 2. Parse URL → extract domain
-3. Check storage.local cache for domain
+3. Check rules engine: first enabled rule matching domain wins
+   ├─ Match → use rule's group name (skip LLM entirely)
+   └─ No match → continue
+4. Check storage.local cache for domain
    ├─ Hit  → use cached group name
    └─ Miss → call LLM API
-4. Look up or create native tab group with that name
-5. tabs.group({ tabId, groupId })
-6. Save domain→group in cache
+5. Look up or create native tab group with that name
+6. tabs.group({ tabId, groupId })
+7. Save domain→group in cache (unless matched by rule with "don't cache")
 ```
 
 ### LLM prompt
@@ -180,8 +301,15 @@ NixOS
 |---------|---------|-------------|
 | API Key | (empty) | `sk-...` from opencode.ai |
 | Model | `deepseek-v4-flash` | cheaper = flash, smarter = pro |
+| Custom Endpoint | (empty) | Override API base URL (e.g. self-hosted) |
 | Enabled | on | Pause auto-grouping temporarily |
+| Hibernate After | 30 min | Idle time before discarding tabs (or "never") |
+| Toast Duration | 3s | How long toast notifications stay visible |
 | Clear cache | — | Reset all domain→group mappings |
+
+**Rules engine** settings are managed inline on the options page (add/edit/delete
+rules with pattern + group name). **Custom group colors** are set per row in the
+cache dashboard dropdown.
 
 ## Integration with dotfiles
 
@@ -207,7 +335,7 @@ Or loaded temporarily via `about:debugging` for development.
 
 ## Resolved questions
 
-All open questions from earlier phases have been addressed in Phases 2 and 3:
+Previously open questions addressed across Phases 2–9:
 
 1. **Group merging** — `mergeSimilarGroups()` runs on a periodic alarm, re-classifying existing tab groups to merge similar ones.
 2. **Existing tabs on startup** — `startupScan()` classifies all non-grouped tabs when the extension loads.
@@ -215,8 +343,24 @@ All open questions from earlier phases have been addressed in Phases 2 and 3:
 4. **Cost tracking** — API call counts and token estimates are persisted to storage and displayed in the options page.
 5. **SPA Navigation Handling** — A content script (`content.js`) detects `pushState`/`popstate`/`hashchange` events and sends `spaNavigate` messages to the background script.
 6. **Debounce on Rapid URL Changes** — A per-tab debounce timer prevents redundant classification during OAuth redirect chains or rapid location changes.
+7. **Custom group rules** — Rules engine (`lib/rules-engine.js`) lets users define domain→group mappings with glob patterns, bypassing the LLM entirely for known sites.
+8. **Toolbar popup** — Quick access popup (`popup.html`) with pause toggle, group stats, recent classifications, and a "Classify This Tab" button.
+9. **Smart Tab Search** — Fuzzy-search quick switcher (`search.html`) via `Ctrl+Shift+K` for jumping between tabs across all windows.
+10. **Group color customization** — Users can override deterministic hash colors per group via the cache dashboard color picker.
+11. **Tab hibernation** — Auto-discards idle tabs in managed groups to free memory, with configurable idle threshold and per-group opt-out.
+12. **Import/export** — JSON export/import for both the domain→group cache and rules engine, enabling backup and migration.
+13. **Extracted shared modules** — `lib/constants.js`, `lib/utils.js`, and `lib/rules-engine.js` eliminate duplication between background and options pages.
+14. **Inline modals** — Blocking `confirm()` dialogs replaced with accessible inline modals on the options page.
 
 ## Open questions
 
-1. **Manifest v3 migration** — Firefox is phasing out manifest v2. Migrating will require replacing `background.html` scripts with service workers (no DOM access, no `window`). **Deferred**: tracked separately, not in scope for Phase 8.
-2. **Group naming conflicts** — When the LLM assigns a tab to a group that doesn't exist, a new group is created. Over time this can produce near-duplicates ("GitHub" vs "Github"). A name normalization step (T4.8) now trims and Title Cases names before group creation, which largely mitigates this. The periodic merge (`mergeSimilarGroups()`) catches any remaining overlaps.
+1. **LLM-assisted rule creation** — When the LLM classifies a domain, the
+   extension could prompt: "Save `github.com → Code` as a rule?" to
+   progressively migrate from pay-per-call to free rule-based matching.
+   Reduces API costs and latency over time.
+2. **Manifest v3 migration** — Firefox is phasing out manifest v2. Migrating
+   will require replacing background scripts with service workers (no DOM
+   access, no `window`). **Deferred**: tracked separately.
+3. **Cross-browser support** — Currently Firefox-only (`browser.*` API).
+   Chrome compatibility (manifest v3, `chrome.*` API) would require a
+   polyfill or separate build.

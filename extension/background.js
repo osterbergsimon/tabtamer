@@ -1085,6 +1085,87 @@ async function periodicCleanup() {
 // ─── Group Merging ───────────────────────────────────────────────────────────
 // Phase 2: LLM-based merge of similar tab groups
 
+// T9.11: Extracted helper to build the merge prompt (system + user messages)
+function _buildMergePrompt(groups, tabCountByGroup) {
+  // Sort by tab count descending so the most popular groups are included
+  const sortedNames = groups
+    .map(g => ({ title: g.title, count: tabCountByGroup[g.id] || 0 }))
+    .sort((a, b) => b.count - a.count);
+  const allNames = sortedNames.map(x => x.title);
+  const displayNames = allNames.slice(0, MAX_GROUP_NAMES_IN_PROMPT);
+  let namesStr = displayNames.join(', ');
+  if (allNames.length > MAX_GROUP_NAMES_IN_PROMPT) {
+    namesStr += `, ...and ${allNames.length - MAX_GROUP_NAMES_IN_PROMPT} more`;
+  }
+
+  console.log(`TabTamer: group merge — analyzing ${allNames.length} groups: [${namesStr}]`);
+
+  return {
+    systemPrompt: 'You are merging similar tab groups. Given these group names, output a JSON object mapping each original name to either its original name (if no merge needed) or the merged name (if it should join another group). Example: {"GitHub PRs": "GitHub", "NixOS": "NixOS"}.',
+    userMessage: `Group names: [${namesStr}]`
+  };
+}
+
+// T9.11: Extracted helper to parse and validate LLM merge response
+async function _parseMergeResponse(response) {
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content?.trim();
+  if (!content) {
+    console.warn('TabTamer: group merge — empty LLM response');
+    return null;
+  }
+
+  let mergeMap;
+  try {
+    mergeMap = JSON.parse(content);
+  } catch (parseErr) {
+    console.error('TabTamer: group merge — invalid JSON response', parseErr);
+    return null;
+  }
+
+  if (!mergeMap || typeof mergeMap !== 'object') {
+    console.error('TabTamer: group merge — unexpected response format');
+    return null;
+  }
+
+  return mergeMap;
+}
+
+// T9.11: Extracted helper to apply merges (rename groups / move tabs)
+async function _applyMerges(mergeMap, groups) {
+  let mergeCount = 0;
+
+  for (const group of groups) {
+    const newName = normalizeGroupName(mergeMap[group.title] || '');
+    if (!newName || newName === group.title) continue; // No merge needed for this group
+
+    // Find an existing group with the target name
+    const targetGroups = await browser.tabGroups.query({ title: newName });
+
+    if (targetGroups.length > 0 && targetGroups[0].id !== group.id) {
+      // Target group exists and is different → merge tabs into it
+      const targetGroupId = targetGroups[0].id;
+      const tabsInGroup = await browser.tabs.query({ groupId: group.id });
+      const tabIds = tabsInGroup.map(t => t.id);
+
+      if (tabIds.length > 0) {
+        await browser.tabs.group({ tabIds, groupId: targetGroupId });
+        console.log(`TabTamer: group merge — moved ${tabIds.length} tab(s) from "${group.title}" to "${newName}"`);
+      }
+    } else {
+      // No distinct target group found → rename this group to the new name
+      await browser.tabGroups.update(group.id, { title: newName });
+      console.log(`TabTamer: group merge — renamed "${group.title}" to "${newName}" (no target group to merge into)`);
+    }
+
+    // Update cache entries referencing the old name
+    await updateCacheForRename(group.title, newName);
+    mergeCount++;
+  }
+
+  return mergeCount;
+}
+
 async function mergeSimilarGroups() {
   try {
     // Check if extension is enabled
@@ -1133,24 +1214,8 @@ async function mergeSimilarGroups() {
       return;
     }
 
-    // T9.5: Cap group names at MAX_GROUP_NAMES_IN_PROMPT to avoid token waste
-    // Sort by tab count descending so the most popular groups are included
-    const mergeableNamesSorted = mergeableGroups
-      .map(g => ({ title: g.title, count: tabCountByGroup[g.id] || 0 }))
-      .sort((a, b) => b.count - a.count);
-    const allNames = mergeableNamesSorted.map(x => x.title);
-    const displayNames = allNames.slice(0, MAX_GROUP_NAMES_IN_PROMPT);
-    let namesStr = displayNames.join(', ');
-    if (allNames.length > MAX_GROUP_NAMES_IN_PROMPT) {
-      const remaining = allNames.length - MAX_GROUP_NAMES_IN_PROMPT;
-      namesStr += `, ...and ${remaining} more`;
-    }
-
-    console.log(`TabTamer: group merge — analyzing ${allNames.length} groups: [${namesStr}]`);
-
-    // Build the merge prompt
-    const systemPrompt = 'You are merging similar tab groups. Given these group names, output a JSON object mapping each original name to either its original name (if no merge needed) or the merged name (if it should join another group). Example: {"GitHub PRs": "GitHub", "NixOS": "NixOS"}.';
-    const userMessage = `Group names: [${namesStr}]`;
+    // T9.11: Build the merge prompt via extracted helper
+    const { systemPrompt, userMessage } = _buildMergePrompt(mergeableGroups, tabCountByGroup);
 
     // T5.5: Use unified retry-with-backoff instead of inline duplicate; use MAX_RETRIES constant
     const response = await retryWithBackoff(() => fetch(API_ENDPOINT, {
@@ -1175,58 +1240,17 @@ async function mergeSimilarGroups() {
       return; // All retries exhausted — leave without merging
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content?.trim();
-    if (!content) {
-      console.warn('TabTamer: group merge — empty LLM response');
-      return; // Leave without merging
-    }
-
-    let mergeMap;
-    try {
-      mergeMap = JSON.parse(content);
-    } catch (parseErr) {
-      console.error('TabTamer: group merge — invalid JSON response', parseErr);
-      return; // Leave without merging
-    }
-
-    if (!mergeMap || typeof mergeMap !== 'object') {
-      console.error('TabTamer: group merge — unexpected response format');
-      return; // Leave without merging
+    // T9.11: Parse LLM response via extracted helper
+    const mergeMap = await _parseMergeResponse(response);
+    if (!mergeMap) {
+      return; // Invalid response — leave without merging
     }
 
     // Track cost only for successful merges (not retries)
     await updateCosts(TOKENS_MERGE);
 
-    // Apply merges: move tabs from source groups into target groups
-    let mergeCount = 0;
-    for (const group of mergeableGroups) {
-      const newName = normalizeGroupName(mergeMap[group.title] || '');
-      if (!newName || newName === group.title) continue; // No merge needed for this group
-
-      // Find an existing group with the target name
-      const targetGroups = await browser.tabGroups.query({ title: newName });
-
-      if (targetGroups.length > 0 && targetGroups[0].id !== group.id) {
-        // Target group exists and is different → merge tabs into it
-        const targetGroupId = targetGroups[0].id;
-        const tabsInGroup = await browser.tabs.query({ groupId: group.id });
-        const tabIds = tabsInGroup.map(t => t.id);
-
-        if (tabIds.length > 0) {
-          await browser.tabs.group({ tabIds, groupId: targetGroupId });
-          console.log(`TabTamer: group merge — moved ${tabIds.length} tab(s) from "${group.title}" to "${newName}"`);
-        }
-      } else {
-        // No distinct target group found → rename this group to the new name
-        await browser.tabGroups.update(group.id, { title: newName });
-        console.log(`TabTamer: group merge — renamed "${group.title}" to "${newName}" (no target group to merge into)`);
-      }
-
-      // Update cache entries referencing the old name
-      await updateCacheForRename(group.title, newName);
-      mergeCount++;
-    }
+    // T9.11: Apply merges via extracted helper
+    const mergeCount = await _applyMerges(mergeMap, mergeableGroups);
 
     if (mergeCount === 0) {
       console.log('TabTamer: group merge — no merges needed');
