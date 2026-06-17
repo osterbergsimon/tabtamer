@@ -7601,4 +7601,424 @@ The current code is clean:
 2. The overwrite confirm modal (line 576-578) uses `importedCount` directly, not reading from cache
 3. No second cache read in any confirm dialog
 
-Compare with the old cod
+Compare with the old code which had:
+```javascript
+`This will delete all ${Object.keys((await browser.storage.local.get(CACHE_KEY))[CACHE_KEY] || {}).length} existing entries.`
+```
+
+This was removed. The fix is complete.
+
+Since the task is already implicitly fixed by T7.11, I should verify that there are no remaining issues and mark it as completed. Let me also run the tests to make sure everything passes.The stale cache re-read was already removed by the T7.11 commit (d936a05). The old code at line 522-523 had:
+
+```javascript
+`This will delete all ${Object.keys((await browser.storage.local.get(CACHE_KEY))[CACHE_KEY] || {}).length} existing entries.`
+```
+
+This read the cache a second time inside the confirm dialog template. Between the merge-decision read and this second read, another operation could have modified the cache. The fix removed that second read entirely — the current overwrite confirmation uses only `importedCount` (from the import file), without re-reading the cache.
+
+Let me verify tests still pass:
+[tool: bash] ...
+
+[tool: bash] ...
+Let me check how tests are run.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1192 bytes)
+Let me check package.json for test commands.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 349 bytes)
+The test command uses `node --test` which is Node's built-in test runner. Let me run the tests.
+[tool: bash] ...
+
+[tool: bash] ...
+Let me check if there's a nix-shell or something else.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 354 bytes)
+Let me check if there's a shell.nix or similar.
+[tool: bash] ...
+
+[tool: bash] ...
+No shell.nix found. Let me check AGENTS.md more for the test environment.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1216 bytes)
+So I need to use `nix-shell -p nodejs_22` to run the tests. Let me do that.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 3285 bytes)
+All 16 tests pass. The stale cache re-read issue has already been resolved in the T7.11 commit. The task can be marked as completed.
+
+Let me also verify that there are no other stale count issues in the codebase by checking if any other function reads the cache twice.All 16 tests pass. The stale cache re-read was already removed by T7.11 (commit d936a05). To confirm no other stale count issues exist, let me do a final check:
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 17 bytes)
+No double reads. Let me also check if the overwrite confirm dialog ever reads the cache:
+
+The current code at line 576-578:
+```javascript
+const confirmOverwrite = await showConfirmModal(
+  `Replace the entire cache with ${importedCount} imported entr${importedCount === 1 ? 'y' : 'ies'}?\n` +
+  `This will delete all existing entries.`
+);
+```
+
+No cache read. The fix is complete.
+
+Let me mark the task as completed and write the summary.No double-reads of the cache exist anywhere in the codebase. The fix is complete.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 36 bytes)
+
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+[tool: iteratr-tools__iteration-summary] ✓ (output: 34 bytes)
+The task is complete. According to the workflow rules, I need to STOP after marking the task as completed and writing the summary. I should not pick another task until the next iteration.Task T7.3 completed. Stopping — will await next iteration for task selection.
+--- Agent finished: end_turn | Duration: 1m58.469s | Model: opencode-go/deepseek-v4-flash | Tokens: in=19234 out=5630 cache_read=523392 cache_write=0 ---
+The user wants me to commit only `build.log.clean` with a clear commit message summarizing the T7.3 fix.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 136 bytes)
+The commit was created successfully. Let me confirm it looks correct.Committed successfully:
+
+```
+2bbb51c fix: stale overwrite count in importCache (already resolved by T7.11)
+ 1 file changed, 237 insertions(+), 1 deletion(-)
+```
+--- Agent finished: end_turn | Duration: 6.639s | Model: opencode-go/deepseek-v4-flash | Tokens: in=512 out=270 cache_read=52096 cache_write=0 ---
+
+✓ Iteration #13 complete
+
+Let me look at the current state of tasks. The user has provided details about the current session and remaining tasks. Let me pick the next highest priority unblocked task.
+
+Let me first check the task list to understand what's remaining.
+[tool: iteratr-tools__task-list] ...
+
+[tool: iteratr-tools__task-list] ...
+[tool: iteratr-tools__task-list] ✓ (output: 4114 bytes)
+Let me look at the next highest priority unblocked task. According to the priorities:
+- P2: T7.4, T7.5, T7.6, T7.7, T7.8
+- P3: T7.19, T7.20, T7.21
+- P4: T7.22 (Meta)
+
+Let me pick the highest priority. T7.4 (P2) is a bug fix. Let me check if it has blockers.
+
+Looking at T7.4: "Fix loadManagedGroups silent failure that disables all processing" - This is independent, no blockers.
+
+Let me use task-next to get the suggested task.
+[tool: iteratr-tools__task-next] ...
+
+[tool: iteratr-tools__task-next] ...
+[tool: iteratr-tools__task-next] ✓ (output: 211 bytes)
+Let me start with T7.4. First, let me read the relevant section of background.js to understand the current `loadManagedGroups` function.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 38 bytes)
+Let me read the current background.js to find the loadManagedGroups function.
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 3655 bytes)
+I see the current `loadManagedGroups` function at lines 99-106. It already has a try/catch block, but look:
+
+```javascript
+async function loadManagedGroups() {
+  try {
+    const result = await browser.storage.local.get(MANAGED_GROUPS_KEY);
+    _managedGroupIds = new Set(result[MANAGED_GROUPS_KEY] || []);
+  } catch (err) {
+    console.error('TabTamer: loadManagedGroups error', err);
+  }
+}
+```
+
+Wait, there's already a try/catch here! Let me check what happens when it fails. On failure, `_managedGroupIds` is never assigned - it stays as whatever it was previously (likely an empty Set initialized at the top). Let me check the initialization.
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 2124 bytes)
+I see that `_managedGroupIds` is initialized at line 16 as an empty Set. In the current `loadManagedGroups` function, if the storage lookup fails, `console.error` is called but `_managedGroupIds` remains as the initial empty Set.
+
+Now, the task description says:
+
+"In `background.js`, if `browser.storage.local.get(MANAGED_GROUPS_KEY)` fails (line ~361 area), `_managedGroupIds` stays an empty Set. Then in `handleTab`, ALL tabs already in ANY group are treated as 'manually managed' and skipped. TabTamer would silently stop processing tabs in groups entirely. Add a try/catch around the load; on failure, treat as 'no managed groups known' and log a warning rather than silently defaulting to an empty set."
+
+Wait, let me re-read the logic at line 367:
+```javascript
+if (tabInfo.groupId > 0 && !_managedGroupIds.has(tabInfo.groupId)) {
+```
+
+If `loadManagedGroups` fails, `_managedGroupIds` stays as an empty Set `{}` (initialized at line 16). So `!_managedGroupIds.has(tabInfo.groupId)` is `!false` = `true` for any group that the tab is in. So ANY tab in a group would be treated as "manually managed" and skipped.
+
+But wait, the task description says to "Add a try/catch around the load". The current code already has a try/catch. The issue is that:
+1. On failure, `_managedGroupIds` stays as empty Set (from initialization)
+2. This means ALL tabs in groups are treated as manually managed
+3. TabTamer silently stops processing tabs in groups
+
+The fix should be: on failure, we should treat as "no managed groups known" but we also need to handle the case differently. Actually, looking at the code more carefully, the issue is subtle.
+
+If loadManagedGroups fails, `_managedGroupIds` is still an empty Set `{}`. So `_managedGroupIds.has(someGroupId)` returns `false` for any group ID. So `!false` = `true`, which means the tab IS in a manually-managed group and is skipped.
+
+The problem: when loadManagedGroups fails, we don't know which groups are managed. The safe fallback should be different. The spec says: "treat as 'no managed groups known' and log a warning". But treating as "no managed groups known" would mean... what exactly?
+
+Actually, let me think about this differently. If we don't know which groups are managed, the safest behavior is to NOT skip any tabs. So instead of keeping `_managedGroupIds` as empty Set (which causes all tabs in groups to be skipped), we should perhaps set it to a sentinel-like state or handle it differently.
+
+Options:
+1. Set `_managedGroupIds = null` or some other sentinel, and check for that in handleTab
+2. Simply not set `_managedGroupIds` at all on failure, keeping the initial empty Set. But log a warning and... hmm, but the current behavior already logs an error.
+
+Wait, I need to re-read the task:
+
+"Add a try/catch around the load; on failure, treat as 'no managed groups known' and log a warning rather than silently defaulting to an empty set."
+
+The current code already has a try/catch. It logs `console.error`. But the fallback to empty Set is the problem.
+
+Let me think about what "treat as 'no managed groups known'" means in the context of handleTab:
+
+```javascript
+if (tabInfo.groupId > 0 && !_managedGroupIds.has(tabInfo.groupId)) {
+    console.log(`TabTamer: tab ${tabId} in manually-managed group — skipping`);
+    return;
+}
+```
+
+If we don't know which groups are managed, we could:
+- Not skip any tabs (treat all groups as potentially managed) - but this could cause issues if user groups exist
+- Skip no tabs and process them (safe but could interfere with user-created groups)
+- Or we could simply continue processing and log a warning
+
+Actually, I think the issue is that the current code has `console.error` but it's not enough. On failure, the behavior should be more conservative - perhaps log a warning and continue processing tabs in groups rather than skipping them all. But that's risky too because processing tabs in user-created groups could mess with them.
+
+Let me re-think. The real problem: when the storage read fails, `_managedGroupIds` is empty Set. This means `!_managedGroupIds.has(tabInfo.groupId)` is `true` for any tab in a group, so ALL tabs in groups get skipped. This is too aggressive - it effectively disables TabTamer for all tabs in groups.
+
+What we want: if we can't load managed group IDs, we should be conservative and assume NO groups are managed (which means we should process tabs in all groups). But that could also cause issues if the user has manually created groups.
+
+Actually, looking at the code flow more:
+1. On startup/init, `_managedGroupIds` is initialized as empty Set
+2. `loadManagedGroups()` loads from storage
+3. If it fails, `_managedGroupIds` stays as empty Set
+4. In handleTab, if a tab is in ANY group, it's treated as manually managed and skipped
+
+The fix: On failure, log a warning (not error), and keep `_managedGroupIds` as a special state. But we can't change the Set to something else because `has()` is called on it.
+
+Alternative: Set `_managedGroupIds` to a set that contains a sentinel value, or use a separate flag.
+
+Better approach: Set `_managedGroupIds` to `null` on failure, and check for null in handleTab. If null, assume no managed groups are known and DON'T skip the tab (process it anyway).
+
+Let me look at the handleTab code more carefully.
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1115 bytes)
+Now I see the full picture. The issue is:
+
+1. `_managedGroupIds` starts as an empty Set `new Set()`
+2. `loadManagedGroups` has a try/catch, but on failure, it just logs the error and `_managedGroupIds` stays as the empty Set
+3. In `handleTab`, if `_managedGroupIds` is empty Set, then `!_managedGroupIds.has(tabInfo.groupId)` is `true` for ANY tab in a group
+4. So ALL tabs in groups get skipped
+
+The fix: On failure, we should set `_managedGroupIds` to `null` and then check for `null` in handleTab. If null (meaning we don't know which groups are managed), we should NOT skip the tab.
+
+Wait, but maybe a simpler approach: on failure, log a warning and just return without modifying `_managedGroupIds`. But the empty Set issue remains.
+
+Actually, the simplest and most correct fix is:
+1. In `loadManagedGroups`, on failure, set `_managedGroupIds = null` (to indicate "unknown state")
+2. In `handleTab`, check if `_managedGroupIds` is null — if so, don't skip (process the tab)
+
+Let me also check if there are other places that use `_managedGroupIds` to see if null would cause issues.
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 425 bytes)
+So `_managedGroupIds` is used in these places:
+1. Line 16: initialization as empty Set
+2. Line 102: set from storage
+3. Line 109: `.add()` in `markGroupManaged`
+4. Line 112: `Array.from()` for storage
+5. Line 245: `.filter(g => _managedGroupIds.has(g.id))` in `getPopupState`
+6. Line 312: `.filter(g => _managedGroupIds.has(g.id))` in `updateBadge`
+7. Line 367: `_managedGroupIds.has(tabInfo.groupId)` in `handleTab`
+
+If I set to null, I need to handle null in:
+- Line 109: markGroupManaged - would fail if null
+- Line 112: Array.from(null) would throw
+- Line 245: null.has() would throw
+- Line 312: null.has() would throw
+- Line 367: null.has() would throw
+
+So using null is more complex. Let me think of a better approach.
+
+Option A: Keep as empty Set but add a separate flag `_managedGroupsLoaded = false` that we check in handleTab.
+
+Option B: Change the approach - on failure, instead of keeping empty Set, initialize `_managedGroupIds` to contain all current tab groups (so nothing gets skipped). But this could cause issues if there are user-created groups.
+
+Option C: Simply ensure that on failure, we log a warning AND then immediately try to rebuild the managed group set from current tab groups. This might not be accurate but is better than disabling all processing.
+
+Actually, the simplest fix: keep the empty Set behavior but change the handleTab logic. Instead of:
+```javascript
+if (tabInfo.groupId > 0 && !_managedGroupIds.has(tabInfo.groupId)) {
+```
+
+We could do:
+```javascript
+if (tabInfo.groupId > 0 && _managedGroupIds.size > 0 && !_managedGroupIds.has(tabInfo.groupId)) {
+```
+
+So if `_managedGroupIds` is empty (meaning it was never populated, or load failed), we don't skip any tabs. But wait, empty Set could also mean no groups have been managed yet (fresh install). In that case, we'd process tabs in ALL groups, including user-created ones. But that could be problematic too.
+
+Hmm, actually for a fresh install, `_managedGroupIds` is empty Set and no tabs are in groups yet anyway. The issue only manifests on extension restart when there ARE existing groups. 
+
+Actually the real question is: what should happen when `loadManagedGroups` fails? The spec says "treat as 'no managed groups known' and log a warning". So we should assume we don't know which groups are managed, which means we should NOT skip any tabs. The safest approach is to process tabs normally (don't skip any).
+
+So the fix:
+1. On failure in `loadManagedGroups`: log warning, set `_managedGroupIds` to a special state
+2. In handleTab: check for this special state and don't skip
+
+But using null requires null checks in multiple places. Let me use a different approach.
+
+Option A refined: Add a separate flag `_managedGroupsLoaded` that tracks whether we've successfully loaded managed groups. In handleTab, check this flag. If not loaded, don't skip.
+
+But wait, there's an even simpler approach. Let me re-read the current code:
+
+```javascript
+async function loadManagedGroups() {
+  try {
+    const result = await browser.storage.local.get(MANAGED_GROUPS_KEY);
+    _managedGroupIds = new Set(result[MANAGED_GROUPS_KEY] || []);
+  } catch (err) {
+    console.error('TabTamer: loadManagedGroups error', err);
+  }
+}
+```
+
+If storage read fails, `_managedGroupIds` stays as whatever it was before. Initially it's an empty Set. So the current behavior is:
+- Fail → empty Set → `!_managedGroupIds.has(id)` is true for any id → ALL tabs in groups skipped
+
+The fix should make it so that on failure, we don't have the empty Set (which causes skipping). Instead:
+- On failure, set `_managedGroupIds` to a special "unknown" state
+- In handleTab, if state is "unknown", don't skip
+
+Let me use a simple approach: set `_managedGroupIds = null` on failure, and check for null/undefined in all the places that use it.
+
+Actually, maybe even simpler: On failure, re-initialize `_managedGroupIds` as `new Set()` but also set a separate boolean `let _managedGroupsLoaded = false`. In handleTab, check this boolean. If false, don't skip.
+
+Let me go with the null approach but with proper guards:
+
+```javascript
+async function loadManagedGroups() {
+  try {
+    const result = await browser.storage.local.get(MANAGED_GROUPS_KEY);
+    _managedGroupIds = new Set(result[MANAGED_GROUPS_KEY] || []);
+  } catch (err) {
+    console.warn('TabTamer: loadManagedGroups — storage read failed, treating all groups as unmanaged', err);
+    _managedGroupIds = null;
+  }
+}
+```
+
+Then in handleTab (line 367):
+```javascript
+if (tabInfo.groupId > 0 && _managedGroupIds !== null && !_managedGroupIds.has(tabInfo.groupId)) {
+```
+
+And in markGroupManaged (line 109):
+```javascript
+async function markGroupManaged(groupId) {
+  if (!_managedGroupIds) _managedGroupIds = new Set();
+  _managedGroupIds.add(groupId);
+  ...
+```
+
+And in updateBadge (line 312) and getPopupState (line 245):
+```javascript
+const managedCount = _managedGroupIds ? groups.filter(g => _managedGroupIds.has(g.id)).length : 0;
+```
+
+Actually wait, let me check line 245 more carefully.
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1090 bytes)
+Let me now look at updateBadge to see line 312:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1215 bytes)
+OK so I need to fix the null handling in multiple places. Let me plan the changes:
+
+1. **`loadManagedGroups` (lines 99-106)**: On failure, set `_managedGroupIds = null` and log a warning instead of error.
+
+2. **`handleTab` (line 367)**: Add null check: `if (tabInfo.groupId > 0 && _managedGroupIds !== null && !_managedGroupIds.has(tabInfo.groupId))`
+
+3. **`markGroupManaged` (line 109)**: Add null check before `.add()`: `if (!_managedGroupIds) _managedGroupIds = new Set();`
+
+4. **`getPopupState` (line 245)**: Add null check: `_managedGroupIds ? _managedGroupIds.has(g.id) : false`
+
+5. **`updateBadge` (line 312)**: Add null check: `_managedGroupIds ? _managedGroupIds.has(g.id) : false`
+
+Wait, let me also check the `Array.from(_managedGroupIds)` at line 112 - if null, that would throw.
+
+Let me implement all of these changes.
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 395 bytes)
+OK, I have a clear picture. Let me now make the edits.
+
+1. Fix `loadManagedGroups` - change `console.error` to `console.warn`, add `_managedGroupIds = null`
+2. Fix `markGroupManaged` - add null guard before `.add()` and `Array.from()`
+3. Fix `handleTab` line 367 - add null check
+4. Fix `getPopupState` line 245 - add null check
+5. Fix `updateBadge` line 312 - add null check
+
+Let me make these edits.Now I understand the issue and all the places that need updating. Let me implement the fix.
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 2293 bytes)
+Now let me run the tests to make sure everything still passes.Now let me run the tests to verify everything passes.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 100 bytes)
+Let me check how tests are run in this project.
+[tool: ls] ...
+
+[tool: ls] ...
+[tool: ls] ✓ (output: 192 bytes)
+Let me check the test setup and how to run tests.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 349 bytes)
+They use node --test (Node's built-in test runner). Let me run the tests.
+[tool: bash] ...
+
+[tool: bash] ...
+Let me check what's available.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 651 bytes)
+
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1199 bytes)
+All 16 tests pass. Let me also verify the changes look correct by reading the modified areas.All 16 tests pass. Let me verify the changes look correct by reviewing the modified sections.
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1307 bytes)
+The changes look 
