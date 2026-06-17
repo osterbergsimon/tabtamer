@@ -399,6 +399,29 @@ async function loadCacheStats() {
   }
 }
 
+// T10.15: Extract group name from a cache entry (handles both old string format and new object format)
+function _getCacheGroupName(entry) {
+  if (!entry) return null;
+  return typeof entry === 'string' ? entry : (entry.group || null);
+}
+
+// T10.15: Extract timestamp from a cache entry (returns null for old string format)
+function _getCacheTimestamp(entry) {
+  if (!entry || typeof entry === 'string') return null;
+  return entry.timestamp || null;
+}
+
+// T10.15: Format a timestamp for display
+function _formatTimestamp(ts) {
+  if (!ts) return 'Unknown';
+  const diff = Date.now() - ts;
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+  if (diff < 604800000) return Math.floor(diff / 86400000) + 'd ago';
+  return new Date(ts).toLocaleDateString();
+}
+
 // ─── Cache Dashboard ─────────────────────────────────────────────────────────
 // T5.9: Searchable, filterable table of cached domains and groups with edit/delete
 
@@ -406,7 +429,11 @@ async function loadCacheDashboard() {
   try {
     const result = await browser.storage.local.get(CACHE_KEY);
     const cache = result[CACHE_KEY] || {};
-    const entries = Object.entries(cache);
+    // T10.15: Normalize entries to { group, timestamp } format
+    const entries = Object.entries(cache).map(([domain, value]) => [
+      domain,
+      { group: _getCacheGroupName(value) || '', timestamp: _getCacheTimestamp(value) }
+    ]);
     const searchTerm = cacheSearch.value.trim().toLowerCase();
 
     // Load hibernation opt-out list for per-group checkbox display
@@ -423,9 +450,9 @@ async function loadCacheDashboard() {
 
     // Filter by search term
     const filtered = searchTerm
-      ? entries.filter(([domain, group]) =>
+      ? entries.filter(([domain, info]) =>
           domain.toLowerCase().includes(searchTerm) ||
-          group.toLowerCase().includes(searchTerm)
+          info.group.toLowerCase().includes(searchTerm)
         )
       : entries;
 
@@ -442,15 +469,16 @@ async function loadCacheDashboard() {
 
     if (filtered.length === 0) {
       // No results match the search
-      cacheTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">No matching entries</td></tr>`;
+      cacheTableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">No matching entries</td></tr>`;
       return;
     }
 
     // Build table rows
-    const rows = filtered.map(([domain, group]) => {
+    const rows = filtered.map(([domain, info]) => {
       const escapedDomain = domain.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const escapedGroup = group.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const currentColor = _groupColors[group] || '';
+      const escapedGroup = info.group.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const timestampStr = _formatTimestamp(info.timestamp);
+      const currentColor = _groupColors[info.group] || '';
       const colorOptions = GROUP_COLOR_NAMES.map(c => {
         const selected = c === currentColor ? 'selected' : '';
         const swatchBg = getColorCss(c);
@@ -470,6 +498,7 @@ async function loadCacheDashboard() {
                         background: var(--bg); border: 1px solid var(--primary);
                         border-radius: 4px; color: var(--text);">
         </td>
+        <td style="padding: 6px 8px; text-align: center; vertical-align: middle; font-size: 12px; color: var(--text-muted); white-space: nowrap;">${timestampStr}</td>
         <td style="padding: 6px 8px; text-align: center; vertical-align: middle;">${colorPicker}</td>
         <td style="padding: 6px 8px; text-align: center; vertical-align: middle;">
           <input type="checkbox" class="no-hibernate-checkbox" ${noHibernateChecked}
@@ -878,12 +907,14 @@ async function updateCacheEntry(domain, newGroup) {
   // First read
   const result1 = await browser.storage.local.get(CACHE_KEY);
   const cache1 = result1[CACHE_KEY] || {};
-  const originalValue = cache1[domain] || null;
+  const originalEntry = cache1[domain] || null;
+  const originalValue = _getCacheGroupName(originalEntry);
 
   // Immediate re-read before write to detect concurrent modifications
   const result2 = await browser.storage.local.get(CACHE_KEY);
   const cache2 = result2[CACHE_KEY] || {};
-  const currentValue = cache2[domain] || null;
+  const currentEntry = cache2[domain] || null;
+  const currentValue = _getCacheGroupName(currentEntry);
 
   let conflict = false;
   if (currentValue !== originalValue) {
@@ -897,7 +928,9 @@ async function updateCacheEntry(domain, newGroup) {
   if (newGroup === null) {
     delete cache2[domain];
   } else {
-    cache2[domain] = newGroup;
+    // Preserve existing timestamp or set a new one
+    const existingTs = _getCacheTimestamp(currentEntry);
+    cache2[domain] = { group: newGroup, timestamp: existingTs || Date.now() };
   }
 
   await browser.storage.local.set({ [CACHE_KEY]: cache2 });
@@ -953,14 +986,27 @@ async function handleCacheFileSelected(event) {
       return;
     }
 
-    // Validate structure: must be a plain object with string values
+    // Validate structure: must be a plain object
     if (typeof imported !== 'object' || imported === null || Array.isArray(imported)) {
       showToast('Cache file must contain a JSON object (domain → group mappings)', 'error');
       return;
     }
+    // T10.15: Accept both old format (string values) and new format (object with group/timestamp)
     for (const [key, value] of Object.entries(imported)) {
-      if (typeof key !== 'string' || typeof value !== 'string') {
-        showToast('Invalid cache entry — each key and value must be a string', 'error');
+      if (typeof key !== 'string') {
+        showToast('Invalid cache entry — each key must be a string', 'error');
+        return;
+      }
+      if (typeof value === 'string') {
+        // Old format: convert to new format on import
+        imported[key] = { group: value, timestamp: Date.now() };
+      } else if (typeof value === 'object' && value !== null && typeof value.group === 'string') {
+        // New format: ensure timestamp exists
+        if (!value.timestamp) {
+          imported[key].timestamp = Date.now();
+        }
+      } else {
+        showToast('Invalid cache entry — each value must be a string (group name) or an object with a "group" property', 'error');
         return;
       }
     }
@@ -985,9 +1031,9 @@ async function handleCacheFileSelected(event) {
       const existing = result[CACHE_KEY] || {};
       let added = 0;
       let skipped = 0;
-      for (const [domain, group] of Object.entries(imported)) {
+      for (const [domain, entry] of Object.entries(imported)) {
         if (existing[domain] === undefined) {
-          existing[domain] = group;
+          existing[domain] = entry;
           added++;
         } else {
           skipped++;

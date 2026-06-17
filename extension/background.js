@@ -787,11 +787,50 @@ async function isDomainExcluded(domain) {
 // ─── Cache ───────────────────────────────────────────────────────────────────
 // TAS-2: Read/write domain→group mappings in browser.storage.local
 
+// T10.15: Helper: extract group name from a cache entry (handles both old string format and new object format)
+function _getCacheGroup(entry) {
+  if (!entry) return null;
+  return typeof entry === 'string' ? entry : (entry.group || null);
+}
+
+// T10.15: Helper: get timestamp from a cache entry (new format only, returns null for old format)
+function _getCacheTimestamp(entry) {
+  if (!entry || typeof entry === 'string') return null;
+  return entry.timestamp || null;
+}
+
+// T10.15: Helper: create a cache entry value with timestamp
+function _makeCacheEntry(groupName) {
+  return { group: groupName, timestamp: Date.now() };
+}
+
+// T10.15: Migrate old-format cache entries (string values) to new format (object with timestamp)
+async function migrateCacheFormat() {
+  try {
+    const result = await browser.storage.local.get(CACHE_KEY);
+    const cache = result[CACHE_KEY] || {};
+    let changed = false;
+    for (const [domain, value] of Object.entries(cache)) {
+      if (typeof value === 'string') {
+        cache[domain] = _makeCacheEntry(value);
+        changed = true;
+      }
+    }
+    if (changed) {
+      await browser.storage.local.set({ [CACHE_KEY]: cache });
+      console.log('TabTamer: migrated cache to new format with timestamps');
+    }
+  } catch (err) {
+    console.warn('TabTamer: cache migration failed', err);
+  }
+}
+
 async function getCachedGroup(domain) {
   try {
     const result = await browser.storage.local.get(CACHE_KEY);
     const cache = result[CACHE_KEY] || {};
-    return cache[domain] || null;
+    const entry = cache[domain];
+    return entry ? _getCacheGroup(entry) : null;
   } catch (err) {
     console.error('TabTamer: cache read error', err);
     return null;
@@ -802,7 +841,7 @@ async function setCachedGroup(domain, groupName) {
   try {
     const result = await browser.storage.local.get(CACHE_KEY);
     const cache = result[CACHE_KEY] || {};
-    cache[domain] = groupName;
+    cache[domain] = _makeCacheEntry(groupName);
     await browser.storage.local.set({ [CACHE_KEY]: cache });
   } catch (err) {
     console.error('TabTamer: cache write error', err);
@@ -1087,7 +1126,8 @@ async function suggestRulesFromCache() {
     // Read cache entries from storage
     const result = await browser.storage.local.get(CACHE_KEY);
     const cache = result[CACHE_KEY] || {};
-    const entries = Object.entries(cache);
+    // T10.15: Normalize entries (support both old string and new object format)
+    const entries = Object.entries(cache).map(([domain, value]) => [domain, _getCacheGroup(value)]);
 
     if (entries.length === 0) {
       return { success: false, error: 'Cache is empty — no domains to analyze.' };
@@ -1860,9 +1900,13 @@ async function updateCacheForRename(oldName, newName) {
     const result = await browser.storage.local.get(CACHE_KEY);
     const cache = result[CACHE_KEY] || {};
     let updatedCount = 0;
-    for (const [domain, groupName] of Object.entries(cache)) {
+    for (const [domain, value] of Object.entries(cache)) {
+      // T10.15: Normalize entry to get group name (handles both old string and new object format)
+      const groupName = _getCacheGroup(value);
       if (groupName === oldName) {
-        cache[domain] = newName;
+        // Preserve timestamp if present, otherwise create new entry with timestamp
+        const entryTs = _getCacheTimestamp(value);
+        cache[domain] = entryTs ? { group: newName, timestamp: entryTs } : _makeCacheEntry(newName);
         updatedCount++;
       }
     }
@@ -2031,6 +2075,8 @@ browser.runtime.onStartup.addListener(async () => {
   await loadRecentClassifications();
   // T10.8: Load dismissed rule suggestions
   await loadDismissedSuggestions();
+  // T10.15: Migrate old-format cache entries to new format with timestamps
+  await migrateCacheFormat();
   // T5.6: Assign colors to existing groups without one
   await assignColorsToGroups();
   // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
@@ -2077,6 +2123,9 @@ browser.runtime.onInstalled.addListener(async (details) => {
 
     // T10.8: Load dismissed rule suggestions
     await loadDismissedSuggestions();
+
+    // T10.15: Migrate old-format cache entries to new format with timestamps
+    await migrateCacheFormat();
 
     // T10.10: Rebuild the "Move to group…" context submenu with current groups
     await rebuildMoveToGroupMenu();
