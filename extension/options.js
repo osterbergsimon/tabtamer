@@ -1252,6 +1252,13 @@ function switchTab(tabName) {
     const isActive = section.id === 'tab-' + tabName;
     section.classList.toggle('active', isActive);
   });
+
+  // T10.16: Persist active tab to sessionStorage (survives F5)
+  try {
+    sessionStorage.setItem('tabtamerActiveTab', tabName);
+  } catch (e) {
+    // sessionStorage may not be available in all contexts
+  }
 }
 
 function setupTabNavigation() {
@@ -1279,6 +1286,16 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCacheDashboardEvents();
   setupRulesTableEvents();
   setupTabNavigation();
+
+  // T10.16: Restore last active tab from sessionStorage (if any)
+  try {
+    const savedTab = sessionStorage.getItem('tabtamerActiveTab');
+    if (savedTab && ['general', 'rules', 'cache', 'privacy', 'info'].includes(savedTab)) {
+      switchTab(savedTab);
+    }
+  } catch (e) {
+    // sessionStorage may not be available
+  }
 });
 // ─── Version display ────────────────────────────────────────────────────────────
 
