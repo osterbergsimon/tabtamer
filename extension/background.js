@@ -86,6 +86,8 @@ let _lastAccessStorageTimer = null;
 
 // Count of tabs hibernated in this session
 let _hibernatedCount = 0;
+// Flag to show hibernation indicator in badge (T11.1)
+let _hibernationBadgeActive = false;
 
 // ─── Domain Exclusion List (T9.3) ─────────────────────────────────────────────
 // In-memory lookup structures for O(1) exact-match and O(n) wildcard matching
@@ -891,9 +893,11 @@ function updateBadge(processing) {
         // Use the passed flag if provided, otherwise fall back to tracking counter
         const isProcessing = processing !== undefined ? processing : _pendingClassificationCount > 0;
         if (isProcessing) {
-          browser.browserAction.setBadgeText({ text: `${managedCount}…` });
+          const ptext = `${managedCount}…`;
+          browser.browserAction.setBadgeText({ text: _hibernationBadgeActive ? `💤${ptext}` : ptext });
         } else {
-          browser.browserAction.setBadgeText({ text: managedCount > 0 ? String(managedCount) : '' });
+          const ntext = managedCount > 0 ? String(managedCount) : '';
+          browser.browserAction.setBadgeText({ text: _hibernationBadgeActive ? `💤${ntext}` : ntext });
         }
         browser.browserAction.setBadgeBackgroundColor({ color: '#34c759' });
       }
@@ -1961,8 +1965,14 @@ async function hibernateIdleTabs() {
     _hibernatedCount += toDiscard.length;
     console.log(`TabTamer: hibernate — discarded ${toDiscard.length} idle tab(s)`);
 
-    // Update badge with hibernated count indicator
-    browser.browserAction.setBadgeText({ text: `💤${_hibernatedCount}` });
+    // Show hibernation indicator via badge for 5 seconds (T11.1)
+    // Use updateBadge() with the hibernation flag so it doesn't get overwritten
+    _hibernationBadgeActive = true;
+    updateBadge();
+    setTimeout(() => {
+      _hibernationBadgeActive = false;
+      updateBadge();
+    }, 5000);
   } catch (err) {
     console.error('TabTamer: hibernate error', err);
   }
