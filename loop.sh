@@ -25,20 +25,15 @@ run_iteratr() {
   local tasks
   tasks=$(count_tasks "$spec" 2>/dev/null || echo 1)
   tasks=${tasks:-1}
-  local iters
-  iters=$((tasks * 2))
-  [[ ${iters:-0} -lt 3 ]] && iters=3
 
-  echo "  [$label] $tasks tasks, $iters iterations max  (tail -f ${LOG_FILE}.clean for progress)"
-  timeout "$((tasks * 120 + 60))" \
-    iteratr build \
-      --spec "$spec" \
-      --reset \
-      --headless \
-      --auto-commit \
-      --iterations "$iters" \
-      ${model:+--model "$model"} </dev/null 2>&1 \
-      | tee -a "$LOG_FILE" | strip_ansi >> "${LOG_FILE}.clean" || true
+  echo "  [$label] $tasks tasks  (tail -f ${LOG_FILE}.clean for progress)"
+  iteratr build \
+    --spec "$spec" \
+    --reset \
+    --headless \
+    --auto-commit \
+    ${model:+--model "$model"} </dev/null 2>&1 \
+    | tee -a "$LOG_FILE" | strip_ansi >> "${LOG_FILE}.clean" || true
   rm -rf .iteratr
 }
 
