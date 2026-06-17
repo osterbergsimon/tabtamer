@@ -96,3 +96,88 @@ if (window.__tabtamerPatched) {
     browser.runtime.sendMessage({ type: 'spaNavigate', url: location.href }).catch(() => {});
   });
 }
+
+// --- Content extraction for content-based classification (T12.4) ---
+
+/**
+ * Check if an element is visible (not display:none, visibility:hidden).
+ * Returns false for detached elements.
+ */
+function _isVisible(el) {
+  if (!el || !el.parentNode) return false;
+  const style = window.getComputedStyle(el);
+  return style.display !== 'none' && style.visibility !== 'hidden';
+}
+
+/**
+ * Extract visible text content from a container element, skipping
+ * <nav>, <footer>, <aside>, <script>, <style> and their descendants.
+ */
+function _extractVisibleText(container, maxChars) {
+  const skipTags = new Set(['NAV', 'FOOTER', 'ASIDE', 'SCRIPT', 'STYLE']);
+  const parts = [];
+  let remaining = maxChars;
+
+  function walk(node) {
+    if (remaining <= 0) return;
+
+    // Element node
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node;
+      if (skipTags.has(el.tagName)) return;
+      if (!_isVisible(el)) return;
+      // Recurse into children
+      for (let child of el.childNodes) {
+        walk(child);
+        if (remaining <= 0) return;
+      }
+      return;
+    }
+
+    // Text node
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent.trim();
+      if (!text) return;
+      // Check parent visibility
+      if (node.parentNode && !_isVisible(node.parentNode)) return;
+      if (text.length <= remaining) {
+        parts.push(text);
+        remaining -= text.length;
+      } else {
+        parts.push(text.slice(0, remaining));
+        remaining = 0;
+      }
+      return;
+    }
+  }
+
+  walk(container);
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Extract page content for LLM classification.
+ * Returns { title, h1, text }.
+ */
+function extractPageContent() {
+  const title = document.title || '';
+
+  // First <h1> text content
+  const h1El = document.querySelector('h1');
+  const h1 = h1El ? h1El.textContent.trim() : '';
+
+  // Walk DOM from <article>, <main>, or fallback to <body>
+  const container = document.querySelector('article') || document.querySelector('main') || document.body;
+  const text = container ? _extractVisibleText(container, 500) : '';
+
+  return { title, h1, text };
+}
+
+// Listen for extractContent requests from the background
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message && message.type === 'extractContent') {
+    const content = extractPageContent();
+    sendResponse(content);
+    return false; // no async response needed
+  }
+});
