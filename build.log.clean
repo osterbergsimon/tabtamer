@@ -6609,4 +6609,467 @@ Let me run the tests.
 [tool: bash] ✓ (output: 1203 bytes)
 All 16 tests pass. Now let me do a final verification that everything is consistent. Let me also check that the manifest version is correct and the CSP is properly set.
 
-Let me a
+Let me also double-check the search debounce in options.js was properly updated.All 16 tests pass. Let me do a final comprehensive check:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 380 bytes)
+Wait, there's a `WARNING: options.js has non-modal confirm() calls: [' confirm(']`. This might be a false positive from the regex - "showConfirmModal" contains "confirm" followed by "(". Let me check:
+
+The regex `[^.]confirm\(` matches any `confirm(` that is NOT preceded by a dot. But `showConfirmModal(` has `showConfirmModal(` which matches the pattern since the character before `confirm` is `M` (not `.`). So this is a false positive. `showConfirmModal` is our custom function, not `window.confirm`.
+
+But wait, the regex `[^.]confirm\(` - `showConfirmModal(...)` has `M` before `confirm`, so `Mconfirm(` would match. Let me look for actual `confirm()` calls more carefully.
+
+Actually, looking at the regex `[^.]confirm\(`, it captures `Mconfirm(`. This is a false positive. The real `window.confirm()` would match `m.confirm(` (preceded by `.`) - but the regex specifically excludes `.`. So `window.confirm()` would NOT match, while `showConfirmModal(` WOULD match.
+
+Let me do a better check.
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 64 bytes)
+Only a comment reference remains. The actual `confirm()` calls are all replaced with `showConfirmModal()`. Good.
+
+Let me also add a note about the task and check the final line count comparison.Let me do the final syntax verification and verify the line counts:
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: bash] ✓ (output: 121 bytes)
+[tool: grep] ✓ (output: 109 bytes)
+Let me also check the difference in lines:
+- `background.js`: was 1190 lines, now 1169 lines (removed ~21 lines of constant definitions)
+- `options.js`: was 1139 lines, now 1136 lines (removed ~3 lines of constant definitions)
+- `lib/constants.js`: new file, 76 lines
+
+The original total was 1190 + 1139 = 2329 lines.
+The new total is 1169 + 1136 + 76 = 2381 lines.
+The difference is 2381 - 2329 = 52 lines, which includes the new constants.js file (76 lines) minus the removed definitions (~21 in background.js + ~3 in options.js = ~24 lines), plus comments. This makes sense.
+
+Everything looks good. Let me mark the task as complete and write the summary.Everything looks good. Let me mark the task as complete:
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 37 bytes)
+Let me write the iteration summary.
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+[tool: iteratr-tools__iteration-summary] ✓ (output: 33 bytes)
+The task is complete. I should now STOP as per the workflow rules - don't pick another task.## Task Complete
+
+**T7.16: Extract shared constants to `lib/constants.js`** is done. All shared storage keys, magic numbers, API URL, and configuration constants have been extracted to `lib/constants.js`. The file is loaded first by both the background page (via manifest) and the options page (via `<script>` tag), ensuring all globals are available to dependent scripts. All 16 unit tests pass.
+--- Agent finished: end_turn | Duration: 5m52.355s | Model: opencode-go/deepseek-v4-flash | Tokens: in=67469 out=19594 cache_read=3747328 cache_write=0 ---
+The user wants me to commit the changes. Let me stage the files and create a commit with a clear message.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 413 bytes)
+The stats look a bit different from what the user listed, but that's fine (the diff counts differently). Let me create the commit.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 174 bytes)
+Commit completed successfully.Committed on `master` as [`a03aeea`](https://github.com/tux/tabtamer/commit/a03aeea) — 8 files changed, 981 insertions, 39 deletions. Not pushed.
+--- Agent finished: end_turn | Duration: 13.097s | Model: opencode-go/deepseek-v4-flash | Tokens: in=1232 out=483 cache_read=255616 cache_write=0 ---
+
+✓ Iteration #9 complete
+
+Let me analyze the current state. We have several remaining tasks. Let me pick the next highest priority unblocked task.
+
+Looking at the remaining tasks:
+
+- T7.8 (P2): Suppress notifyMissingApiKey during startup scan
+- T7.18 (P2): Fix empty catch in isEnabled()
+- T7.3 (P2): Fix stale overwrite count in importCache
+- T7.5 (P2): Fix content.js monkey-patch fragility
+- T7.7 (P2): Strengthen excluded domain validation
+- T7.17 (P2): Extract shared utilities to lib/utils.js
+- T7.4 (P2): Fix loadManagedGroups silent failure
+- T7.6 (P2): Fix stale title in onUpdated listener
+- T7.2 (P2): Fix cost undercounting for empty/parseable LLM responses
+- T7.19 (P3): Update DESIGN.md
+- T7.20 (P3): Update README.md
+- T7.21 (P3): Add documentation for custom LLM endpoints
+- T7.22 (P4): Meta: Do nothing
+
+Let me check if there are any dependencies. Let me use task-next to see what's recommended.
+
+Let me first figure out which tasks might have dependencies. T7.17 (extract utils) might be needed by T7.7 (excluded domain validation) which could use utils. T7.5 touches content.js. T7.6 touches background.js.
+
+Let me just use task-next and pick the highest priority task.
+[tool: iteratr-tools__task-next] ...
+
+[tool: iteratr-tools__task-next] ...
+[tool: iteratr-tools__task-next] ✓ (output: 234 bytes)
+The next recommended task is T7.17: Extract shared utilities to `lib/utils.js`. Let me think about this.
+
+T7.17 is about extracting `extractDomain()`, `sleep()`, `normalizeGroupName()`, and the acronym list to `lib/utils.js`. It also needs to fix `normalizeGroupName` for case-insensitive acronym matching.
+
+This is independent work - no dependencies on other remaining tasks. Let me review the current state of these functions before implementing.
+
+Let me first read the relevant files to understand what needs to be extracted.Let me start with T7.17: Extract shared utilities to `lib/utils.js`. Let me review the current state of the codebase.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: iteratr-tools__task-update] ✓ (output: 39 bytes)
+[tool: read] ✓ (output: 5213 bytes)
+[tool: read] ✓ (output: 7548 bytes)
+[tool: read] ✓ (output: 50006 bytes)
+Now let me read the options.js file to see if `extractDomain` or `sleep` are used there, and understand what needs to be extracted.
+
+I can see the following utilities in background.js that need to be extracted to `lib/utils.js`:
+
+1. `extractDomain(url)` - line 524-534
+2. `sleep(ms)` - line 68-70
+3. `normalizeGroupName(name)` - line 139-153
+4. `KNOWN_ACRONYMS` - line 13-48
+
+The task also says to fix `normalizeGroupName` for case-insensitive acronym matching. Looking at the current code:
+
+```js
+function normalizeGroupName(name) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map(word => {
+      const upper = word.toUpperCase();
+      // Preserve known acronyms if the original word contains uppercase letters
+      if (KNOWN_ACRONYMS.has(upper) && /[A-Z]/.test(word)) {
+        return KNOWN_ACRONYMS.get(upper);
+      }
+      // Standard title-case
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+```
+
+The issue: if the LLM returns "api" (all lowercase), the check `/[A-Z]/.test(word)` fails, so "api" won't match the ACRONYMS map. The fix should make it case-insensitive - if the word's uppercase form matches a known acronym, return the canonical uppercase form regardless of whether the original word contains uppercase letters.
+
+Wait, let me re-read the task: "Fix normalizeGroupName for case-insensitive acronym matching — if the LLM returns 'api' (lowercase), it should still become 'API'."
+
+So the fix is: remove the `/[A-Z]/.test(word)` check. If the upper case form matches a known acronym, always return the canonical form.
+
+Let me also check if options.js uses `extractDomain` or other utilities.Let me also read the relevant parts of options.js and the test file to understand what references these utilities:
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1463 bytes)
+[tool: read] ✓ (output: 31240 bytes)
+[tool: read] ✓ (output: 50192 bytes)
+Now I have a clear picture. I need to create `lib/utils.js` with:
+1. `extractDomain(url)` - currently in background.js
+2. `sleep(ms)` - currently in background.js
+3. `normalizeGroupName(name)` - currently in background.js
+4. `KNOWN_ACRONYMS` - currently in background.js
+
+The fix for normalizeGroupName: remove the `/[A-Z]/.test(word)` check so that case-insensitive acronym matching works.
+
+Now let me check:
+- Is `extractDomain` used anywhere else? Let me search.
+- Is `sleep` used anywhere else?
+- Is `normalizeGroupName` used anywhere else?
+
+From background.js:
+- `extractDomain(url)` - called on line 438, 1102
+- `sleep(ms)` - called on lines 94, 101, 111, 185
+- `normalizeGroupName(name)` - called on lines 653, 783, 998, 999(?)
+
+From options.js:
+- `extractDomain` is not used in options.js
+- `sleep` is not used in options.js
+- `normalizeGroupName` is not used in options.js
+
+But the task says options.js should be able to use these for input validation. For example, when adding exclusion rules in T7.7, they might want to validate domain-like patterns.
+
+Let me also check if anything else references these functions.
+
+Let me also check the test file to understand how tests work.Let me check how tests reference these functions and check the test environment:
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: read] ✓ (output: 3244 bytes)
+[tool: grep] ✓ (output: 1321 bytes)
+Let me read the rest of the test file to see if there are tests for normalizeGroupName:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1985 bytes)
+Now I have a complete understanding. Let me plan the changes:
+
+1. Create `extension/lib/utils.js` with:
+   - `KNOWN_ACRONYMS` Map (from background.js)
+   - `sleep(ms)` function (from background.js)
+   - `normalizeGroupName(name)` function (from background.js, fixed for case-insensitive matching)
+   - `extractDomain(url)` function (from background.js)
+
+2. In `extension/background.js`:
+   - Remove `KNOWN_ACRONYMS` definition
+   - Remove `sleep()` function
+   - Remove `normalizeGroupName()` function
+   - Remove `extractDomain()` function
+   - These are now available from lib/utils.js (loaded via manifest)
+
+3. In `extension/manifest.json`:
+   - Add `"lib/utils.js"` to the background scripts array (after constants.js, before rules-engine.js)
+
+4. In `extension/options.html`:
+   - Add `<script src="lib/utils.js">` (after constants.js, before rules-engine.js)
+
+5. In `tests/background.test.js`:
+   - Add `lib/utils.js` to the concatenated code
+
+Let me now implement this. The important fix to `normalizeGroupName`:
+
+Current code:
+```js
+function normalizeGroupName(name) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map(word => {
+      const upper = word.toUpperCase();
+      // Preserve known acronyms if the original word contains uppercase letters
+      if (KNOWN_ACRONYMS.has(upper) && /[A-Z]/.test(word)) {
+        return KNOWN_ACRONYMS.get(upper);
+      }
+      // Standard title-case
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+```
+
+The fix: remove `/[A-Z]/.test(word)` check so that "api" (lowercase) also matches "API". So:
+
+```js
+function normalizeGroupName(name) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map(word => {
+      const upper = word.toUpperCase();
+      // Preserve known acronyms (case-insensitive match)
+      if (KNOWN_ACRONYMS.has(upper)) {
+        return KNOWN_ACRONYMS.get(upper);
+      }
+      // Standard title-case
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+```
+
+Now let me implement this.
+
+Wait, I should also check - does `options.js` currently use any of these functions? Let me check again... No, options.js doesn't use `extractDomain`, `sleep`, or `normalizeGroupName`. But they'll be available as globals now since we're loading the script.
+
+Also I should check: do we export these functions as a module object like `TabTamerRules`? Looking at the pattern used in rules-engine.js, they use a global `TabTamerRules` object. For utils, since these are simple utility functions that will be called directly in background.js, I think we can just define them as global functions, similar to how the constants are global `const` declarations. But the pattern used for rules-engine.js is to also expose them through a `TabTamerRules` object. 
+
+Let me think about this. The task says "Extract shared utilities to `lib/utils.js`". Since these are simple global functions used directly in background.js (e.g., `extractDomain(url)` is called directly, not `Utils.extractDomain(url)`), I'll just define them as global functions. This maintains backward compatibility with the existing code.
+
+Actually, let me look at how these functions are used:
+- `extractDomain(url)` - called directly 
+- `sleep(ms)` - called directly 
+- `normalizeGroupName(name)` - called directly
+- `KNOWN_ACRONYMS` - used inside `normalizeGroupName`
+
+All are called directly, so global functions make sense.
+
+Let me also consider: should I add a `TabTamerUtils` namespace like `TabTamerRules`? That would be a good practice, but it would require changing all call sites in background.js. The task doesn't mention that. Let me keep it simple and just define global functions.
+
+Actually, I just realized - in the manifest, the order is:
+```json
+"scripts": ["lib/constants.js", "lib/rules-engine.js", "background.js"]
+```
+
+I need to add `lib/utils.js` between constants.js and rules-engine.js (since rules-engine.js doesn't depend on utils, but background.js will need utils available).
+
+Wait, let me check: does `rules-engine.js` use any of these utils? Looking at it... no. `rules-engine.js` doesn't use `extractDomain`, `sleep`, `normalizeGroupName`, or `KNOWN_ACRONYMS`. So the order could be:
+`lib/constants.js`, `lib/utils.js`, `lib/rules-engine.js`, `background.js`
+
+OK let me implement this now.
+
+Actually, I should also consider: since we're defining the functions as globals in utils.js, the background.js and options.js will both have access. Let me write the file.Now I have a clear picture. I need to:
+
+1. Create `lib/utils.js` with `KNOWN_ACRONYMS`, `sleep()`, `normalizeGroupName()` (with the case-insensitive fix), and `extractDomain()`
+2. Remove these from `background.js`
+3. Add `lib/utils.js` to `manifest.json` and `options.html`
+4. Update test file to include `lib/utils.js`
+
+Let me create the utilities file first:
+[tool: write] ...
+
+[tool: write] ...
+[tool: write] ✓ (output: 66 bytes)
+Now I need to:
+1. Remove `KNOWN_ACRONYMS`, `sleep()`, `normalizeGroupName()`, and `extractDomain()` from background.js
+2. Add `lib/utils.js` to manifest.json and options.html
+3. Update test file
+
+Let me do the background.js edits. I need to be careful with the edits to remove exactly the right text.
+
+For background.js, I need to:
+1. Remove `KNOWN_ACRONYMS` definition (lines 13-48)
+2. Remove `sleep()` function (lines 68-70)
+3. Remove `normalizeGroupName()` function (lines 139-153) - but keep the comment above
+4. Remove `extractDomain()` function (lines 524-534) - but keep the comment above
+
+Let me be precise about what to remove.
+
+Edit 1: Remove KNOWN_ACRONYMS (lines 13-48)
+```
+const KNOWN_ACRONYMS = new Map([
+  ...
+]);
+```
+
+Edit 2: Remove sleep function (lines 68-70)
+```
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+```
+
+Edit 3: Remove normalizeGroupName function (lines 139-153)
+```
+function normalizeGroupName(name) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map(word => {
+      const upper = word.toUpperCase();
+      // Preserve known acronyms if the original word contains uppercase letters
+      if (KNOWN_ACRONYMS.has(upper) && /[A-Z]/.test(word)) {
+        return KNOWN_ACRONYMS.get(upper);
+      }
+      // Standard title-case
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+```
+
+Edit 4: Remove extractDomain function (lines 524-534)
+```
+function extractDomain(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.hostname;
+    }
+    return null; // non-http(s) protocol → skip
+  } catch {
+    return null; // malformed URL → skip
+  }
+}
+```
+
+Let me do these edits now.Now let me remove the extracted functions from `background.js`. I'll make four edits:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 3802 bytes)
+Good, the edits were applied. Now I need to update the manifest.json to add `lib/utils.js` to the background scripts array, and update options.html to add the script tag.Now update `manifest.json` to add `lib/utils.js` to the background scripts:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 416 bytes)
+Now update options.html to add lib/utils.js:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 375 bytes)
+Now I need to update the test file to also include utils.js in the concatenation. Let me update the test file.Now update the test file to include `lib/utils.js`:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 606 bytes)
+Now let me run the tests to verify everything works.Let me run the tests to verify everything works:
+[tool: bash] ...
+
+[tool: bash] ...
+Let me check what's available in the nix-shell environment.
+[tool: bash] ...
+
+[tool: bash] ...
+Let me check what's in the nix-shell.
+[tool: bash] ...
+
+[tool: bash] ...
+Let me use the full path for node.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1202 bytes)
+All 16 tests pass. Let me also verify:
+
+1. The braces/parens/brackets are balanced in all modified files
+2. No duplicate constants remain in background.js or options.js
+3. The normalizeGroupName fix works correctly
+
+Let me do a quick check on brace balance and also verify the fix works.All 16 tests pass. Let me verify the fixes are correct and check brace balance:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 342 bytes)
+Hmm, the test shows "github prs" → "Github Prs" but I expected "Github PRs". The issue is that "prs" (plural) doesn't match "PR" exactly. Let me check: the upper case of "prs" is "PRS" which doesn't match "PR" in the acronyms map.
+
+OK, so the test expectation was wrong. "PRS" ≠ "PR", so "prs" doesn't match the acronym. That's correct behavior - we only match exact acronyms, not plurals of acronyms. Let me verify that the actual function output is "Github Prs" which is the standard title-case behavior. That's correct.
+
+So the test expectation was incorrect. Let me fix the test:
+
+```
+['github prs', 'Github Prs'], // PRS ≠ PR, so it stays title-cased
+```
+
+Wait, but actually "PR" is a known acronym. Should "prs" match? I think not - "prs" would be a different word (like "prs" as in multiple PRs). The acronym matching should only match the exact acronym. So "Github Prs" is correct.
+
+Let me re-verify all tests pass with the corrected expected value.The test expectation was wrong — `prs` is not the same as `PR` (acronyms are exact matches). Let me verify with corrected expectations:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 34 bytes)
+Now let me also verify that no duplicate constants exist in background.js or options.js, and check the brace balance for all modified files.Let me also verify no duplicate definitions remain and brace balance is good:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 451 bytes)
+Everything is balanced and no duplicate definitions remain in background.js. The fix for case-insensitive acronym matching is working correctly. Let me now run the full test suite one more time to confirm everything passes, then update the task and write the summary.All checks pass. Let me run the full test suite once more to confirm:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1203 bytes)
+All 16 tests pass. Let me update the task and write the summary.All 16 tests pass. Let me mark the task as complete and write the summary:
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tool

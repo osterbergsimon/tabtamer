@@ -9,6 +9,7 @@ const { resetMocks, mockStorage, mockTabGroups, mockTabs } = require('./setup');
 // Concatenate files so const declarations from dependencies are visible
 const moduleCode = [
   fs.readFileSync(require.resolve('../extension/lib/constants.js'), 'utf8'),
+  fs.readFileSync(require.resolve('../extension/lib/utils.js'), 'utf8'),
   fs.readFileSync(require.resolve('../extension/lib/rules-engine.js'), 'utf8'),
   fs.readFileSync(require.resolve('../extension/background.js'), 'utf8'),
 ].join('\n');

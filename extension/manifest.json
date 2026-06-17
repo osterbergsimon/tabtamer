@@ -21,7 +21,7 @@
   ],
 
   "background": {
-    "scripts": ["lib/constants.js", "lib/rules-engine.js", "background.js"]
+    "scripts": ["lib/constants.js", "lib/utils.js", "lib/rules-engine.js", "background.js"]
   },
 
   "content_scripts": [{

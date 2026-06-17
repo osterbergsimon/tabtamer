@@ -10,43 +10,6 @@
 
 // ─── Constants are defined in lib/constants.js (loaded first via manifest) ────
 
-const KNOWN_ACRONYMS = new Map([
-  ['API', 'API'],
-  ['URL', 'URL'],
-  ['DNS', 'DNS'],
-  ['SSH', 'SSH'],
-  ['CPU', 'CPU'],
-  ['GPU', 'GPU'],
-  ['HTML', 'HTML'],
-  ['CSS', 'CSS'],
-  ['JS', 'JS'],
-  ['JSON', 'JSON'],
-  ['XML', 'XML'],
-  ['YAML', 'YAML'],
-  ['CSV', 'CSV'],
-  ['PDF', 'PDF'],
-  ['SQL', 'SQL'],
-  ['HTTP', 'HTTP'],
-  ['HTTPS', 'HTTPS'],
-  ['SSL', 'SSL'],
-  ['TLS', 'TLS'],
-  ['VPN', 'VPN'],
-  ['CI', 'CI'],
-  ['CD', 'CD'],
-  ['PR', 'PR'],
-  ['AI', 'AI'],
-  ['ML', 'ML'],
-  ['LLM', 'LLM'],
-  ['UI', 'UI'],
-  ['UX', 'UX'],
-  ['CLI', 'CLI'],
-  ['SDK', 'SDK'],
-  ['IDE', 'IDE'],
-  ['AWS', 'AWS'],
-  ['GCP', 'GCP'],
-  ['NIXOS', 'NixOS'],
-]);
-
 // T5.6: Firefox-supported tab group colors for deterministic auto-assignment
 const GROUP_COLORS = ['grey', 'blue', 'red', 'yellow', 'purple', 'pink', 'green', 'orange', 'cyan'];
 
@@ -62,12 +25,6 @@ let _pendingClassificationCount = 0;
 
 // Flag to suppress missing-API-key notification during startup
 let _startupInProgress = false;
-
-// ─── Utility ─────────────────────────────────────────────────────────────────
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 // ─── Retry with Backoff ──────────────────────────────────────────────────────────
 // T5.5: Unified retry loop with exponential backoff, rate-limit handling
@@ -135,22 +92,6 @@ function getGroupColor(name) {
 
 // ─── Group Name Normalization ──────────────────────────────────────────────────
 // T4.8: Trim and Title Case group names to prevent near-duplicate groups
-
-function normalizeGroupName(name) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map(word => {
-      const upper = word.toUpperCase();
-      // Preserve known acronyms if the original word contains uppercase letters
-      if (KNOWN_ACRONYMS.has(upper) && /[A-Z]/.test(word)) {
-        return KNOWN_ACRONYMS.get(upper);
-      }
-      // Standard title-case
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    })
-    .join(' ');
-}
 
 // ─── Managed Group Tracking ───────────────────────────────────────────────────
 // T4.2: Track which group IDs TabTamer has created to respect manual groupings
@@ -515,21 +456,6 @@ async function handleTab(tabId, url, title) {
     // T7.12: Decrement pending classification count and update badge
     _pendingClassificationCount = Math.max(0, _pendingClassificationCount - 1);
     updateBadge(_pendingClassificationCount > 0);
-  }
-}
-
-// ─── Domain Extraction ──────────────────────────────────────────────────────
-// TAS-2 / TAS-9: Extract hostname from URL, skip non-http(s) or malformed URLs
-
-function extractDomain(url) {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return parsed.hostname;
-    }
-    return null; // non-http(s) protocol → skip
-  } catch {
-    return null; // malformed URL → skip
   }
 }
 
