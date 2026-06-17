@@ -66,17 +66,17 @@ function applyTheme(theme) {
 
 // ─── Toast helper ─────────────────────────────────────────────────────────────
 
-function showToast(message, type = 'success') {
+function showToast(message, type = 'success', duration) {
   toast.textContent = message;
   toast.className = `toast toast-${type} show`;
   toast.setAttribute('role', 'alert');
 
-  // Auto-dismiss after 3 seconds
+  // Auto-dismiss after configurable duration (default 3000ms, import results 5000ms)
   if (window._toastTimer) clearTimeout(window._toastTimer);
   window._toastTimer = setTimeout(() => {
     toast.classList.remove('show');
     toast.setAttribute('role', 'presentation');
-  }, 3000);
+  }, duration || 3000);
 }
 
 // ─── Confirm Modal (T7.11) ───────────────────────────────────────────
@@ -573,7 +573,7 @@ async function handleCacheFileSelected(event) {
         }
       }
       await browser.storage.local.set({ [CACHE_KEY]: existing });
-      showToast(`Imported: ${added} added, ${skipped} skipped (already existed)`, 'success');
+      showToast(`Imported: ${added} added, ${skipped} skipped (already existed)`, 'success', 5000);
     } else {
       // Overwrite — ask for confirmation
       const confirmOverwrite = await showConfirmModal(
@@ -585,7 +585,7 @@ async function handleCacheFileSelected(event) {
         return;
       }
       await browser.storage.local.set({ [CACHE_KEY]: imported });
-      showToast(`Cache overwritten with ${importedCount} entr${importedCount === 1 ? 'y' : 'ies'}`, 'success');
+      showToast(`Cache overwritten with ${importedCount} entr${importedCount === 1 ? 'y' : 'ies'}`, 'success', 5000);
     }
 
     loadCacheStats();
@@ -751,6 +751,12 @@ async function loadExcludedDomains() {
     const result = await browser.storage.local.get(EXCLUDED_DOMAINS_KEY);
     const excluded = result[EXCLUDED_DOMAINS_KEY] || [];
     excludedDomainsInput.value = excluded.join('\n');
+    // T7.15: Show excluded domain count as a badge on the section header
+    const badge = document.getElementById('excluded-count-badge');
+    if (badge) {
+      badge.textContent = excluded.length;
+      badge.style.display = excluded.length > 0 ? 'inline' : 'none';
+    }
   } catch (err) {
     console.error('TabTamer: failed to load excluded domains', err);
     showToast('Failed to load excluded domains', 'error');
@@ -780,6 +786,12 @@ async function saveExcludedDomains() {
   try {
     await browser.storage.local.set({ [EXCLUDED_DOMAINS_KEY]: valid });
     showToast(`Excluded domains saved (${valid.length} entr${valid.length === 1 ? 'y' : 'ies'})`, 'success');
+    // T7.15: Update badge after save
+    const badge = document.getElementById('excluded-count-badge');
+    if (badge) {
+      badge.textContent = valid.length;
+      badge.style.display = valid.length > 0 ? 'inline' : 'none';
+    }
   } catch (err) {
     console.error('TabTamer: failed to save excluded domains', err);
     showToast('Failed to save excluded domains', 'error');
@@ -1034,7 +1046,7 @@ async function handleRulesFileSelected(event) {
       const existing = await TabTamerRules.loadRules();
       const merged = [...existing, ...imported];
       await TabTamerRules.saveRules(merged);
-      showToast(`Imported: ${imported.length} rule${imported.length !== 1 ? 's' : ''} merged`, 'success');
+      showToast(`Imported: ${imported.length} rule${imported.length !== 1 ? 's' : ''} merged`, 'success', 5000);
     } else {
       // Overwrite
       const confirmOverwrite = await showConfirmModal(
@@ -1045,7 +1057,7 @@ async function handleRulesFileSelected(event) {
         return;
       }
       await TabTamerRules.saveRules(imported);
-      showToast(`Rules overwritten with ${imported.length} rule${imported.length !== 1 ? 's' : ''}`, 'success');
+      showToast(`Rules overwritten with ${imported.length} rule${imported.length !== 1 ? 's' : ''}`, 'success', 5000);
     }
 
     await loadRulesTable();

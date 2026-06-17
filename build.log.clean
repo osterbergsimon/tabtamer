@@ -5432,4 +5432,299 @@ The HTML looks clean and correct. Let me verify the complete list of changes I m
    - Tab content sections with appropriate roles/attributes
    - Moved all cards into appropriate tab sections
    - Moved cache-related actions (clear, export/import) from General form to Cache tab
-   - Move
+   - Moved costs to Info tab
+   - Moved shortcuts to Info tab
+   - Moved excluded domains to Privacy tab
+   - Added `card-header` class for consistent section headers
+   - Added `badge` class for the excluded count badge element (placeholder for T7.15)
+   - Added `cost-display` class for API usage display
+   - Added `shortcut-item` class for keyboard shortcut list items
+   - All original element IDs preserved
+   - Confirm modal and toast are outside tab content sections
+   - CSS supports tab navigation styling with theming
+
+2. **options.js** - Added:
+   - `switchTab(tabName)` function
+   - `setupTabNavigation()` function
+   - Called `setupTabNavigation()` in `DOMContentLoaded`
+
+Let me verify the test output once more to make sure everything passes.
+
+All 16 tests pass. The implementation is complete.
+
+Let me mark the task as completed and write the iteration summary.Everything looks great. Let me verify the tests still pass one more time:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 3284 bytes)
+All 16 tests pass. Let me now mark the task as completed and write the iteration summary.All 16 tests pass. Let me mark the task as complete and write the summary:
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 37 bytes)
+Now let me write the iteration summary.
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+[tool: iteratr-tools__iteration-summary] ✓ (output: 33 bytes)
+T7.14 is complete. Now I need to STOP and let the loop handle the next task. Per the rules: "ONE task per iteration - complete fully, then STOP".T7.14 is complete. The options page now has a clean 5-tab navigation system (General, Rules, Cache, Privacy, Info) with proper tab switching, accessibility attributes, and all existing functionality preserved and properly organized into logical sections. All 16 tests pass.
+
+**Stopping** — one task per iteration per the rules.
+--- Agent finished: end_turn | Duration: 4m6.814s | Model: opencode-go/deepseek-v4-flash | Tokens: in=48941 out=17724 cache_read=1040896 cache_write=0 ---
+The user wants me to stage the three modified files and create a commit. Let me do that.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 129 bytes)
+Done. The commit was created successfully with 923 insertions and 152 deletions across 3 files.Committed with `61ece0c` — 923 insertions, 152 deletions across the 3 files. The commit message follows conventional format with a clear summary and bullet-point body describing the tab organization.
+--- Agent finished: end_turn | Duration: 8.166s | Model: opencode-go/deepseek-v4-flash | Tokens: in=905 out=265 cache_read=134144 cache_write=0 ---
+
+✓ Iteration #7 complete
+
+Let me start by understanding the current state. I need to pick one ready task (highest priority, no blockers) and work on it. Let me check the current tasks.
+
+Looking at the remaining tasks:
+
+1. T7.2: Fix cost undercounting - P2
+2. T7.4: Fix loadManagedGroups silent failure - P2
+3. T7.5: Fix content.js monkey-patch fragility - P2
+4. T7.15: Configurable toast dismiss time & exclude count - P2
+5. T7.16: Extract shared constants to lib/constants.js - P2
+6. T7.17: Extract shared utilities to lib/utils.js - P2
+7. T7.20: Update README.md - P3
+8. T7.3: Fix stale overwrite count in importCache - P2
+9. T7.6: Fix stale title in onUpdated listener - P2
+10. T7.7: Strengthen excluded domain validation - P2
+11. T7.8: Suppress notifyMissingApiKey during startup scan - P2
+12. T7.21: Add documentation for custom LLM endpoints - P3
+13. T7.22: Meta: Do nothing - P4
+14. T7.18: Fix empty catch in isEnabled() - P2
+15. T7.19: Update DESIGN.md - P3
+
+Let me pick the highest priority unblocked task. Let me check what's the next task.
+
+Let me use task-next to see what's the highest priority unblocked task.
+[tool: iteratr-tools__task-next] ...
+
+[tool: iteratr-tools__task-next] ...
+[tool: iteratr-tools__task-next] ✓ (output: 242 bytes)
+The next task is T7.15: Configurable toast dismiss time & exclude count. Let me mark it as in_progress and start working on it.
+
+Let me first understand what needs to be done:
+
+1. Increase default toast dismiss from 3s to 5s for import results
+2. Show excluded domain count as a badge on the "Excluded Domains" section header (the Privacy tab)
+
+Let me read the relevant files to understand the current implementation.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 39 bytes)
+Let me read the relevant files to understand current implementation.Let me start by reading the relevant files to understand the current toast implementation and the options page structure.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 31192 bytes)
+[tool: read] ✓ (output: 49583 bytes)
+[tool: read] ✓ (output: 51120 bytes)
+Now I have a good understanding of the current code. Let me analyze what needs to be done for T7.15:
+
+1. **Configurable toast dismiss time** - The spec says "Increase default toast dismiss from 3s to 5s for import results". Currently the `showToast` function hardcodes 3000ms. I need to:
+   - Make the toast dismiss time configurable (maybe add a parameter to showToast)
+   - For import results (cache import and rules import), use 5000ms instead of 3000ms
+
+2. **Exclude count as badge** - The spec says "Show excluded domain count as a badge on the 'Excluded Domains' section header." Looking at the HTML, I can see there's already an `#excluded-count-badge` element in the Privacy tab's card header (line 666):
+   ```html
+   <span id="excluded-count-badge" class="badge" style="display:none;">0</span>
+   ```
+   So the placeholder already exists! I need to:
+   - In `loadExcludedDomains()`, update the badge text with the count of excluded domains
+   - Make sure the badge is visible when count > 0
+
+Let me plan the changes:
+
+### For toast dismiss time:
+
+1. Modify `showToast()` in `options.js` to accept an optional `duration` parameter
+2. Update specific calls for import operations to use 5000ms
+
+### For exclude count badge:
+
+1. Update `loadExcludedDomains()` in `options.js` to show the count in the badge
+2. The HTML already has the badge element with ID `excluded-count-badge`
+
+Let me also check if there's a `showToast` reference or anything else I should check in the file.
+
+Let me think about the changes more carefully:
+
+**Changes to options.js:**
+
+1. Modify `showToast` to accept a duration parameter:
+```js
+function showToast(message, type = 'success', duration) {
+  toast.textContent = message;
+  toast.className = `toast toast-${type} show`;
+  toast.setAttribute('role', 'alert');
+
+  // Auto-dismiss after configurable duration (default 3000ms)
+  if (window._toastTimer) clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+    toast.setAttribute('role', 'presentation');
+  }, duration || 3000);
+}
+```
+
+2. Update the import success messages to use 5000ms:
+   - Line 576: `showToast(`Imported: ${added} added, ${skipped} skipped (already existed)`, 'success');` → `showToast(... , 'success', 5000);`
+   - Line 588: `showToast(`Cache overwritten with ${importedCount} entr${importedCount === 1 ? 'y' : 'ies'}`, 'success');` → `showToast(... , 'success', 5000);`
+   - Line 1037: `showToast(`Imported: ${imported.length} rule${imported.length !== 1 ? 's' : ''} merged`, 'success');` → `showToast(... , 'success', 5000);`
+   - Line 1048: `showToast(`Rules overwritten with ${imported.length} rule${imported.length !== 1 ? 's' : ''}`, 'success');` → `showToast(... , 'success', 5000);`
+
+3. Update `loadExcludedDomains()` to show badge count.
+
+Let me implement these changes now.Now I have a clear picture. Let me implement the changes:
+
+1. **Toast dismiss time**: Make `showToast()` accept a configurable duration parameter, and use 5s for import results
+2. **Exclude count badge**: Update `loadExcludedDomains()` to populate the existing badge element
+
+Let me start with the `showToast` modification:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 1146 bytes)
+Good, now update the cache import success toasts to use 5000ms duration.Good. Now update the cache import toasts to use 5s dismiss time:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 1812 bytes)
+Now I need to update `loadExcludedDomains()` to populate the excluded count badge. Currently it just loads the domains into the textarea. I need to also update the badge.
+
+Looking at the HTML, the badge is at line 666:
+```html
+<span id="excluded-count-badge" class="badge" style="display:none;">0</span>
+```
+
+I need to update `loadExcludedDomains()` to show the count in the badge.Now update `loadExcludedDomains()` to show the excluded count badge:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 799 bytes)
+Now I should also update `saveExcludedDomains()` to refresh the badge after saving, so the badge updates immediately when the user saves changes.Also update the badge after saving excluded domains so it refreshes immediately:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1330 bytes)
+I should add badge update after saving excluded domains. Let me add it after the successful save.
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 762 bytes)
+Now let me verify the changes by running the tests and checking syntax.Now let me verify the changes are correct by running the tests:
+[tool: bash] ...
+
+[tool: bash] ...
+Let me check what's available.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 52 bytes)
+All balanced. Let me also verify the specific changes I made are correct by doing a quick grep for the 5000ms toasts and the badge logic.Balance checks pass. Let me verify the specific changes are present:
+[tool: grep] ...
+
+[tool: grep] ...
+
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 468 bytes)
+[tool: grep] ✓ (output: 142 bytes)
+All the changes look correct. Let me also verify the `showToast` function signature update is correct:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 813 bytes)
+Let me also run the actual test suite to make sure everything passes.Let me run the test suite to verify everything is working:
+[tool: bash] ...
+
+[tool: bash] ...
+Let me check if there's a nix-shell setup or any test configuration.
+[tool: find] ...
+
+[tool: find] ...
+
+[tool: find] ...
+
+[tool: find] ...
+[tool: find] ✓ (output: 14 bytes)
+[tool: find] ✓ (output: 15 bytes)
+Let me read the package.json to understand the test setup.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 10693 bytes)
+[tool: read] ✓ (output: 406 bytes)
+The tests are manual integration tests. Let me check if there are automated unit tests:
+[tool: find] ...
+
+[tool: find] ...
+[tool: find] ✓ (output: 15 bytes)
+No unit tests directory found. Let me check if there's a tests directory somewhere else.
+[tool: find] ...
+
+[tool: find] ...
+[tool: find] ✓ (output: 21 bytes)
+There's a tests directory. Let me check it.
+[tool: ls] ...
+
+[tool: ls] ...
+[tool: ls] ✓ (output: 27 bytes)
+OK, there are test files. Let me check if we can run them.
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 2061 bytes)
+Let me try to run the tests with node.
+[tool: bash] ...
+
+[tool: bash] ...
+Node is not available. Let me check what's available in the environment.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 53 bytes)
+OK, Node.js isn't available but we can still verify the code manually. Let me do a thorough review of the changes by reading the modified sections of the file.
+
+Let me verify the changes look correct by reading the key sections.Let me do a final review of all changes by reading the modified sections:
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 2353 bytes)
+[tool: read] ✓ (output: 813 bytes)
+[tool: read] ✓ (output: 1120 bytes)
+Let me also check the rules import sections to make sure those changes are there too:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1018 bytes)
+Everything looks good
