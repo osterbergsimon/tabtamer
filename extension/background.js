@@ -231,6 +231,9 @@ async function getUngroupedTabs() {
 
 async function startupScan() {
   // T5.10: Show processing indicator in toolbar badge during startup scan
+  // The first handleTab() call will set up the processing indicator
+  // via the _pendingClassificationCount tracking mechanism (T7.12).
+  // Use a minimal initial badge to provide immediate visual feedback.
   browser.browserAction.setBadgeText({ text: '…' });
   browser.browserAction.setBadgeBackgroundColor({ color: '#888888' });
 
@@ -240,6 +243,8 @@ async function startupScan() {
     console.log(`TabTamer: startup scan — found ${ungroupedTabs.length} ungrouped tabs`);
 
     // Process each ungrouped tab with concurrency limiting
+    // Each handleTab() call increments _pendingClassificationCount
+    // and calls updateBadge(true) for the processing indicator
     const promises = ungroupedTabs.map(tab =>
       runWithConcurrencyLimit(() => handleTab(tab.id, tab.url, tab.title))
     );
@@ -249,7 +254,7 @@ async function startupScan() {
     console.error('TabTamer: startup scan error', err);
   } finally {
     // Restore normal badge (group count or OFF) after scan completes
-    await updateBadge();
+    await updateBadge(false);
   }
 }
 
@@ -370,7 +375,7 @@ async function togglePause() {
 
 let _badgeDebounceTimer = null;
 
-function updateBadge() {
+function updateBadge(processing) {
   if (_badgeDebounceTimer) {
     clearTimeout(_badgeDebounceTimer);
   }
@@ -386,7 +391,9 @@ function updateBadge() {
         const groups = await browser.tabGroups.query({});
         const managedCount = groups.filter(g => _managedGroupIds.has(g.id)).length;
         // T7.12: Show processing indicator if classifications are in-flight
-        if (_pendingClassificationCount > 0) {
+        // Use the passed flag if provided, otherwise fall back to tracking counter
+        const isProcessing = processing !== undefined ? processing : _pendingClassificationCount > 0;
+        if (isProcessing) {
           browser.browserAction.setBadgeText({ text: `${managedCount}…` });
         } else {
           browser.browserAction.setBadgeText({ text: managedCount > 0 ? String(managedCount) : '' });
@@ -426,9 +433,9 @@ async function handleTab(tabId, url, title) {
     return;
   }
   _processingTabs.add(tabId);
-  // T7.12: Track pending classification count
+  // T7.12: Track pending classification count and show processing indicator
   _pendingClassificationCount++;
-  updateBadge();
+  updateBadge(true);
 
   try {
     // TAS-5: Check if extension is enabled
@@ -526,9 +533,9 @@ async function handleTab(tabId, url, title) {
     }
   } finally {
     _processingTabs.delete(tabId);
-    // T7.12: Decrement pending classification count
+    // T7.12: Decrement pending classification count and update badge
     _pendingClassificationCount = Math.max(0, _pendingClassificationCount - 1);
-    updateBadge();
+    updateBadge(_pendingClassificationCount > 0);
   }
 }
 

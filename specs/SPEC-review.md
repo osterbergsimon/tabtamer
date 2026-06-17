@@ -15,6 +15,11 @@ You are evaluating the LOOP, not the code. Your job is to check:
 
 ## Tasks
 
+- [ ] **Task 0: Read AGENTS.md**
+  Read `AGENTS.md` for project conventions and loop rules. Pay attention to:
+  the reviewer cadence (every 5 phases), the `.loop-quit` mechanism, the
+  `.review-warning` file behavior, and the stale-state rule.
+
 - [ ] **Review progress across recent phases**
   Check `specs/archive/` to see how many phases have been run. Read the last
   3-5 archived spec files to see what tasks were identified and (presumably)

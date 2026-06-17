@@ -17,6 +17,13 @@ Ask: what would make this extension 10× better? What would a daily user love?
 
 ## Tasks
 
+- [ ] **Task 0: Read AGENTS.md**
+  Read `AGENTS.md` for project conventions, constraints, gotchas, and
+  architecture notes that apply to this spec-writing session. Pay particular
+  attention to: the spec-writer constraints (must NOT read `specs/archive/`,
+  must find genuinely new issues), the meta-task format requirement, and
+  test/naming quirks that generated specs must account for.
+
 - [ ] **Task 1: Source code audit — bugs, quality, security**
   Read every source file with a critical eye: `extension/manifest.json`,
   `extension/background.js`, `extension/options.html`, `extension/options.js`.
@@ -69,11 +76,17 @@ Ask: what would make this extension 10× better? What would a daily user love?
   - `## Overview` — what this phase achieves, why it matters
   - `## Files to modify` tree
   - `## Tasks` — one checkbox per finding, prioritised:
-    1. Bugs (blockers first)
-    2. Missing features / gaps
-    3. Big new features (at least 1-2 per spec!)
-    4. UX polish
-    5. Documentation
+  0. Read AGENTS.md (always first — see the template below)
+     ```
+     - [ ] **T{phase}.0: Read AGENTS.md**
+       Read `AGENTS.md` for project conventions, gotchas, and architecture
+       notes. Also read `DESIGN.md` for component architecture.
+     ```
+  1. Bugs (blockers first)
+  2. Missing features / gaps
+  3. Big new features (at least 1-2 per spec!)
+  4. UX polish
+  5. Documentation
   - `## Design notes`
   - Bump manifest version
   - Last task MUST be:

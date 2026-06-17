@@ -38,6 +38,11 @@ extension/
 
 ## Tasks
 
+- [ ] **T7.0: Read AGENTS.md**
+  Read `AGENTS.md` for project conventions: test environment (nix-shell),
+  mock quirks, naming gotchas (`normalizeGroupName`), and architecture notes.
+  Also read `DESIGN.md` for component architecture.
+
 ### Bugs (blockers first)
 
 - [ ] **T7.1: Fix race condition in `assignToGroup` — tab can close between `get` and `create`**
