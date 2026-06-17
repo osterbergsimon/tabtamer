@@ -461,6 +461,22 @@ async function handleTab(tabId, url, title) {
       return;
     }
 
+    // T7.9: Check custom rules BEFORE cache and LLM — first match wins
+    const ruleGroup = await TabTamerRules.matchRules(domain);
+    if (ruleGroup) {
+      console.log(`TabTamer: rule match — "${ruleGroup}" for ${domain}`);
+      try {
+        await assignToGroup(tabId, ruleGroup);
+      } catch (err) {
+        if (err.message && err.message.includes('Invalid tab ID')) {
+          console.log(`TabTamer: tab ${tabId} closed before rule assignment`);
+          return;
+        }
+        throw err;
+      }
+      return;
+    }
+
     // TAS-2: Check cache
     const cachedGroup = await getCachedGroup(domain);
     if (cachedGroup) {

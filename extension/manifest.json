@@ -21,7 +21,7 @@
   ],
 
   "background": {
-    "scripts": ["background.js"]
+    "scripts": ["lib/rules-engine.js", "background.js"]
   },
 
   "content_scripts": [{

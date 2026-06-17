@@ -416,6 +416,54 @@
       <p id="cache-stats" class="cache-stats"></p>
     </form>
 
+    <!-- ─── Custom Group Rules (T7.9) ─────────────────────────────── -->
+    <div class="card" id="rules-card">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Custom Group Rules</span>
+        <span style="font-size: 12px; color: var(--text-muted);">Bypass LLM for known domains</span>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+        Define domain→group mappings that skip the LLM entirely. First matching rule wins.
+        Supports glob patterns: <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">*</code> matches any subdomain,
+        <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">?</code> matches any single character.
+      </p>
+
+      <!-- Add Rule Form -->
+      <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+        <input type="text" id="rule-pattern-input" placeholder="e.g. github.com"
+               style="flex: 1; padding: 8px 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none;">
+        <input type="text" id="rule-group-input" placeholder="Group name"
+               style="flex: 0 0 140px; padding: 8px 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none;">
+        <button type="button" class="btn btn-primary" id="add-rule-btn" style="flex: none; font-size: 12px; padding: 8px 16px;">Add</button>
+      </div>
+
+      <!-- Rules Table -->
+      <div id="rules-table-container" style="max-height: 300px; overflow-y: auto;">
+        <table id="rules-table" style="width: 100%; border-collapse: collapse; font-size: 13px; display: none;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border);">
+              <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 5%;">#</th>
+              <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 30%;">Domain Pattern</th>
+              <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 25%;">Group Name</th>
+              <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 15%;">Enabled</th>
+              <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 25%;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rules-table-body"></tbody>
+        </table>
+      </div>
+      <p id="rules-empty-message" style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">No rules defined yet. Add a rule above to skip LLM calls for specific domains.</p>
+      <p id="rules-validation-error" style="color: var(--danger); font-size: 12px; display: none; margin-top: 4px;"></p>
+
+      <div class="separator"></div>
+
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn btn-test" id="export-rules-btn" style="flex: 1; font-size: 12px; padding: 8px 16px;">Export Rules</button>
+        <button type="button" class="btn btn-test" id="import-rules-btn" style="flex: 1; font-size: 12px; padding: 8px 16px;">Import Rules</button>
+      </div>
+      <input type="file" id="rules-file-input" accept=".json" style="display:none;">
+    </div>
+
     <!-- ─── Cost Tracking ─────────────────────────────────────────── -->
     <div class="card" id="cost-card">
       <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -486,6 +534,7 @@
     <div id="toast" class="toast" role="alert"></div>
   </div>
 
+  <script src="lib/rules-engine.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

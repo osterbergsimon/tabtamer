@@ -722,6 +722,276 @@ async function saveExcludedDomains() {
   }
 }
 
+// ─── Custom Group Rules (T7.9) ───────────────────────────────────────────────
+
+const rulePatternInput = document.getElementById('rule-pattern-input');
+const ruleGroupInput = document.getElementById('rule-group-input');
+const addRuleBtn = document.getElementById('add-rule-btn');
+const rulesTable = document.getElementById('rules-table');
+const rulesTableBody = document.getElementById('rules-table-body');
+const rulesEmptyMessage = document.getElementById('rules-empty-message');
+const rulesValidationError = document.getElementById('rules-validation-error');
+const exportRulesBtn = document.getElementById('export-rules-btn');
+const importRulesBtn = document.getElementById('import-rules-btn');
+const rulesFileInput = document.getElementById('rules-file-input');
+
+function showRulesValidationError(message) {
+  rulesValidationError.textContent = message;
+  rulesValidationError.style.display = 'block';
+}
+
+function hideRulesValidationError() {
+  rulesValidationError.style.display = 'none';
+}
+
+async function loadRulesTable() {
+  try {
+    const rules = await TabTamerRules.loadRules();
+
+    if (rules.length === 0) {
+      rulesTable.style.display = 'none';
+      rulesEmptyMessage.style.display = 'block';
+      rulesTableBody.innerHTML = '';
+      return;
+    }
+
+    rulesTable.style.display = 'table';
+    rulesEmptyMessage.style.display = 'none';
+
+    const rows = rules.map((rule, index) => {
+      const escapedPattern = (rule.pattern || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const escapedGroup = (rule.groupName || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const checkedAttr = rule.enabled !== false ? 'checked' : '';
+      return `<tr data-index="${index}">
+        <td style="padding: 6px 8px; color: var(--text-muted); font-size: 11px; vertical-align: middle;">${index + 1}</td>
+        <td style="padding: 6px 8px; word-break: break-all; vertical-align: middle;"><code style="background: var(--bg); padding: 1px 4px; border-radius: 3px; font-size: 12px;">${escapedPattern}</code></td>
+        <td style="padding: 6px 8px; vertical-align: middle;">${escapedGroup}</td>
+        <td style="padding: 6px 8px; text-align: center; vertical-align: middle;">
+          <input type="checkbox" class="rule-toggle" ${checkedAttr} style="accent-color: var(--primary); cursor: pointer;">
+        </td>
+        <td style="padding: 6px 8px; text-align: right; white-space: nowrap; vertical-align: middle;">
+          <button class="btn-cache-action btn-rule-move-up" ${index === 0 ? 'disabled style="opacity:0.3"' : ''} title="Move up">▲</button>
+          <button class="btn-cache-action btn-rule-move-down" ${index === rules.length - 1 ? 'disabled style="opacity:0.3"' : ''} title="Move down">▼</button>
+          <button class="btn-cache-action btn-cache-delete btn-rule-delete" title="Delete rule">✕</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    rulesTableBody.innerHTML = rows;
+  } catch (err) {
+    console.error('TabTamer: failed to load rules table', err);
+    rulesTable.style.display = 'none';
+    rulesEmptyMessage.textContent = 'Could not load rules';
+    rulesEmptyMessage.style.display = 'block';
+  }
+}
+
+async function handleAddRule() {
+  const pattern = rulePatternInput.value.trim();
+  const groupName = ruleGroupInput.value.trim();
+
+  hideRulesValidationError();
+
+  if (!pattern) {
+    showRulesValidationError('Please enter a domain pattern.');
+    rulePatternInput.focus();
+    return;
+  }
+
+  if (!groupName) {
+    showRulesValidationError('Please enter a group name.');
+    ruleGroupInput.focus();
+    return;
+  }
+
+  if (!TabTamerRules.isValidPattern(pattern)) {
+    showRulesValidationError('Invalid domain pattern. Use bare domains only (no scheme, path, or port). E.g., "github.com" or "*.internal.corp".');
+    rulePatternInput.focus();
+    return;
+  }
+
+  try {
+    await TabTamerRules.addRule(pattern, groupName, true);
+    rulePatternInput.value = '';
+    ruleGroupInput.value = '';
+    rulePatternInput.focus();
+    await loadRulesTable();
+    showToast(`Rule added: "${pattern}" → "${groupName}"`, 'success');
+  } catch (err) {
+    console.error('TabTamer: failed to add rule', err);
+    showToast('Failed to add rule', 'error');
+  }
+}
+
+async function handleDeleteRule(index) {
+  try {
+    await TabTamerRules.removeRule(index);
+    await loadRulesTable();
+    showToast('Rule deleted', 'success');
+  } catch (err) {
+    console.error('TabTamer: failed to delete rule', err);
+    showToast('Failed to delete rule', 'error');
+  }
+}
+
+async function handleToggleRule(index, enabled) {
+  try {
+    await TabTamerRules.updateRule(index, { enabled });
+    // Refresh table to update toggle state (though it's already visually toggled)
+    await loadRulesTable();
+  } catch (err) {
+    console.error('TabTamer: failed to toggle rule', err);
+    showToast('Failed to update rule', 'error');
+    // Revert the toggle by reloading
+    await loadRulesTable();
+  }
+}
+
+async function handleMoveRule(fromIndex, direction) {
+  const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+  try {
+    await TabTamerRules.reorderRules(fromIndex, toIndex);
+    await loadRulesTable();
+  } catch (err) {
+    console.error('TabTamer: failed to reorder rule', err);
+    showToast('Failed to reorder rule', 'error');
+  }
+}
+
+function setupRulesTableEvents() {
+  rulesTableBody.addEventListener('click', async (event) => {
+    const row = event.target.closest('tr');
+    if (!row) return;
+
+    const index = parseInt(row.dataset.index, 10);
+
+    // Delete button
+    if (event.target.classList.contains('btn-rule-delete')) {
+      handleDeleteRule(index);
+      return;
+    }
+
+    // Move up button
+    if (event.target.classList.contains('btn-rule-move-up')) {
+      handleMoveRule(index, 'up');
+      return;
+    }
+
+    // Move down button
+    if (event.target.classList.contains('btn-rule-move-down')) {
+      handleMoveRule(index, 'down');
+      return;
+    }
+  });
+
+  // Toggle checkboxes (delegated change event)
+  rulesTableBody.addEventListener('change', async (event) => {
+    if (event.target.classList.contains('rule-toggle')) {
+      const row = event.target.closest('tr');
+      if (!row) return;
+      const index = parseInt(row.dataset.index, 10);
+      const enabled = event.target.checked;
+      await handleToggleRule(index, enabled);
+    }
+  });
+}
+
+// ─── Rules Export / Import ─────────────────────────────────────────────────
+
+async function exportRules() {
+  setButtonLoading(exportRulesBtn, true, 'Exporting…');
+  try {
+    const rules = await TabTamerRules.exportRules();
+    const json = JSON.stringify(rules, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tabtamer-rules-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast(`Exported ${rules.length} rule${rules.length !== 1 ? 's' : ''}`, 'success');
+  } catch (err) {
+    console.error('TabTamer: failed to export rules', err);
+    showToast('Failed to export rules', 'error');
+  } finally {
+    setButtonLoading(exportRulesBtn, false);
+  }
+}
+
+async function handleRulesFileSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  setButtonLoading(importRulesBtn, true, 'Importing…');
+
+  try {
+    const text = await file.text();
+    let imported;
+    try {
+      imported = JSON.parse(text);
+    } catch {
+      showToast('Invalid JSON file', 'error');
+      return;
+    }
+
+    if (!Array.isArray(imported)) {
+      showToast('Rules file must contain a JSON array of rule objects', 'error');
+      return;
+    }
+
+    // Validate structure
+    for (const [i, rule] of imported.entries()) {
+      if (!rule.pattern || typeof rule.pattern !== 'string') {
+        showToast(`Rule ${i + 1}: missing or invalid "pattern"`, 'error');
+        return;
+      }
+      if (!rule.groupName || typeof rule.groupName !== 'string') {
+        showToast(`Rule ${i + 1}: missing or invalid "groupName"`, 'error');
+        return;
+      }
+    }
+
+    // Prompt: merge or overwrite?
+    const doMerge = confirm(
+      `Import ${imported.length} rule${imported.length !== 1 ? 's' : ''}?\n\n` +
+      `Click OK to **merge** (add new rules at the end).\n` +
+      `Click Cancel to **overwrite** (replace all existing rules).`
+    );
+
+    if (doMerge) {
+      // Merge: load existing rules, append new ones
+      const existing = await TabTamerRules.loadRules();
+      const merged = [...existing, ...imported];
+      await TabTamerRules.saveRules(merged);
+      showToast(`Imported: ${imported.length} rule${imported.length !== 1 ? 's' : ''} merged`, 'success');
+    } else {
+      // Overwrite
+      const confirmOverwrite = confirm(
+        `Replace all existing rules with ${imported.length} imported rule${imported.length !== 1 ? 's' : ''}?`
+      );
+      if (!confirmOverwrite) {
+        showToast('Import cancelled', 'warning');
+        return;
+      }
+      await TabTamerRules.saveRules(imported);
+      showToast(`Rules overwritten with ${imported.length} rule${imported.length !== 1 ? 's' : ''}`, 'success');
+    }
+
+    await loadRulesTable();
+  } catch (err) {
+    console.error('TabTamer: failed to import rules', err);
+    showToast('Failed to import rules', 'error');
+  } finally {
+    setButtonLoading(importRulesBtn, false);
+    event.target.value = '';
+  }
+}
+
 // ─── Event listeners ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -733,6 +1003,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadCacheDashboard();
   setupCacheDashboardEvents();
   loadExcludedDomains();
+  loadRulesTable();
+  setupRulesTableEvents();
 });
 // ─── Version display ────────────────────────────────────────────────────────────
 
@@ -750,3 +1022,12 @@ cacheFileInput.addEventListener('change', handleCacheFileSelected);
 resetCostsBtn.addEventListener('click', resetCosts);
 testApiKeyBtn.addEventListener('click', testApiKey);
 saveExcludedDomainsBtn.addEventListener('click', saveExcludedDomains);
+
+// ─── Rules event listeners (T7.9) ────────────────────────────────────────────
+
+addRuleBtn.addEventListener('click', handleAddRule);
+rulePatternInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddRule(); } });
+ruleGroupInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddRule(); } });
+exportRulesBtn.addEventListener('click', exportRules);
+importRulesBtn.addEventListener('click', () => rulesFileInput.click());
+rulesFileInput.addEventListener('change', handleRulesFileSelected);
