@@ -63,6 +63,12 @@ const suggestModalCount = document.getElementById('suggest-modal-count');
 const excludedDomainsInput = document.getElementById('excluded-domains-input');
 const saveExcludedDomainsBtn = document.getElementById('save-excluded-domains-btn');
 
+// ─── Backup & Restore DOM refs (T12.10) ──────────────────────────────────────
+
+const exportAllBtn = document.getElementById('export-all-btn');
+const importAllBtn = document.getElementById('import-all-btn');
+const allSettingsFileInput = document.getElementById('all-settings-file-input');
+
 // ─── Cache Dashboard DOM refs ────────────────────────────────────────────────
 
 const cacheSearch = document.getElementById('cache-search');
@@ -1726,6 +1732,148 @@ async function handleRulesFileSelected(event) {
   }
 }
 
+// ─── Export All Settings (T12.10) ───────────────────────────────────────────
+
+async function exportAllSettings() {
+  setButtonLoading(exportAllBtn, true, 'Exporting…');
+  try {
+    // Collect all relevant storage keys
+    const result = await browser.storage.local.get([
+      SETTINGS_KEY,
+      CACHE_KEY,
+      RULES_KEY,
+      RULE_HIT_COUNTS_KEY,
+      GROUP_COLORS_KEY,
+      COSTS_KEY,
+      HIBERNATE_OPT_OUT_KEY,
+      EXCLUDED_DOMAINS_KEY,
+      RECENT_CLASSIFICATIONS_KEY
+    ]);
+
+    const allData = {
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+      [SETTINGS_KEY]: result[SETTINGS_KEY] || {},
+      [CACHE_KEY]: result[CACHE_KEY] || {},
+      [RULES_KEY]: result[RULES_KEY] || [],
+      [RULE_HIT_COUNTS_KEY]: result[RULE_HIT_COUNTS_KEY] || {},
+      [GROUP_COLORS_KEY]: result[GROUP_COLORS_KEY] || {},
+      [COSTS_KEY]: result[COSTS_KEY] || { calls: 0, estimatedTokens: 0, liveTokens: 0 },
+      [HIBERNATE_OPT_OUT_KEY]: result[HIBERNATE_OPT_OUT_KEY] || [],
+      [EXCLUDED_DOMAINS_KEY]: result[EXCLUDED_DOMAINS_KEY] || [],
+      [RECENT_CLASSIFICATIONS_KEY]: result[RECENT_CLASSIFICATIONS_KEY] || []
+    };
+
+    const json = JSON.stringify(allData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tabtamer-all-settings-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('All settings exported successfully', 'success');
+  } catch (err) {
+    console.error('TabTamer: failed to export all settings', err);
+    showToast('Failed to export settings', 'error');
+  } finally {
+    setButtonLoading(exportAllBtn, false);
+  }
+}
+
+// ─── Import All Settings (T12.10) ───────────────────────────────────────────
+
+const ALLOWED_SETTINGS_KEYS = [
+  SETTINGS_KEY,
+  CACHE_KEY,
+  RULES_KEY,
+  RULE_HIT_COUNTS_KEY,
+  GROUP_COLORS_KEY,
+  COSTS_KEY,
+  HIBERNATE_OPT_OUT_KEY,
+  EXCLUDED_DOMAINS_KEY,
+  RECENT_CLASSIFICATIONS_KEY
+];
+
+async function handleAllSettingsFileSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  setButtonLoading(importAllBtn, true, 'Importing…');
+
+  try {
+    const text = await file.text();
+    let imported;
+    try {
+      imported = JSON.parse(text);
+    } catch {
+      showToast('Invalid JSON file', 'error');
+      return;
+    }
+
+    // Validate structure: must be a plain object with at least one known key
+    if (typeof imported !== 'object' || imported === null || Array.isArray(imported)) {
+      showToast('Settings file must contain a JSON object', 'error');
+      return;
+    }
+
+    // Check that there's at least one recognized key
+    const hasValidKey = ALLOWED_SETTINGS_KEYS.some(key => key in imported);
+    if (!hasValidKey) {
+      showToast('Settings file does not contain any recognized TabTamer data', 'error');
+      return;
+    }
+
+    // Show confirmation modal with details
+    const keysPresent = ALLOWED_SETTINGS_KEYS.filter(k => k in imported);
+    const details = keysPresent.map(k => {
+      const val = imported[k];
+      if (Array.isArray(val)) return `  • ${k}: ${val.length} entries`;
+      if (typeof val === 'object' && val !== null) return `  • ${k}: ${Object.keys(val).length} entries`;
+      return `  • ${k}: present`;
+    }).join('\n');
+
+    const confirmed = await showConfirmModal(
+      'This will replace ALL your settings, rules, cache, colors, and cost data with the imported file.\n\n' +
+      `Found: ${keysPresent.length} section(s) to import:\n${details}\n\n` +
+      'Continue?'
+    );
+    if (!confirmed) {
+      showToast('Import cancelled', 'warning');
+      return;
+    }
+
+    // Write each key to storage
+    for (const key of ALLOWED_SETTINGS_KEYS) {
+      if (key in imported) {
+        await browser.storage.local.set({ [key]: imported[key] });
+      }
+    }
+
+    showToast('All settings imported successfully — reloading…', 'success', 3000);
+
+    // Reload all UI sections to reflect imported data
+    await loadSettings();
+    await loadCosts();
+    await loadExcludedDomains();
+    await loadRulesTable();
+    await loadCacheDashboard();
+    await loadCacheStats();
+
+    showToast('All settings imported successfully', 'success');
+  } catch (err) {
+    console.error('TabTamer: failed to import all settings', err);
+    showToast('Failed to import settings', 'error');
+  } finally {
+    setButtonLoading(importAllBtn, false);
+    event.target.value = '';
+  }
+}
+
 // ─── Tab Navigation (T7.14) ──────────────────────────────────────
 // Switch between General, Rules, Cache, Privacy, and Info tabs.
 
@@ -1924,6 +2072,17 @@ cacheFileInput.addEventListener('change', handleCacheFileSelected);
 resetCostsBtn.addEventListener('click', resetCosts);
 testApiKeyBtn.addEventListener('click', testApiKey);
 saveExcludedDomainsBtn.addEventListener('click', saveExcludedDomains);
+
+// T12.10: Export/Import All Settings event listeners
+if (exportAllBtn) {
+  exportAllBtn.addEventListener('click', exportAllSettings);
+}
+if (importAllBtn) {
+  importAllBtn.addEventListener('click', () => allSettingsFileInput.click());
+}
+if (allSettingsFileInput) {
+  allSettingsFileInput.addEventListener('change', handleAllSettingsFileSelected);
+}
 
 // T10.5: Multi-provider event listeners
 providerPresetSelect.addEventListener('change', handleProviderPresetChange);

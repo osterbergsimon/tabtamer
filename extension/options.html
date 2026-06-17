@@ -646,6 +646,19 @@
           <button type="button" class="btn btn-test" id="reset-defaults-btn">Reset to Defaults</button>
         </div>
       </form>
+
+      <!-- ─── Backup & Restore (T12.10) ──────────────────────────── -->
+      <div class="card" id="backup-card">
+        <div class="card-header">Backup &amp; Restore</div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+          Export all settings, rules, cache, group colors, and costs as a single JSON file for backup or transfer.
+        </p>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-primary" id="export-all-btn" style="flex: 1;">Export All Settings</button>
+          <button type="button" class="btn btn-test" id="import-all-btn" style="flex: 1;">Import All Settings</button>
+        </div>
+        <input type="file" id="all-settings-file-input" accept=".json" style="display:none;">
+      </div>
     </section>
 
     <!-- ════════════════════════════════════════════════════════════ -->
