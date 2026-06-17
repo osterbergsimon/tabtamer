@@ -22,6 +22,19 @@ const costCalls = document.getElementById('cost-calls');
 const costTokens = document.getElementById('cost-tokens');
 const toast = document.getElementById('toast');
 
+// ─── Suggest Rules DOM refs (T10.9) ──────────────────────────────────────────
+
+const suggestRulesBtn = document.getElementById('suggest-rules-btn');
+const suggestModal = document.getElementById('suggest-modal');
+const suggestModalLoading = document.getElementById('suggest-modal-loading');
+const suggestModalError = document.getElementById('suggest-modal-error');
+const suggestModalResults = document.getElementById('suggest-modal-results');
+const suggestTableBody = document.getElementById('suggest-table-body');
+const suggestSelectAll = document.getElementById('suggest-select-all');
+const suggestApproveBtn = document.getElementById('suggest-approve-btn');
+const suggestDismissBtn = document.getElementById('suggest-dismiss-btn');
+const suggestModalCount = document.getElementById('suggest-modal-count');
+
 // ─── Excluded Domains DOM refs (T6.9) ──────────────────────────────────────────
 
 const excludedDomainsInput = document.getElementById('excluded-domains-input');
@@ -392,6 +405,127 @@ async function loadCacheDashboard() {
     cacheEmptyMessage.textContent = 'Could not load cache data';
     cacheEmptyMessage.style.display = 'block';
   }
+}
+
+// ─── T10.9: Suggest Rules from Cache ────────────────────────────────────────
+
+let _suggestions = []; // Current suggestion list for approve/dismiss
+
+async function handleSuggestRules() {
+  // Show the modal with loading state
+  suggestModal.style.display = 'flex';
+  suggestModalLoading.style.display = 'block';
+  suggestModalError.style.display = 'none';
+  suggestModalResults.style.display = 'none';
+  suggestTableBody.innerHTML = '';
+
+  try {
+    const response = await browser.runtime.sendMessage({ type: 'suggestRules' });
+
+    if (!response || !response.success) {
+      const errMsg = response?.error || 'Failed to get suggestions from background script.';
+      showSuggestError(errMsg);
+      return;
+    }
+
+    const suggestions = response.suggestions;
+
+    if (!suggestions || suggestions.length === 0) {
+      showSuggestError('No clear patterns found in cache. Try adding more domain→group mappings first.');
+      return;
+    }
+
+    _suggestions = suggestions;
+    renderSuggestions(suggestions);
+  } catch (err) {
+    console.error('TabTamer: suggest rules error', err);
+    showSuggestError('Connection error. Could not reach the background script.');
+  }
+}
+
+function showSuggestError(message) {
+  suggestModalLoading.style.display = 'none';
+  suggestModalResults.style.display = 'none';
+  suggestModalError.textContent = message;
+  suggestModalError.style.display = 'block';
+}
+
+function renderSuggestions(suggestions) {
+  suggestModalLoading.style.display = 'none';
+  suggestModalError.style.display = 'none';
+  suggestModalResults.style.display = 'block';
+
+  const rows = suggestions.map((s, i) => {
+    const escapedPattern = (s.pattern || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const escapedGroup = (s.groupName || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const escapedReason = (s.reason || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const confidencePct = Math.round((s.confidence || 0) * 100);
+    const confidenceColor = confidencePct >= 70 ? 'var(--success)' : confidencePct >= 40 ? '#ff9f0a' : 'var(--text-muted)';
+    return `<tr data-index="${i}">
+      <td style="text-align: center; padding: 8px;">
+        <input type="checkbox" class="suggest-checkbox" data-index="${i}" checked style="accent-color: var(--primary); cursor: pointer;">
+      </td>
+      <td style="padding: 8px; word-break: break-all;"><code style="background: var(--bg); padding: 1px 4px; border-radius: 3px; font-size: 12px;">${escapedPattern}</code></td>
+      <td style="padding: 8px;">${escapedGroup}</td>
+      <td style="text-align: center; padding: 8px; font-weight: 600; color: ${confidenceColor};">${confidencePct}%</td>
+      <td style="padding: 8px; font-size: 12px; color: var(--text-muted);">${escapedReason}</td>
+    </tr>`;
+  }).join('');
+
+  suggestTableBody.innerHTML = rows;
+  suggestSelectAll.checked = true;
+  suggestModalCount.textContent = `${suggestions.length} suggestion${suggestions.length !== 1 ? 's' : ''} found`;
+}
+
+async function approveSelectedSuggestions() {
+  const checkboxes = document.querySelectorAll('.suggest-checkbox:checked');
+  const indices = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index, 10)).filter(i => !isNaN(i));
+
+  if (indices.length === 0) {
+    showToast('No suggestions selected', 'warning');
+    return;
+  }
+
+  let approved = 0;
+  let errors = [];
+
+  for (const idx of indices) {
+    if (idx >= 0 && idx < _suggestions.length) {
+      try {
+        const result = await browser.runtime.sendMessage({
+          type: 'approveSuggestedRule',
+          rule: _suggestions[idx]
+        });
+        if (result && result.success) {
+          approved++;
+        } else {
+          errors.push(`${_suggestions[idx].pattern} → ${_suggestions[idx].groupName}: ${result?.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        errors.push(`${_suggestions[idx].pattern}: ${err.message}`);
+      }
+    }
+  }
+
+  // Close the modal
+  suggestModal.style.display = 'none';
+
+  if (approved > 0) {
+    showToast(`Approved ${approved} rule${approved !== 1 ? 's' : ''}`, 'success');
+    // Reload the rules table so the user sees their new rules
+    await loadRulesTable();
+  }
+
+  if (errors.length > 0) {
+    console.warn('TabTamer: suggestion approval errors', errors);
+    showToast(`${errors.length} suggestion${errors.length !== 1 ? 's' : ''} failed to save`, 'error');
+  }
+}
+
+function dismissSuggestions() {
+  _suggestions = [];
+  suggestModal.style.display = 'none';
+  showToast('Suggestions dismissed', 'warning');
 }
 
 // ─── Cache Dashboard Event Handling ──────────────────────────────────────────
@@ -1414,6 +1548,49 @@ window.addEventListener('beforeunload', (event) => {
     event.returnValue = '';
   }
 });
+
+// ─── T10.9: Suggest Rules Event Listeners ────────────────────────────────
+
+if (suggestRulesBtn) {
+  suggestRulesBtn.addEventListener('click', handleSuggestRules);
+}
+
+if (suggestSelectAll) {
+  suggestSelectAll.addEventListener('change', () => {
+    const checked = suggestSelectAll.checked;
+    document.querySelectorAll('.suggest-checkbox').forEach(cb => {
+      cb.checked = checked;
+    });
+  });
+}
+
+// Delegated change handler for individual checkboxes to sync select-all
+if (suggestTableBody) {
+  suggestTableBody.addEventListener('change', (e) => {
+    if (e.target.classList.contains('suggest-checkbox')) {
+      const all = document.querySelectorAll('.suggest-checkbox');
+      const checked = document.querySelectorAll('.suggest-checkbox:checked');
+      suggestSelectAll.checked = all.length === checked.length;
+    }
+  });
+}
+
+if (suggestApproveBtn) {
+  suggestApproveBtn.addEventListener('click', approveSelectedSuggestions);
+}
+
+if (suggestDismissBtn) {
+  suggestDismissBtn.addEventListener('click', dismissSuggestions);
+}
+
+if (suggestModal) {
+  // Close modal when clicking overlay background
+  suggestModal.addEventListener('click', (e) => {
+    if (e.target === suggestModal) {
+      dismissSuggestions();
+    }
+  });
+}
 
 // ─── Event Listeners ────────────────────────────────────────────────
 

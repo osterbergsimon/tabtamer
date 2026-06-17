@@ -679,6 +679,9 @@
           <button type="button" class="btn btn-test" id="export-cache-btn">Export Cache</button>
           <button type="button" class="btn btn-test" id="import-cache-btn">Import Cache</button>
         </div>
+        <div class="button-group">
+          <button type="button" class="btn btn-primary" id="suggest-rules-btn">Suggest Rules from Cache</button>
+        </div>
         <input type="file" id="cache-file-input" accept=".json" style="display:none;">
       </div>
     </section>
@@ -734,6 +737,41 @@
         </p>
       </div>
     </section>
+
+    <!-- ─── Suggestion Results Modal (T10.9) ───────────────────── -->
+    <div id="suggest-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-dialog" style="max-width: 700px; width: 95%;">
+        <h3 style="margin-bottom: 12px; font-size: 16px;">Rule Suggestions</h3>
+        <p id="suggest-modal-loading" style="color: var(--text-muted); font-size: 13px; padding: 20px 0; text-align: center;">Analyzing cache entries…</p>
+        <div id="suggest-modal-error" style="color: var(--danger); font-size: 13px; display: none; padding: 10px; border: 1px solid var(--danger); border-radius: 6px; margin-bottom: 12px;"></div>
+        <div id="suggest-modal-results" style="display: none;">
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+            Select suggestions to approve as permanent rules. Approved rules will be added to the Rules tab.
+          </p>
+          <div id="suggest-table-container" style="max-height: 350px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--border); background: var(--surface);">
+                  <th style="text-align: center; padding: 8px; width: 5%;">
+                    <input type="checkbox" id="suggest-select-all" checked style="accent-color: var(--primary); cursor: pointer;">
+                  </th>
+                  <th style="text-align: left; padding: 8px; font-weight: 600; color: var(--text-muted); width: 25%;">Pattern</th>
+                  <th style="text-align: left; padding: 8px; font-weight: 600; color: var(--text-muted); width: 20%;">Group</th>
+                  <th style="text-align: center; padding: 8px; font-weight: 600; color: var(--text-muted); width: 12%;">Confidence</th>
+                  <th style="text-align: left; padding: 8px; font-weight: 600; color: var(--text-muted); width: 38%;">Reason</th>
+                </tr>
+              </thead>
+              <tbody id="suggest-table-body"></tbody>
+            </table>
+          </div>
+          <p id="suggest-modal-count" style="font-size: 12px; color: var(--text-muted); margin-top: 8px;"></p>
+          <div style="display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end;">
+            <button type="button" class="btn btn-primary" id="suggest-approve-btn">Approve Selected</button>
+            <button type="button" class="btn btn-test" id="suggest-dismiss-btn">Dismiss All</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ─── Confirm Modal ────────────────────────────────────────── -->
     <div id="confirm-modal" class="modal-overlay" style="display: none;">

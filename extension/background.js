@@ -375,9 +375,19 @@ browser.runtime.onMessage.addListener((message, sender) => {
     runWithConcurrencyLimit(() => handleTab(message.tabId, message.url, message.title));
   }
 
+  // T10.9: LLM-assisted rule creation — batch cache scanning
+  if (message.type === 'suggestRules') {
+    return suggestRulesFromCache();
+  }
+
   // T7.10: Popup state queries
   if (message.type === 'getPopupState') {
     return getPopupState();
+  }
+
+  // T10.9: Handle suggest rules result approval from options page
+  if (message.type === 'approveSuggestedRule') {
+    return handleApproveSuggestedRule(message.rule);
   }
 
   if (message.type === 'togglePause') {
@@ -961,6 +971,173 @@ async function classifyAndAssign(tabId, url, title, domain) {
   } catch (err) {
     console.error(`TabTamer: classification error for ${domain}`, err);
     // Leave tab ungrouped on error
+  }
+}
+
+// ─── T10.9: LLM-Assisted Rule Creation — Batch Cache Scanning ────────────────
+
+async function suggestRulesFromCache() {
+  try {
+    // Read cache entries from storage
+    const result = await browser.storage.local.get(CACHE_KEY);
+    const cache = result[CACHE_KEY] || {};
+    const entries = Object.entries(cache);
+
+    if (entries.length === 0) {
+      return { success: false, error: 'Cache is empty — no domains to analyze.' };
+    }
+
+    // Check API key
+    const settings = await getSettings();
+    const apiKey = settings.apiKey;
+    if (!apiKey) {
+      return { success: false, error: 'API key not set. Please configure your API key first.' };
+    }
+
+    const model = settings.model || 'deepseek-v4-flash';
+
+    // Sample up to 50 entries (prioritize diverse groups)
+    const sampled = _sampleCacheEntries(entries, 50);
+
+    // Build the prompt
+    const mappingsStr = sampled
+      .map(([domain, group]) => `- ${domain} → ${group}`)
+      .join('\n');
+
+    const systemPrompt = 'You are a TabTamer extension analyzing domain→group mappings. '
+      + 'Suggest rules that map domain patterns to groups.\n\n'
+      + 'Rules support * (matches any sequence) and ? (matches any single character) glob patterns. '
+      + 'Patterns match the full domain (anchored).\n\n'
+      + 'Return a JSON array of objects with ONLY these fields:\n'
+      + '- "pattern": string — glob pattern for domain matching\n'
+      + '- "groupName": string — the group to map to (must match existing group names exactly)\n'
+      + '- "confidence": number — 0 to 1, how confident you are in this suggestion\n'
+      + '- "reason": string — brief explanation of the pattern\n\n'
+      + 'Only suggest rules where you see a clear pattern. '
+      + 'Return [] if no clear patterns emerge. '
+      + 'IMPORTANT: Do not create new groups — only map to groups already present in the data.';
+
+    const userMessage = 'Here are the current domain→group mappings:\n\n' + mappingsStr;
+
+    console.log('TabTamer: suggesting rules from cache — sending LLM request');
+
+    const response = await retryWithBackoff(() => fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        max_tokens: 1000,
+        temperature: 0,
+        response_format: { type: 'json_object' }
+      })
+    }), { label: 'rule suggestion', maxRetries: 3 });
+
+    if (!response) {
+      return { success: false, error: 'LLM request failed after retries. Check your API key and connection.' };
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content?.trim();
+
+    if (!content) {
+      return { success: false, error: 'Empty response from LLM.' };
+    }
+
+    let suggestions;
+    try {
+      suggestions = JSON.parse(content);
+    } catch (parseErr) {
+      console.error('TabTamer: suggest rules — invalid JSON response', parseErr, content);
+      return { success: false, error: 'LLM returned invalid JSON. Please try again.' };
+    }
+
+    if (!Array.isArray(suggestions)) {
+      return { success: false, error: 'LLM returned unexpected format. Expected an array.' };
+    }
+
+    // Validate and sanitize suggestions
+    const validSuggestions = suggestions
+      .filter(s => s && s.pattern && s.groupName)
+      .map(s => ({
+        pattern: s.pattern.trim(),
+        groupName: s.groupName.trim(),
+        confidence: typeof s.confidence === 'number' ? Math.min(1, Math.max(0, s.confidence)) : 0.5,
+        reason: s.reason || ''
+      }));
+
+    // Track cost (estimated tokens for the prompt length)
+    const estimatedTokens = Math.ceil((systemPrompt.length + userMessage.length) / 4);
+    await updateCosts(estimatedTokens);
+
+    console.log(`TabTamer: suggest rules — got ${validSuggestions.length} valid suggestions`);
+
+    return { success: true, suggestions: validSuggestions };
+  } catch (err) {
+    console.error('TabTamer: suggest rules error', err);
+    return { success: false, error: err.message || 'Unknown error occurred.' };
+  }
+}
+
+// Sample cache entries prioritizing diverse groups (max N entries)
+function _sampleCacheEntries(entries, maxCount) {
+  if (entries.length <= maxCount) return entries;
+
+  // Group entries by group name
+  const byGroup = {};
+  for (const [domain, group] of entries) {
+    if (!byGroup[group]) byGroup[group] = [];
+    byGroup[group].push([domain, group]);
+  }
+
+  // Sample from each group round-robin to get diverse coverage
+  const groupNames = Object.keys(byGroup);
+  const sampled = [];
+  let idx = 0;
+  let anyLeft = true;
+
+  while (sampled.length < maxCount && anyLeft) {
+    anyLeft = false;
+    for (const name of groupNames) {
+      if (byGroup[name].length > 0) {
+        sampled.push(byGroup[name].shift());
+        anyLeft = true;
+        if (sampled.length >= maxCount) break;
+      }
+    }
+  }
+
+  return sampled;
+}
+
+// T10.9: Handle approving a suggested rule
+async function handleApproveSuggestedRule(rule) {
+  try {
+    if (!rule || !rule.pattern || !rule.groupName) {
+      return { success: false, error: 'Invalid rule data.' };
+    }
+
+    // Validate pattern before adding
+    if (!TabTamerRules.isValidPattern(rule.pattern)) {
+      return { success: false, error: `Invalid pattern: "${rule.pattern}"` };
+    }
+
+    if (!TabTamerRules.isValidGroupName(rule.groupName)) {
+      return { success: false, error: `Invalid group name: "${rule.groupName}"` };
+    }
+
+    await TabTamerRules.addRule(rule.pattern, rule.groupName, true);
+    console.log(`TabTamer: approved suggested rule — "${rule.pattern}" → "${rule.groupName}"`);
+    return { success: true };
+  } catch (err) {
+    console.error('TabTamer: approve suggested rule error', err);
+    return { success: false, error: err.message || 'Failed to add rule.' };
   }
 }
 
