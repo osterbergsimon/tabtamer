@@ -352,11 +352,39 @@ async function saveSettings(e) {
     return;
   }
 
-  // If custom preset, endpoint is required
-  if (providerPreset === 'custom' && !customEndpoint) {
-    setButtonLoading(saveBtn, false);
-    showToast('Custom endpoint URL is required', 'error');
-    return;
+  // If custom preset, endpoint is required and must use https:// or http://localhost
+  if (providerPreset === 'custom') {
+    if (!customEndpoint) {
+      setButtonLoading(saveBtn, false);
+      showToast('Custom endpoint URL is required', 'error');
+      return;
+    }
+    if (!/^https:\/\//i.test(customEndpoint) && !/^http:\/\/localhost/i.test(customEndpoint)) {
+      setButtonLoading(saveBtn, false);
+      showToast('Custom endpoint must use https:// or http://localhost', 'error');
+      return;
+    }
+  }
+
+  // Validate custom endpoint format when editing (not just on save)
+  // Inline validation on the custom endpoint field
+  const endpointValidationMsg = document.getElementById('endpoint-validation-error');
+  if (providerPreset === 'custom' && customEndpoint) {
+    if (!/^https:\/\//i.test(customEndpoint) && !/^http:\/\/localhost/i.test(customEndpoint)) {
+      // Show inline error but don't block save — the save validation above handles it
+      if (endpointValidationMsg) {
+        endpointValidationMsg.textContent = 'URL must use https:// or http://localhost';
+        endpointValidationMsg.style.display = 'block';
+      }
+    } else {
+      if (endpointValidationMsg) {
+        endpointValidationMsg.style.display = 'none';
+      }
+    }
+  } else {
+    if (endpointValidationMsg) {
+      endpointValidationMsg.style.display = 'none';
+    }
   }
 
   // If auto-grouping is enabled but no API key is set, warn but allow save
@@ -1211,6 +1239,11 @@ async function testApiKey() {
 // T10.5: Handle provider preset change
 function handleProviderPresetChange() {
   onProviderPresetChange();
+  // Hide endpoint validation when switching away from custom
+  const endpointValidationMsg = document.getElementById('endpoint-validation-error');
+  if (endpointValidationMsg) {
+    endpointValidationMsg.style.display = 'none';
+  }
 }
 
 // T10.5: Fetch pricing for selected provider
@@ -1889,6 +1922,23 @@ saveExcludedDomainsBtn.addEventListener('click', saveExcludedDomains);
 
 // T10.5: Multi-provider event listeners
 providerPresetSelect.addEventListener('change', handleProviderPresetChange);
+
+// T12.1: Inline validation on custom endpoint input
+customEndpointInput.addEventListener('input', () => {
+  const endpointValidationMsg = document.getElementById('endpoint-validation-error');
+  if (!endpointValidationMsg) return;
+  const val = customEndpointInput.value.trim();
+  if (providerPresetSelect.value === 'custom' && val) {
+    if (!/^https:\/\//i.test(val) && !/^http:\/\/localhost/i.test(val)) {
+      endpointValidationMsg.textContent = 'URL must use https:// or http://localhost';
+      endpointValidationMsg.style.display = 'block';
+    } else {
+      endpointValidationMsg.style.display = 'none';
+    }
+  } else {
+    endpointValidationMsg.style.display = 'none';
+  }
+});
 if (fetchPricingBtn) {
   fetchPricingBtn.addEventListener('click', handleFetchPricing);
 }

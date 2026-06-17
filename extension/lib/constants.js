@@ -21,6 +21,17 @@ const GROUP_COLORS_KEY = 'tabtamerGroupColors';
 const NO_API_KEY_NOTIFIED_KEY = 'tabtamerNotifiedNoApiKey';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CSP Validation (T12.1)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Host patterns allowed for custom API endpoints in strict mode
+// Used in options.js to validate custom endpoint URLs at input time
+const CSP_ALLOWED_HOSTS = {
+  https: 'https://*/*',
+  localhost: 'http://localhost:*/*'
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Timing & Debounce
 // ═══════════════════════════════════════════════════════════════════════════════
 
