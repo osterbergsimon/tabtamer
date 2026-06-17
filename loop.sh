@@ -29,8 +29,7 @@ run_iteratr() {
   iters=$((tasks * 2))
   [[ ${iters:-0} -lt 3 ]] && iters=3
 
-  echo "  [$label] $tasks tasks, $iters iterations max"
-  # Write raw output to terminal + raw log; also write clean log (no ANSI)
+  echo "  [$label] $tasks tasks, $iters iterations max  (tail -f ${LOG_FILE}.clean for progress)"
   timeout "$((tasks * 120 + 60))" \
     iteratr build \
       --spec "$spec" \
@@ -39,7 +38,7 @@ run_iteratr() {
       --auto-commit \
       --iterations "$iters" \
       ${model:+--model "$model"} </dev/null 2>&1 \
-      | tee >(strip_ansi >> "${LOG_FILE}.clean") | tee -a "$LOG_FILE" || true
+      | tee -a "$LOG_FILE" | strip_ansi >> "${LOG_FILE}.clean" || true
   rm -rf .iteratr
 }
 
