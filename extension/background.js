@@ -703,6 +703,8 @@ async function classifyAndAssign(tabId, url, title, domain) {
 
     if (!groupName) {
       console.warn(`TabTamer: empty LLM response for ${domain}`);
+      // T7.2: Still track cost — tokens were consumed by the API call
+      await updateCosts(TOKENS_CLASSIFY);
       return; // Leave tab ungrouped
     }
 

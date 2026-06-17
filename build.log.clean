@@ -7161,4 +7161,208 @@ Now let me verify the fix looks correct and run the tests.Now let me verify the 
 
 [tool: bash] ...
 [tool: read] ✓ (output: 795 bytes)
-[tool: 
+[tool: bash] ✓ (output: 36 bytes)
+Let me try running the tests with the proper test runner.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 27 bytes)
+Let me check how tests are run.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: read] ✓ (output: 3089 bytes)
+[tool: grep] ✓ (output: 689 bytes)
+Now let me check the test file to see how isEnabled is tested, and specifically if there's a test for the catch behavior.Let me check if there's a test for the catch behavior:
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 17 bytes)
+Let me look at how the tests are run:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1376 bytes)
+Let me see the full test file for isEnabled:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1229 bytes)
+Now let me run the tests to make sure they still pass:Let me run the tests:
+[tool: bash] ...
+
+[tool: bash] ...
+Let me check what's available:
+[tool: bash] ...
+
+[tool: bash] ...
+Node is available via nix-store. Let me use nix-shell to get node in PATH, or just use the full path.
+[tool: bash] ...
+
+[tool: bash] ...
+Let me check what shell file is available.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 731 bytes)
+
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 3658 bytes)
+Good, I need to use `nix-shell -p nodejs_22` then `npm test`.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 3283 bytes)
+All 16 tests pass. The fix is complete and verified. Let me mark the task as completed and write the iteration summary.All 16 tests pass. Let me mark the task as completed:
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+[tool: iteratr-tools__task-update] ✓ (output: 37 bytes)
+[tool: iteratr-tools__iteration-summary] ✓ (output: 34 bytes)
+Task T7.18 is now complete. According to the rules, I should STOP after completing a task (do not pick another task). The session is not complete since there are more tasks remaining, but the rule says "STOP (do not pick another task)" after writing the iteration summary. So I should stop here.Task T7.18 is complete. All 16 unit tests pass. The fix adds error logging to the previously empty catch block in `isEnabled()` while preserving the safe default of returning `true`. Stopping per the one-task-per-iteration rule.
+--- Agent finished: end_turn | Duration: 1m17.015s | Model: opencode-go/deepseek-v4-flash | Tokens: in=14851 out=2914 cache_read=245504 cache_write=0 ---
+The user wants me to commit the modified files. Let me stage and commit them.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 132 bytes)
+The commit was successful. I'll confirm the details.Committed successfully:
+
+```
+1505be9 fix(background): add error logging to empty catch in isEnabled()
+ 2 files changed, 93 insertions(+), 3 deletions(-)
+```
+
+Files staged:
+- `build.log.clean`
+- `extension/background.js`
+
+Commit message follows conventional commits format with the T7.18 context. Not pushed.
+--- Agent finished: end_turn | Duration: 13.408s | Model: opencode-go/deepseek-v4-flash | Tokens: in=477 out=259 cache_read=38528 cache_write=0 ---
+
+✓ Iteration #11 complete
+
+Let me look at the current state of tasks. I need to pick the next highest priority task that's ready (no blockers). Let me check the task list.
+
+From the current tasks:
+- T7.21 (P3) - Add documentation for custom LLM endpoints
+- T7.2 (P2) - Fix cost undercounting for empty/parseable LLM responses
+- T7.6 (P2) - Fix stale title in onUpdated listener
+- T7.20 (P3) - Update README.md
+- T7.4 (P2) - Fix loadManagedGroups silent failure
+- T7.5 (P2) - Fix content.js monkey-patch fragility
+- T7.7 (P2) - Strengthen excluded domain validation
+- T7.8 (P2) - Suppress notifyMissingApiKey during startup scan
+- T7.19 (P3) - Update DESIGN.md
+- T7.3 (P2) - Fix stale overwrite count in importCache
+- Meta (P4) - Do nothing
+
+The highest priority ready tasks are P2. Let me pick one. Let me use `task-next` to see what it suggests, or I'll just pick one.
+
+Let me look at which ones might have dependencies. Let me check the current state of the code to see what's been done already.
+
+Actually, let me first check the current state of the code and what tasks remain. Let me pick T7.3 first since it's a P2 bug fix for stale overwrite count in importCache. But wait, some of these tasks may have been partially done based on the iteration history. Let me check.
+
+From the "Recent Progress" section, iterations #7-#11 completed:
+- T7.14: Options page tabs
+- T7.15: Configurable toast dismiss time & exclude count
+- T7.16: Extract shared constants
+- T7.17: Extract shared utilities
+- T7.18: Fix empty catch in isEnabled
+
+So the remaining tasks are the ones listed as "Current Tasks" remaining.
+
+Let me pick the highest priority ready task. Since all P2 tasks are available, I'll pick one. Let me go with T7.3: Fix stale overwrite count in importCache. This is a bug fix.
+
+Actually, let me check which task is next via `task-next` tool.
+[tool: iteratr-tools__task-next] ...
+
+[tool: iteratr-tools__task-next] ...
+[tool: iteratr-tools__task-next] ✓ (output: 195 bytes)
+The task-next tool picked T7.2: Fix cost undercounting for empty/parseable LLM responses. Let me work on that.
+
+Let me first examine the current state of background.js to find the relevant code.Good, the next task is **T7.2: Fix cost undercounting for empty/parseable LLM responses**. Let me start by examining the current state of the code.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: iteratr-tools__task-update] ✓ (output: 38 bytes)
+[tool: grep] ✓ (output: 224 bytes)
+Let me read the classifyAndAssign function in background.js to find the early return with empty/falsy group name.
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 3544 bytes)
+Now I can see the issue clearly. At lines 704-707:
+
+```javascript
+if (!groupName) {
+  console.warn(`TabTamer: empty LLM response for ${domain}`);
+  return; // Leave tab ungrouped
+}
+```
+
+When the LLM response is OK but the group name is empty/falsy, the function returns without calling `updateCosts()`. But tokens were consumed and billed by the API. The fix is to call `updateCosts()` before the early return.
+
+Let me make the edit.Found the issue. At line 704-707, when the LLM response is empty/falsy, it returns early without tracking the consumed tokens. The fix is to call `updateCosts()` before returning.
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 444 bytes)
+Good, the edit was applied. Now let me run the tests to verify everything still passes.Now let me run the tests to verify everything still passes.
+[tool: bash] ...
+
+[tool: bash] ...
+Let me try the test command from the project.
+[tool: ls] ...
+
+[tool: ls] ...
+
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: ls] ✓ (output: 192 bytes)
+[tool: grep] ✓ (output: 17 bytes)
+Let me check how tests are run.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 349 bytes)
+So tests are run with `npm test` which runs `node --test tests/*.test.js`. Let me try that.
+[tool: bash] ...
+
+[tool: bash] ...
+Let me try finding node directly, or maybe there's a nix-shell environment.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 794 bytes)
+Let me try running with the node from nix store directly.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1203 bytes)
+All 16 tests pass. Now let me mark the task as completed and write an iteration summary.All 16 tests pass. Let me mark the task as completed and write the iteration summary.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+[tool: iteratr-tools__task-update] ✓ (output: 36 bytes)
+[tool: iteratr-tools__iteration-summary] ✓ (output: 34 bytes)
+Task complete. I should stop here as per the workflow rules.Task T7.2 is complete. The fix ensures that when the LLM returns an empty/falsy response, the consumed tokens are still tracked via 
