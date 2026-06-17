@@ -29,7 +29,7 @@ run_iteratr() {
       --headless \
       --auto-commit \
       --iterations "$iters" \
-      ${model:+--model "$model"} </dev/null || true
+      ${model:+--model "$model"} </dev/null 2>&1 | tee -a build.log || true
   rm -rf .iteratr
 }
 
