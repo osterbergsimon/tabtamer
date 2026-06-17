@@ -39,6 +39,24 @@ const dashboardCacheCount = document.getElementById('dashboard-cache-count');
 
 const hibernateAfterSelect = document.getElementById('hibernate-after');
 
+// ─── Unsaved Changes Warning (T9.17) ────────────────────────────────
+
+let _isDirty = false;
+
+function _markDirty() {
+  if (!_isDirty) {
+    _isDirty = true;
+    console.log('TabTamer: unsaved changes detected');
+  }
+}
+
+function _markClean() {
+  if (_isDirty) {
+    _isDirty = false;
+    console.log('TabTamer: unsaved changes cleared');
+  }
+}
+
 // ─── Group Colors Cache ────────────────────────────────────────────
 // T8.11: Load custom group colors for color picker rendering
 
@@ -251,8 +269,10 @@ async function saveSettings(e) {
     // If API key is set, clear the "no API key" notification flag so the user
     // gets reminded again if they later clear the key
     if (settings.apiKey) {
-      await browser.storage.local.remove('tabtamerNotifiedNoApiKey');
+      await browser.storage.local.remove(NO_API_KEY_NOTIFIED_KEY);
     }
+
+    _markClean();
 
     // Only show success toast if no warning was shown (toast already shown)
     if (!showedWarning) {
@@ -337,13 +357,13 @@ async function loadCacheDashboard() {
         const swatchBg = getColorCss(c);
         return `<option value="${c}" ${selected} style="background-color: ${swatchBg};">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`;
       }).join('');
-      const colorPicker = `<select class="color-picker" data-group-name="${escapedGroup}" style="font-size: 11px; padding: 2px 4px; width: 90px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text);">
+      const colorPicker = `<select class="color-picker" data-group-name="${escapedGroup}" aria-label="Color for ${escapedDomain}" style="font-size: 11px; padding: 2px 4px; width: 90px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text);">
         <option value="" ${currentColor === '' ? 'selected' : ''}>Auto</option>
         ${colorOptions}
       </select>`;
       const noHibernateChecked = hibernateOptOut.includes(escapedGroup) ? 'checked' : '';
       return `<tr data-domain="${escapedDomain}" data-group="${escapedGroup}">
-        <td style="padding: 6px 8px; word-break: break-all;" class="cache-domain-cell">${escapedDomain}</td>
+        <td style="padding: 6px 8px; overflow-wrap: break-word;" class="cache-domain-cell">${escapedDomain}</td>
         <td style="padding: 6px 8px; word-break: break-all;" class="cache-group-cell">
           <span class="cache-group-text">${escapedGroup}</span>
           <input type="text" class="cache-group-edit" value="${escapedGroup}"
@@ -924,6 +944,7 @@ async function saveExcludedDomains() {
 
   try {
     await browser.storage.local.set({ [EXCLUDED_DOMAINS_KEY]: valid });
+    _markClean();
     showToast(`Excluded domains saved (${valid.length} entr${valid.length === 1 ? 'y' : 'ies'})`, 'success');
     // T7.15: Update badge after save
     const badge = document.getElementById('excluded-count-badge');
@@ -1033,6 +1054,7 @@ async function handleAddRule() {
     ruleGroupInput.value = '';
     rulePatternInput.focus();
     await loadRulesTable();
+    _markClean();
     showToast(`Rule added: "${pattern}" → "${groupName}"`, 'success');
   } catch (err) {
     console.error('TabTamer: failed to add rule', err);
@@ -1044,6 +1066,7 @@ async function handleDeleteRule(index) {
   try {
     await TabTamerRules.removeRule(index);
     await loadRulesTable();
+    _markClean();
     showToast('Rule deleted', 'success');
   } catch (err) {
     console.error('TabTamer: failed to delete rule', err);
@@ -1056,6 +1079,7 @@ async function handleToggleRule(index, enabled) {
     await TabTamerRules.updateRule(index, { enabled });
     // Refresh table to update toggle state (though it's already visually toggled)
     await loadRulesTable();
+    _markClean();
   } catch (err) {
     console.error('TabTamer: failed to toggle rule', err);
     showToast('Failed to update rule', 'error');
@@ -1069,6 +1093,7 @@ async function handleMoveRule(fromIndex, direction) {
   try {
     await TabTamerRules.reorderRules(fromIndex, toIndex);
     await loadRulesTable();
+    _markClean();
   } catch (err) {
     console.error('TabTamer: failed to reorder rule', err);
     showToast('Failed to reorder rule', 'error');
@@ -1185,6 +1210,7 @@ async function handleRulesFileSelected(event) {
       const existing = await TabTamerRules.loadRules();
       const merged = [...existing, ...imported];
       await TabTamerRules.saveRules(merged);
+      _markClean();
       showToast(`Imported: ${imported.length} rule${imported.length !== 1 ? 's' : ''} merged`, 'success', TOAST_IMPORT_MS);
     } else {
       // Overwrite
@@ -1196,6 +1222,7 @@ async function handleRulesFileSelected(event) {
         return;
       }
       await TabTamerRules.saveRules(imported);
+      _markClean();
       showToast(`Rules overwritten with ${imported.length} rule${imported.length !== 1 ? 's' : ''}`, 'success', TOAST_IMPORT_MS);
     }
 
@@ -1259,6 +1286,28 @@ function loadVersion() {
   const manifest = browser.runtime.getManifest();
   document.getElementById('version-display').textContent = `v${manifest.version}`;
 }
+
+// ─── Unsaved Changes Warning: mark dirty on form field changes (T9.17) ──
+
+[apiKeyInput, modelSelect, themeSelect, enabledCheckbox, hibernateAfterSelect].forEach(el => {
+  const eventType = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
+  el.addEventListener(eventType, _markDirty);
+});
+excludedDomainsInput.addEventListener('input', _markDirty);
+rulePatternInput.addEventListener('input', _markDirty);
+ruleGroupInput.addEventListener('input', _markDirty);
+
+// ─── Unsaved Changes Warning: beforeunload handler (T9.17) ──────────
+
+window.addEventListener('beforeunload', (event) => {
+  if (_isDirty) {
+    event.preventDefault();
+    // Firefox requires returnValue to be set
+    event.returnValue = '';
+  }
+});
+
+// ─── Event Listeners ────────────────────────────────────────────────
 
 form.addEventListener('submit', saveSettings);
 themeSelect.addEventListener('change', () => applyTheme(themeSelect.value));

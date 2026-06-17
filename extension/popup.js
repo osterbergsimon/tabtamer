@@ -109,7 +109,7 @@ function renderState(state) {
       .map(name => {
         const count = (state.managedGroupTabCounts && state.managedGroupTabCounts[name]) || 0;
         const display = count > 0 ? `${escapeHtml(name)} (${count})` : escapeHtml(name);
-        return `<span class="group-tag">${display}</span>`;
+        return `<span class="group-tag" title="${escapeHtml(name)}">${display}</span>`;
       })
       .join('');
   } else {

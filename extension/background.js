@@ -522,6 +522,13 @@ browser.commands.onCommand.addListener(async (command) => {
       settings.enabled = !(settings.enabled !== false);
       await browser.storage.local.set({ [SETTINGS_KEY]: settings });
       console.log(`TabTamer: ${settings.enabled ? 'enabled' : 'disabled'} via keyboard shortcut`);
+      // T10.25: Show brief notification toast when toggled via keyboard
+      browser.notifications.create('tabtamer-toggle', {
+        type: 'basic',
+        iconUrl: 'icons/icon-48.png',
+        title: 'TabTamer',
+        message: `TabTamer: ${settings.enabled ? 'ON' : 'OFF'}`
+      }).catch(() => {});
     } catch (err) {
       console.error('TabTamer: toggle via keyboard shortcut failed', err);
     }

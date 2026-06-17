@@ -321,6 +321,9 @@ searchInput.addEventListener('keydown', (e) => {
   } else if (e.key === 'Escape') {
     e.preventDefault();
     closeSearch();
+  } else if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+    e.preventDefault();
+    closeSearch();
   }
 });
 
