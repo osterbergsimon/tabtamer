@@ -26,6 +26,25 @@ function _addRecentClassification(entry) {
   if (_recentClassifications.length > MAX_RECENT) {
     _recentClassifications.pop();
   }
+  // T9.15: Persist to storage so recent classifications survive browser restarts
+  persistRecentClassifications();
+}
+
+// T9.15: Load recent classifications from storage (call on startup/install)
+async function loadRecentClassifications() {
+  try {
+    const result = await browser.storage.local.get(RECENT_CLASSIFICATIONS_KEY);
+    _recentClassifications = result[RECENT_CLASSIFICATIONS_KEY] || [];
+  } catch (err) {
+    console.warn('TabTamer: loadRecentClassifications — storage read failed', err);
+    _recentClassifications = [];
+  }
+}
+
+// T9.15: Persist recent classifications to storage (fire-and-forget, non-critical)
+function persistRecentClassifications() {
+  browser.storage.local.set({ [RECENT_CLASSIFICATIONS_KEY]: _recentClassifications })
+    .catch(err => console.warn('TabTamer: persistRecentClassifications — storage write failed', err));
 }
 
 // Pending classification count for processing indicator
@@ -1400,6 +1419,8 @@ browser.runtime.onStartup.addListener(async () => {
   await loadAccessTimes();
   // T9.3: Load excluded domains into in-memory lookup structures
   await loadExcludedDomains();
+  // T9.15: Load recent classifications from storage
+  await loadRecentClassifications();
   // T5.6: Assign colors to existing groups without one
   await assignColorsToGroups();
   // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
@@ -1437,6 +1458,9 @@ browser.runtime.onInstalled.addListener(async (details) => {
 
     // T9.3: Load excluded domains into in-memory lookup structures
     await loadExcludedDomains();
+
+    // T9.15: Load recent classifications from storage
+    await loadRecentClassifications();
 
     // T5.6: Assign colors to existing groups without one (one-time migration)
     await assignColorsToGroups();

@@ -84,10 +84,25 @@ Permissions needed:
 | **Auth** | `Authorization: Bearer <api-key>` |
 | **Cost/tab** | ~200 tokens × ~$0.10/M ≈ $0.00002 (first visit only) |
 
-**Token cost estimation:** Hardcoded $/M-token rates drift as providers update
-pricing. For semi-accurate costs, agents can fetch current pricing from the
-provider's API or pricing page (e.g. `https://opencode.ai/pricing`). The
-cost-tracking UI in options should surface whether rates are estimated or live.
+**Multi-provider support (future):** The API is OpenAI-compatible. Allowing the
+user to enter any endpoint URL (OpenRouter, Together, local llama.cpp, Ollama)
+would require zero protocol changes — just a configurable base URL + model
+field. The extension could ship with presets for common providers.
+
+**Token counting — use actual API usage, not hardcoded estimates:**
+The `TOKENS_CLASSIFY` and `TOKENS_MERGE` constants are hardcoded guesses. The
+API response includes `usage.prompt_tokens` + `usage.completion_tokens` (or
+`usage.total_tokens`) — real token counts. Cost tracking should use those
+instead of estimates. Fall back to estimates only if the API omits usage.
+
+**Cost tracking — user-configurable, not hardcoded:**
+`COST_PER_TOKEN` is hardcoded at `$0.000001` ($1/M tokens). This should be a
+user setting (cost per million tokens) with a sensible default. The options
+page should:
+- Let the user enter their provider's $/M-token rate
+- Show a "Fetch pricing" button that hits the provider's pricing endpoint
+- Label costs as "estimated" vs "live" based on whether real usage data and
+  user-configured rates were used
 
 ### 3. Rules Engine
 
@@ -378,15 +393,18 @@ Previously open questions addressed across Phases 2–9:
 
 ## Open questions
 
-1. **LLM-assisted rule creation** — When the LLM classifies a domain, the
-   extension should prompt: "Save `github.com → Code` as a rule?" The LLM
-   could also batch-scan the cache to propose rules proactively. This closes
-   the loop: LLM classifies → user approves → rule locks it in → LLM never
-   called for that domain again. Design is ready (see Rules Engine section);
+1. **LLM-assisted rule creation** — see Rules Engine section; design is ready,
    implementation is the remaining work.
-2. **Manifest v3 migration** — Firefox is phasing out manifest v2. Migrating
+2. **Multi-provider support** — Allow any OpenAI-compatible endpoint
+   (OpenRouter, Together, Ollama, llama.cpp). Protocol is identical; just need
+   configurable base URL + model + API key fields. Could ship with provider
+   presets and auto-fetch pricing.
+3. **Live cost tracking** — Replace hardcoded `TOKENS_CLASSIFY`/`TOKENS_MERGE`
+   with actual `usage.total_tokens` from API responses. Replace hardcoded
+   `COST_PER_TOKEN` with user-configurable $/M-token rate. See LLM API section.
+4. **Manifest v3 migration** — Firefox is phasing out manifest v2. Migrating
    will require replacing background scripts with service workers (no DOM
    access, no `window`). **Deferred**: tracked separately.
-3. **Cross-browser support** — Currently Firefox-only (`browser.*` API).
+5. **Cross-browser support** — Currently Firefox-only (`browser.*` API).
    Chrome compatibility (manifest v3, `chrome.*` API) would require a
    polyfill or separate build.

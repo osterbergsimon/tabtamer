@@ -110,6 +110,9 @@ const HIBERNATE_INTERVAL_MIN = 10;
 // Default idle time before tabs are discarded (minutes)
 const DEFAULT_HIBERNATE_MINUTES = 30;
 
+// Storage key for cache of recent classifications (T9.15 — persists across restarts)
+const RECENT_CLASSIFICATIONS_KEY = 'tabtamerRecentClassifications';
+
 // Storage key for per-group hibernation opt-out (array of group names)
 const HIBERNATE_OPT_OUT_KEY = 'tabtamerHibernateOptOut';
 

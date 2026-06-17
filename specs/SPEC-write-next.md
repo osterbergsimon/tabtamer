@@ -72,6 +72,9 @@ Ask: what would make this extension 10× better? What would a daily user love?
     "GitHub" group filling with docs pages becomes "Dev Resources").
   - Firefox Container integration: auto-assign tabs to containers based on
     group (e.g. "Work" tabs in a work container, personal in another).
+  - Multi-provider support: since the API is OpenAI-compatible, let users
+    plug in any endpoint — OpenRouter, Ollama, llama.cpp, Together AI.
+    Just configurable base URL + model + key. Ship with presets.
   - Tab hibernation for non-managed groups: detect and hibernate idle tabs
     even outside TabTamer groups.
   - Multi-window support: sync group visibility across windows, move tabs
