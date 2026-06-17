@@ -226,7 +226,7 @@ The following have been verified automatically:
 | background.js compiles | ✅ |
 | options.js compiles | ✅ |
 | options.html well-formed | ✅ |
-| Storage keys consistent | ✅ (`tabtamerSettings`, `domainGroupCache`, `tabtamerCosts`, `tabtamerManagedGroups`, `tabtamerExcludedDomains`); `_notifiedNoApiKey` pending rename to `tabtamerNotifiedNoApiKey` (T6.7) |
+| Storage keys consistent | ✅ (`tabtamerSettings`, `domainGroupCache`, `tabtamerCosts`, `tabtamerManagedGroups`, `tabtamerExcludedDomains`); `tabtamerNotifiedNoApiKey` |
 | All required functions defined | ✅ |
 | All API permissions match usage | ✅ |
 | Icon file (48×48 PNG) exists | ✅ |

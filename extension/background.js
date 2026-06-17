@@ -707,8 +707,8 @@ async function classifyAndAssign(tabId, url, title, domain) {
 
 async function notifyMissingApiKey() {
   try {
-    const result = await browser.storage.local.get('_notifiedNoApiKey');
-    if (result._notifiedNoApiKey) {
+    const result = await browser.storage.local.get('tabtamerNotifiedNoApiKey');
+    if (result.tabtamerNotifiedNoApiKey) {
       return; // Already notified once
     }
 
@@ -719,7 +719,7 @@ async function notifyMissingApiKey() {
       message: 'Set your API key in TabTamer options to enable auto-grouping.'
     });
 
-    await browser.storage.local.set({ _notifiedNoApiKey: true });
+    await browser.storage.local.set({ tabtamerNotifiedNoApiKey: true });
     console.log('TabTamer: notified user about missing API key');
   } catch (err) {
     console.error('TabTamer: notifyMissingApiKey error', err);
@@ -1019,7 +1019,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 browser.runtime.onStartup.addListener(async () => {
   console.log('TabTamer: browser started — running startup scan');
   // T3.5: Clear the "notified no API key" flag so users get one fresh reminder per session
-  browser.storage.local.remove('_notifiedNoApiKey');
+  browser.storage.local.remove('tabtamerNotifiedNoApiKey');
   // T4.2: Load managed group IDs from storage BEFORE startup scan
   await loadManagedGroups();
   // T5.6: Assign colors to existing groups without one

@@ -140,7 +140,7 @@ async function saveSettings(e) {
     // If API key is set, clear the "no API key" notification flag so the user
     // gets reminded again if they later clear the key
     if (settings.apiKey) {
-      await browser.storage.local.remove('_notifiedNoApiKey');
+      await browser.storage.local.remove('tabtamerNotifiedNoApiKey');
     }
 
     // Only show success toast if no warning was shown (toast already shown)
