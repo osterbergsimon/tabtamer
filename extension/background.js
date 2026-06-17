@@ -13,12 +13,12 @@
 // T5.6: Firefox-supported tab group colors for deterministic auto-assignment
 const GROUP_COLORS = ['grey', 'blue', 'red', 'yellow', 'purple', 'pink', 'green', 'orange', 'cyan'];
 
-let _managedGroupIds = new Set();
+var _managedGroupIds = new Set();
 
 // ─── Popup State Tracking (T7.10) ─────────────────────────────────────────────
 
 // Last 5 successful classifications for the popup UI
-let _recentClassifications = [];
+var _recentClassifications = [];
 
 // T9.16: Timestamp tracking for throttling classification failure notifications
 let _lastClassifyFailureNotification = 0;
@@ -67,7 +67,7 @@ function persistRecentClassifications() {
 }
 
 // Pending classification count for processing indicator
-let _pendingClassificationCount = 0;
+var _pendingClassificationCount = 0;
 
 // T10.12: Startup scan progress tracking for popup display
 // { processed, total } or null when no startup scan is running
@@ -87,7 +87,7 @@ let _lastAccessStorageTimer = null;
 // Count of tabs hibernated in this session
 let _hibernatedCount = 0;
 // Flag to show hibernation indicator in badge (T11.1)
-let _hibernationBadgeActive = false;
+var _hibernationBadgeActive = false;
 
 // ─── Domain Exclusion List (T9.3) ─────────────────────────────────────────────
 // In-memory lookup structures for O(1) exact-match and O(n) wildcard matching
@@ -459,7 +459,6 @@ async function batchClassifyTabs(tabEntries) {
 
     const model = resolveModel(settings);
     const endpoint = resolveEndpoint(settings);
-
     if (!endpoint || !model) {
       console.warn('TabTamer: batch classify — no endpoint/model, falling back to individual');
       for (const entry of tabEntries) {
@@ -885,7 +884,7 @@ async function togglePause() {
 // T4.7: Show badge on toolbar icon — OFF when disabled, group count when enabled
 // T6.6: Debounce updateBadge calls — trailing 500ms to coalesce rapid bursts
 
-let _badgeDebounceTimer = null;
+var _badgeDebounceTimer = null;
 
 function updateBadge(processing) {
   if (_badgeDebounceTimer) {

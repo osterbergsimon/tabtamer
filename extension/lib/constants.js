@@ -131,8 +131,9 @@ const DEFAULT_PROVIDER = 'opencode';
 // the user saves new settings.
 // ───────────────────────────────────────────────────────────────
 
-let _cachedSettingsStr = null;
+let _cachedEndpointSettingsStr = null;
 let _cachedEndpoint = null;
+let _cachedModelSettingsStr = null;
 let _cachedModel = null;
 
 function _settingsStr(settings) {
@@ -143,7 +144,7 @@ function _settingsStr(settings) {
 // Returns the endpoint string, or the default if settings are missing
 function resolveEndpoint(settings) {
   const s = _settingsStr(settings);
-  if (s === _cachedSettingsStr && _cachedEndpoint !== null) {
+  if (s === _cachedEndpointSettingsStr && _cachedEndpoint !== null) {
     return _cachedEndpoint;
   }
   const preset = settings.providerPreset || DEFAULT_PROVIDER;
@@ -153,7 +154,7 @@ function resolveEndpoint(settings) {
   } else {
     endpoint = PROVIDER_PRESETS[preset]?.endpoint || PROVIDER_PRESETS[DEFAULT_PROVIDER].endpoint;
   }
-  _cachedSettingsStr = s;
+  _cachedEndpointSettingsStr = s;
   _cachedEndpoint = endpoint;
   return endpoint;
 }
@@ -161,7 +162,7 @@ function resolveEndpoint(settings) {
 // Helper: resolve the model from settings
 function resolveModel(settings) {
   const s = _settingsStr(settings);
-  if (s === _cachedSettingsStr && _cachedModel !== null) {
+  if (s === _cachedModelSettingsStr && _cachedModel !== null) {
     return _cachedModel;
   }
   const preset = settings.providerPreset || DEFAULT_PROVIDER;
@@ -171,15 +172,16 @@ function resolveModel(settings) {
   } else {
     model = settings.model || PROVIDER_PRESETS[preset]?.defaultModel || PROVIDER_PRESETS[DEFAULT_PROVIDER].defaultModel;
   }
-  _cachedSettingsStr = s;
+  _cachedModelSettingsStr = s;
   _cachedModel = model;
   return model;
 }
 
 // Clear the per-session cache — call when the user saves new settings
 function clearEndpointCache() {
-  _cachedSettingsStr = null;
+  _cachedEndpointSettingsStr = null;
   _cachedEndpoint = null;
+  _cachedModelSettingsStr = null;
   _cachedModel = null;
 }
 

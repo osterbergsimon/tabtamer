@@ -48,6 +48,7 @@ function createTabsMocks() {
     update: sinon.stub().resolves(),
     query: sinon.stub().resolves([]),
     discard: sinon.stub().resolves(),
+    sendMessage: sinon.stub().resolves({}),
     onUpdated: { addListener: sinon.stub() },
     onRemoved: { addListener: sinon.stub() },
     onActivated: { addListener: sinon.stub() },
