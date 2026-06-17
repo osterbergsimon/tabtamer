@@ -1693,12 +1693,17 @@ async function _showRuleSuggestion(domain, groupName) {
     // Use a simple ID pattern for tracking
     const notificationId = `tabtamer-rule-suggest-${domain}`;
 
-    // Store the suggestion data for the onClicked handler
-    _pendingSuggestionNotificationIds.set(notificationId, {
+    // Store the suggestion data for the onClicked handler (in-memory + persisted)
+    const suggestionData = {
       domain,
       groupName,
       timestamp: Date.now()
-    });
+    };
+    _pendingSuggestionNotificationIds.set(notificationId, suggestionData);
+    // Persist to storage so it survives event page suspension (T11.6)
+    await browser.storage.local.set({
+      [PENDING_RULE_SUGGESTIONS_KEY]: Object.fromEntries(_pendingSuggestionNotificationIds)
+    }).catch(() => {});
 
     await browser.notifications.create(notificationId, {
       type: 'basic',
@@ -1711,19 +1716,77 @@ async function _showRuleSuggestion(domain, groupName) {
 
     // Auto-clean up notification tracking after 30 seconds
     // (notifications auto-dismiss, but we clean up our map)
-    setTimeout(() => {
+    setTimeout(async () => {
       if (_pendingSuggestionNotificationIds.has(notificationId)) {
         // User didn't click — treat as dismissed
         _dismissedRuleSuggestions[domain] = Date.now();
         _pendingSuggestionNotificationIds.delete(notificationId);
         // Persist dismissed suggestion
-        browser.storage.local.set({ [DISMISSED_RULE_SUGGESTIONS_KEY]: _dismissedRuleSuggestions })
-          .catch(err => console.warn('TabTamer: persist dismissed suggestion failed', err));
+        try {
+          await Promise.all([
+            browser.storage.local.set({ [DISMISSED_RULE_SUGGESTIONS_KEY]: _dismissedRuleSuggestions }),
+            _persistPendingSuggestions()
+          ]);
+        } catch (err) {
+          console.warn('TabTamer: persist suggestion state failed', err);
+        }
         console.log(`TabTamer: rule suggestion for ${domain} timed out — marked as dismissed`);
       }
     }, 30000);
   } catch (err) {
     console.error('TabTamer: _showRuleSuggestion error', err);
+  }
+}
+
+// T11.6: Persist the in-memory pending suggestions map to storage
+async function _persistPendingSuggestions() {
+  try {
+    await browser.storage.local.set({
+      [PENDING_RULE_SUGGESTIONS_KEY]: Object.fromEntries(_pendingSuggestionNotificationIds)
+    });
+  } catch (err) {
+    console.warn('TabTamer: _persistPendingSuggestions failed', err);
+  }
+}
+
+// T11.6: Load pending rule suggestions from storage (survived event page suspension)
+// Re-hydrates the in-memory map and cleans up any that have expired.
+async function loadPendingSuggestions() {
+  try {
+    const result = await browser.storage.local.get(PENDING_RULE_SUGGESTIONS_KEY);
+    const stored = result[PENDING_RULE_SUGGESTIONS_KEY] || {};
+    const now = Date.now();
+    let changed = false;
+
+    for (const [notificationId, data] of Object.entries(stored)) {
+      // Check if the suggestion has expired (30s timeout)
+      if (data.timestamp && now - data.timestamp >= 30000) {
+        // Expired — treat as dismissed
+        _dismissedRuleSuggestions[data.domain] = now;
+        changed = true;
+        console.log(`TabTamer: cleaned up expired rule suggestion for ${data.domain}`);
+      } else {
+        // Still valid — re-hydrate in-memory map
+        _pendingSuggestionNotificationIds.set(notificationId, {
+          domain: data.domain,
+          groupName: data.groupName,
+          timestamp: data.timestamp
+        });
+      }
+    }
+
+    // Persist dismissed suggestions if we cleaned up expired ones
+    if (changed) {
+      await Promise.all([
+        browser.storage.local.set({ [DISMISSED_RULE_SUGGESTIONS_KEY]: _dismissedRuleSuggestions }),
+        // Also clear the pending storage (handled expired entries)
+        _persistPendingSuggestions()
+      ]);
+    }
+
+    console.log(`TabTamer: loaded ${_pendingSuggestionNotificationIds.size} pending rule suggestions from storage`);
+  } catch (err) {
+    console.warn('TabTamer: loadPendingSuggestions failed', err);
   }
 }
 
@@ -1770,8 +1833,9 @@ async function _handleRuleSuggestionClick(notificationId) {
     await TabTamerRules.addRule(domain, suggestion.groupName, true);
     console.log(`TabTamer: rule created from suggestion — "${domain}" → "${suggestion.groupName}"`);
 
-    // Clean up tracking
+    // Clean up tracking (in-memory + persisted)
     _pendingSuggestionNotificationIds.delete(notificationId);
+    await _persistPendingSuggestions();
     // Remove from dismissed if it was there (shouldn't be, but just in case)
     delete _dismissedRuleSuggestions[domain];
   } catch (err) {
@@ -2416,6 +2480,8 @@ browser.runtime.onStartup.addListener(async () => {
   await loadRecentClassifications();
   // T10.8: Load dismissed rule suggestions
   await loadDismissedSuggestions();
+  // T11.6: Load pending rule suggestions that survived event page suspension
+  await loadPendingSuggestions();
   // T10.15: Migrate old-format cache entries to new format with timestamps
   await migrateCacheFormat();
   // T5.6: Assign colors to existing groups without one
@@ -2468,6 +2534,9 @@ browser.runtime.onInstalled.addListener(async (details) => {
 
     // T10.8: Load dismissed rule suggestions
     await loadDismissedSuggestions();
+
+    // T11.6: Load pending rule suggestions that survived event page suspension
+    await loadPendingSuggestions();
 
     // T10.15: Migrate old-format cache entries to new format with timestamps
     await migrateCacheFormat();

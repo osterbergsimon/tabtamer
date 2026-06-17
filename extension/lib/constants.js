@@ -171,6 +171,10 @@ const RECENT_CLASSIFICATIONS_KEY = 'tabtamerRecentClassifications';
 // Storage key for dismissed rule suggestions (T10.8 — domain → timestamp)
 const DISMISSED_RULE_SUGGESTIONS_KEY = 'tabtamerDismissedRuleSuggestions';
 
+// Storage key for pending rule suggestions (T11.6 — persists across event page suspension)
+// notificationId → { domain, groupName, expiry }
+const PENDING_RULE_SUGGESTIONS_KEY = 'tabtamerPendingRuleSuggestions';
+
 // Storage key for per-group hibernation opt-out (array of group names)
 const HIBERNATE_OPT_OUT_KEY = 'tabtamerHibernateOptOut';
 
