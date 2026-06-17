@@ -24,6 +24,45 @@ const COST_LOG_INTERVAL_MIN = 1440;
 const MAX_CONCURRENT = 2;
 const MAX_RETRIES = 5;
 
+// T6.1: Known acronyms to preserve during group name normalization
+// Map from uppercase form -> canonical display form
+const KNOWN_ACRONYMS = new Map([
+  ['API', 'API'],
+  ['URL', 'URL'],
+  ['DNS', 'DNS'],
+  ['SSH', 'SSH'],
+  ['CPU', 'CPU'],
+  ['GPU', 'GPU'],
+  ['HTML', 'HTML'],
+  ['CSS', 'CSS'],
+  ['JS', 'JS'],
+  ['JSON', 'JSON'],
+  ['XML', 'XML'],
+  ['YAML', 'YAML'],
+  ['CSV', 'CSV'],
+  ['PDF', 'PDF'],
+  ['SQL', 'SQL'],
+  ['HTTP', 'HTTP'],
+  ['HTTPS', 'HTTPS'],
+  ['SSL', 'SSL'],
+  ['TLS', 'TLS'],
+  ['VPN', 'VPN'],
+  ['CI', 'CI'],
+  ['CD', 'CD'],
+  ['PR', 'PR'],
+  ['AI', 'AI'],
+  ['ML', 'ML'],
+  ['LLM', 'LLM'],
+  ['UI', 'UI'],
+  ['UX', 'UX'],
+  ['CLI', 'CLI'],
+  ['SDK', 'SDK'],
+  ['IDE', 'IDE'],
+  ['AWS', 'AWS'],
+  ['GCP', 'GCP'],
+  ['NIXOS', 'NixOS'],
+]);
+
 // T5.6: Firefox-supported tab group colors for deterministic auto-assignment
 const GROUP_COLORS = ['grey', 'blue', 'red', 'yellow', 'purple', 'pink', 'green', 'orange', 'cyan'];
 
@@ -106,7 +145,15 @@ function normalizeGroupName(name) {
   return name
     .trim()
     .split(/\s+/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map(word => {
+      const upper = word.toUpperCase();
+      // Preserve known acronyms if the original word contains uppercase letters
+      if (KNOWN_ACRONYMS.has(upper) && /[A-Z]/.test(word)) {
+        return KNOWN_ACRONYMS.get(upper);
+      }
+      // Standard title-case
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
     .join(' ');
 }
 
