@@ -428,6 +428,15 @@ async function handleTab(tabId, url, title) {
         }
         throw err;
       }
+      // T8.4: Track this classification for the popup
+      _recentClassifications.unshift({
+        domain,
+        group: ruleGroup,
+        timestamp: Date.now()
+      });
+      if (_recentClassifications.length > MAX_RECENT) {
+        _recentClassifications.pop();
+      }
       return;
     }
 
@@ -463,6 +472,15 @@ async function handleTab(tabId, url, title) {
           return;
         }
         throw err;
+      }
+      // T8.4: Track this classification for the popup
+      _recentClassifications.unshift({
+        domain,
+        group: cachedGroup,
+        timestamp: Date.now()
+      });
+      if (_recentClassifications.length > MAX_RECENT) {
+        _recentClassifications.pop();
       }
       return;
     }
@@ -722,7 +740,7 @@ async function classifyAndAssign(tabId, url, title, domain) {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
         ],
-        max_tokens: 20,
+        max_tokens: CLASSIFY_MAX_TOKENS,
         temperature: 0
       })
     }), { label: `classification for ${domain}` });
@@ -756,7 +774,7 @@ async function classifyAndAssign(tabId, url, title, domain) {
       group: normalizedName,
       timestamp: Date.now()
     });
-    if (_recentClassifications.length > 5) {
+    if (_recentClassifications.length > MAX_RECENT) {
       _recentClassifications.pop();
     }
   } catch (err) {

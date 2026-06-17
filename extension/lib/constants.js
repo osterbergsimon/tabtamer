@@ -75,3 +75,13 @@ const MAX_RETRIES = 5;
 
 // OpenAI-compatible endpoint used for classification and merge operations
 const API_ENDPOINT = 'https://opencode.ai/zen/go/v1/chat/completions';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Classification Constants
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Maximum number of recent classifications to track for popup display
+const MAX_RECENT = 5;
+
+// Maximum tokens for LLM classification responses
+const CLASSIFY_MAX_TOKENS = 30;
