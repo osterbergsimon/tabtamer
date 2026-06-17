@@ -345,6 +345,8 @@ browser.commands.onCommand.addListener(async (command) => {
     }
   } else if (command === 'open-tabtamer-options') {
     browser.runtime.openOptionsPage();
+  } else if (command === 'tabtamer-search') {
+    browser.tabs.create({ url: browser.runtime.getURL('search.html') });
   }
 });
 

@@ -50,6 +50,12 @@
     },
     "open-tabtamer-options": {
       "description": "Open TabTamer settings"
+    },
+    "tabtamer-search": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K"
+      },
+      "description": "Open Smart Tab Search"
     }
   },
 
