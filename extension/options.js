@@ -420,6 +420,11 @@ async function saveSettings(e) {
 
     _markClean();
 
+    // T12.3: Clear the resolveEndpoint/resolveModel cache so next API call picks up new settings
+    if (typeof clearEndpointCache === 'function') {
+      clearEndpointCache();
+    }
+
     // Only show success toast if no warning was shown (toast already shown)
     if (!showedWarning) {
       showToast('Settings saved successfully');

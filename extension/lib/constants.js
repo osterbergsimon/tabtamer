@@ -124,23 +124,63 @@ const PROVIDER_PRESETS = {
 // Default provider preset key
 const DEFAULT_PROVIDER = 'opencode';
 
+// ───────────────────────────────────────────────────────────────
+// resolveEndpoint / resolveModel — with per-session caching
+// T12.3: Cache results so repeated calls within a session skip
+// redundant string resolution. Call clearEndpointCache() when
+// the user saves new settings.
+// ───────────────────────────────────────────────────────────────
+
+let _cachedSettingsStr = null;
+let _cachedEndpoint = null;
+let _cachedModel = null;
+
+function _settingsStr(settings) {
+  return `${settings.providerPreset}|${settings.customEndpoint}|${settings.model}`;
+}
+
 // Helper: resolve the full endpoint URL from settings
 // Returns the endpoint string, or the default if settings are missing
 function resolveEndpoint(settings) {
-  const preset = settings.providerPreset || DEFAULT_PROVIDER;
-  if (preset === 'custom') {
-    return settings.customEndpoint || '';
+  const s = _settingsStr(settings);
+  if (s === _cachedSettingsStr && _cachedEndpoint !== null) {
+    return _cachedEndpoint;
   }
-  return PROVIDER_PRESETS[preset]?.endpoint || PROVIDER_PRESETS[DEFAULT_PROVIDER].endpoint;
+  const preset = settings.providerPreset || DEFAULT_PROVIDER;
+  let endpoint;
+  if (preset === 'custom') {
+    endpoint = settings.customEndpoint || '';
+  } else {
+    endpoint = PROVIDER_PRESETS[preset]?.endpoint || PROVIDER_PRESETS[DEFAULT_PROVIDER].endpoint;
+  }
+  _cachedSettingsStr = s;
+  _cachedEndpoint = endpoint;
+  return endpoint;
 }
 
 // Helper: resolve the model from settings
 function resolveModel(settings) {
-  const preset = settings.providerPreset || DEFAULT_PROVIDER;
-  if (preset === 'custom') {
-    return settings.model || '';
+  const s = _settingsStr(settings);
+  if (s === _cachedSettingsStr && _cachedModel !== null) {
+    return _cachedModel;
   }
-  return settings.model || PROVIDER_PRESETS[preset]?.defaultModel || PROVIDER_PRESETS[DEFAULT_PROVIDER].defaultModel;
+  const preset = settings.providerPreset || DEFAULT_PROVIDER;
+  let model;
+  if (preset === 'custom') {
+    model = settings.model || '';
+  } else {
+    model = settings.model || PROVIDER_PRESETS[preset]?.defaultModel || PROVIDER_PRESETS[DEFAULT_PROVIDER].defaultModel;
+  }
+  _cachedSettingsStr = s;
+  _cachedModel = model;
+  return model;
+}
+
+// Clear the per-session cache — call when the user saves new settings
+function clearEndpointCache() {
+  _cachedSettingsStr = null;
+  _cachedEndpoint = null;
+  _cachedModel = null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
