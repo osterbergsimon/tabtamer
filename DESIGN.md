@@ -2,10 +2,12 @@
 
 ## Overview
 
-Firefox extension that watches new tabs and auto-groups them using an LLM
-(opencode-go). Each tab is classified into a short group name (e.g. "NixOS",
-"GitHub", "Email") and placed into a Firefox native tab group. Domain→group
-mappings are cached, so the LLM is only called once per domain.
+**TabTamer automatically categorizes open tabs into Firefox native tab groups.**
+New tabs are classified by a rules engine (instant, free) or an LLM
+(opencode-go) as a fallback. Domain→group mappings are cached, so the LLM is
+only called once per domain. A toolbar popup gives at-a-glance visibility into
+what's happening, and idle tabs in managed groups are automatically hibernated
+to free memory.
 
 ## Architecture
 
@@ -17,19 +19,25 @@ mappings are cached, so the LLM is only called once per domain.
 │  │ created  │   │  extension    │               │
 │  └──────────┘   │               │               │
 │                 │ 1. Check      │               │
+│                 │    rules      │               │
+│                 │              │               │
+│                 │ 2. Check      │               │
 │                 │    cache      │               │
 │                 │              │               │
-│                 │ 2. Cache miss?               │
+│                 │ 3. Cache miss?               │
 │                 │    fetch() ───┼───────────┐   │
 │                 │               │           │   │
-│                 │ 3. Create/use │  ┌────────▼──┐
+│                 │ 4. Create/use │  ┌────────▼──┐
 │                 │    tab group  │  │ opencode   │
 │                 │               │  │ API        │
-│                 │ 4. Move tab   │  │ (Zen Go)   │
+│                 │ 5. Move tab   │  │ (Zen Go)   │
 │                 │    into group │  │            │
 │                 │               │  │ /chat/     │
-│                 │ 5. Update     │  │ completions│
+│                 │ 6. Update     │  │ completions│
 │                 │    cache      │  └────────────┘
+│                 │               │               │
+│                 │ 7. Track for  │               │
+│                 │    hibernation│               │
 │                 └──────────────┘               │
 └─────────────────────────────────────────────────┘
 ```
@@ -43,19 +51,27 @@ No daemon, no native messaging, no CLI — entirely self-contained in the browse
 | File | Purpose |
 |------|---------|
 | `manifest.json` | Extension manifest (v2) with permissions |
-| `background.js` | Background script: tab detection, LLM calls, group management |
-| `options.html` | Settings page: API key entry, model selection, pause toggle |
+| `background.js` | Background script: tab detection, rules engine, LLM calls, group management, hibernation |
+| `options.html` | Settings page: API key, model, rules editor, cache dashboard, hibernation controls, import/export |
 | `options.js` | Settings page logic |
+| `popup.html` | Toolbar popup: pause toggle, group stats, recent classifications, classify button |
+| `popup.js` | Popup logic |
+| `search.html` | Smart Tab Search / Quick Switcher (Ctrl+Shift+K) |
+| `search.js` | Fuzzy-search logic for tab switching |
+| `content.js` | Content script: detects SPA navigation (pushState, popstate, hashchange) |
+| `lib/constants.js` | Shared storage keys, API URL, magic numbers, alarm names |
+| `lib/utils.js` | Shared utilities: `extractDomain`, `sleep`, `normalizeGroupName` |
+| `lib/rules-engine.js` | User-customizable domain→group rules with glob patterns and priority ordering |
 
 Permissions needed:
-- `tabs` — detect new tabs
-- `tabGroups` — create / manage Firefox native tab groups
-- `storage` — cache domain→group mappings, settings
-- `alarms` — periodic cleanup and merge alarms
+- `tabs` — detect new tabs, query tab state, discard tabs for hibernation
+- `tabGroups` — create / manage / color Firefox native tab groups
+- `storage` — cache domain→group mappings, rules, colors, settings, cost tracking, hibernation state
+- `alarms` — periodic cleanup, merge, and hibernation alarms
 - `notifications` — API key reminder notifications
-- `contextMenus` — right-click re-classify
-- `windows` — enumerate windows for cache rename operations
-- `https://opencode.ai/*` — call the LLM API
+- `contextMenus` — right-click "Classify This Tab" re-classification
+- `windows` — enumerate windows for cache rename and hibernation operations
+- `https://opencode.ai/*` — call the LLM API (also needed for custom endpoints via connect-src CSP)
 
 ### 2. LLM API
 

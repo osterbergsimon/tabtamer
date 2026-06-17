@@ -20,6 +20,14 @@ let _managedGroupIds = new Set();
 // Last 5 successful classifications for the popup UI
 let _recentClassifications = [];
 
+// T9.10: Helper to add a classification entry with overflow trim
+function _addRecentClassification(entry) {
+  _recentClassifications.unshift(entry);
+  if (_recentClassifications.length > MAX_RECENT) {
+    _recentClassifications.pop();
+  }
+}
+
 // Pending classification count for processing indicator
 let _pendingClassificationCount = 0;
 
@@ -514,14 +522,11 @@ async function handleTab(tabId, url, title) {
         throw err;
       }
       // T8.4: Track this classification for the popup
-      _recentClassifications.unshift({
+      _addRecentClassification({
         domain,
         group: ruleGroup,
         timestamp: Date.now()
       });
-      if (_recentClassifications.length > MAX_RECENT) {
-        _recentClassifications.pop();
-      }
       return;
     }
 
@@ -559,14 +564,11 @@ async function handleTab(tabId, url, title) {
         throw err;
       }
       // T8.4: Track this classification for the popup
-      _recentClassifications.unshift({
+      _addRecentClassification({
         domain,
         group: cachedGroup,
         timestamp: Date.now()
       });
-      if (_recentClassifications.length > MAX_RECENT) {
-        _recentClassifications.pop();
-      }
       return;
     }
 
@@ -874,14 +876,11 @@ async function classifyAndAssign(tabId, url, title, domain) {
     await assignToGroup(tabId, normalizedName);
 
     // T7.10: Track this classification for the popup
-    _recentClassifications.unshift({
+    _addRecentClassification({
       domain,
       group: normalizedName,
       timestamp: Date.now()
     });
-    if (_recentClassifications.length > MAX_RECENT) {
-      _recentClassifications.pop();
-    }
   } catch (err) {
     console.error(`TabTamer: classification error for ${domain}`, err);
     // Leave tab ungrouped on error
