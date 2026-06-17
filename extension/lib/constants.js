@@ -17,6 +17,7 @@ const MANAGED_GROUPS_KEY = 'tabtamerManagedGroups';
 const EXCLUDED_DOMAINS_KEY = 'tabtamerExcludedDomains';
 const RULES_KEY = 'tabtamerRules';
 const GROUP_COLORS_KEY = 'tabtamerGroupColors';
+const NO_API_KEY_NOTIFIED_KEY = 'tabtamerNotifiedNoApiKey';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Timing & Debounce
@@ -120,4 +121,4 @@ const RECENT_CLASSIFICATIONS_KEY = 'tabtamerRecentClassifications';
 const HIBERNATE_OPT_OUT_KEY = 'tabtamerHibernateOptOut';
 
 // Throttle interval for persisting access times to storage (ms)
-const STORAGE_THROTTLE_MS = 30000;
+const STORAGE_THROTTLE_MS = 15000;

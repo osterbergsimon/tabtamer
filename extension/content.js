@@ -45,7 +45,7 @@ if (window.__tabtamerPatched) {
       return;
     }
 
-    // T5.3 + T7.5: On disconnect, only restore if our wrapper is still in place
+    // T5.3 + T7.5: On disconnect, restore originals and attempt reconnect (T10.3)
     port.onDisconnect.addListener(() => {
       if (history.pushState === tabtamerPushState) {
         history.pushState = origPush;
@@ -53,7 +53,34 @@ if (window.__tabtamerPatched) {
       if (history.replaceState === tabtamerReplaceState) {
         history.replaceState = origReplace;
       }
+      // T10.3: Auto-reconnect with 2s delay when background restarts
+      reconnectWithDelay();
     });
+
+    // T10.3: Reconnect loop — try once after 2s; on that port's disconnect, retry again
+    function reconnectWithDelay() {
+      setTimeout(() => {
+        let newPort;
+        try {
+          newPort = browser.runtime.connect({ name: 'tabtamer-content' });
+        } catch (err) {
+          console.warn('TabTamer: content script — reconnect failed:', err.message);
+          return;
+        }
+        newPort.onDisconnect.addListener(() => {
+          if (history.pushState === tabtamerPushState) {
+            history.pushState = origPush;
+          }
+          if (history.replaceState === tabtamerReplaceState) {
+            history.replaceState = origReplace;
+          }
+          reconnectWithDelay();
+        });
+        history.pushState = tabtamerPushState;
+        history.replaceState = tabtamerReplaceState;
+        console.log('TabTamer: content script — reconnected to background');
+      }, 2000);
+    }
 
     // Apply patches now that we have a connection with cleanup
     history.pushState = tabtamerPushState;

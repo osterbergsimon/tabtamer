@@ -47,6 +47,17 @@ const KNOWN_ACRONYMS = new Map([
 ]);
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Known CamelCase Proper Nouns — preserved as-is during normalization
+// (checked before acronyms to let them pass through untouched)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const KNOWN_CAMELCASE = new Set([
+  'GitHub', 'YouTube', 'GitLab', 'Reddit', 'LinkedIn',
+  'eBay', 'Upwork', 'WhatsApp', 'PayPal', 'TikTok',
+  'WordPress', 'Medium', 'Substack', 'UberEats', 'DoorDash',
+]);
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // sleep — Promise-based delay
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -81,6 +92,10 @@ function normalizeGroupName(name) {
     .trim()
     .split(/\s+/)
     .map(word => {
+      // Preserve known camelCase proper nouns (checked before acronyms)
+      if (KNOWN_CAMELCASE.has(word)) {
+        return word;
+      }
       const upper = word.toUpperCase();
       // T7.17: Removed /[A-Z]/ check — match acronyms case-insensitively
       if (KNOWN_ACRONYMS.has(upper)) {

@@ -206,6 +206,20 @@ function persistAccessTimes() {
   }, STORAGE_THROTTLE_MS);
 }
 
+// T10.4: Flush access times to storage immediately (for shutdown/suspend)
+async function flushAccessTimes() {
+  if (_lastAccessStorageTimer) {
+    clearTimeout(_lastAccessStorageTimer);
+    _lastAccessStorageTimer = null;
+  }
+  try {
+    await browser.storage.local.set({ [TABTAMER_LAST_ACCESS_KEY]: _lastAccessTimes });
+    console.log('TabTamer: flushed _lastAccessTimes to storage');
+  } catch (err) {
+    console.warn('TabTamer: flushAccessTimes — storage write failed', err);
+  }
+}
+
 function updateLastAccess(tabId) {
   _lastAccessTimes[tabId] = Date.now();
   persistAccessTimes();
@@ -1506,4 +1520,10 @@ browser.runtime.onInstalled.addListener(async (details) => {
   } catch (err) {
     console.error('TabTamer: onboarding error', err);
   }
+});
+
+// T10.4: Flush access times on graceful shutdown
+browser.runtime.onSuspend.addListener(async () => {
+  console.log('TabTamer: browser suspending — flushing access times');
+  await flushAccessTimes();
 });
