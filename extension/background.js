@@ -69,6 +69,10 @@ function persistRecentClassifications() {
 // Pending classification count for processing indicator
 let _pendingClassificationCount = 0;
 
+// T10.12: Startup scan progress tracking for popup display
+// { processed, total } or null when no startup scan is running
+let _startupProgress = null;
+
 // Custom group colors override (group name → color)
 let _customGroupColors = null;
 
@@ -350,17 +354,40 @@ async function startupScan() {
 
     console.log(`TabTamer: startup scan — found ${ungroupedTabs.length} ungrouped tabs`);
 
+    // T10.12: Track progress for badge and popup display
+    const totalCount = ungroupedTabs.length;
+    let processedCount = 0;
+    _startupProgress = { processed: 0, total: totalCount };
+
     // Process each ungrouped tab with concurrency limiting
     // Each handleTab() call increments _pendingClassificationCount
     // and calls updateBadge(true) for the processing indicator
     const promises = ungroupedTabs.map(tab =>
-      runWithConcurrencyLimit(() => handleTab(tab.id, tab.url, tab.title))
+      runWithConcurrencyLimit(async () => {
+        await handleTab(tab.id, tab.url, tab.title);
+        processedCount++;
+        _startupProgress = { processed: processedCount, total: totalCount };
+
+        // Update badge with progress: "3/42"
+        browser.browserAction.setBadgeText({ text: `${processedCount}/${totalCount}` });
+        browser.browserAction.setBadgeBackgroundColor({ color: '#34c759' });
+
+        // T10.12: Send progress message to popup (fire-and-forget, popup may not be open)
+        browser.runtime.sendMessage({
+          type: 'startupProgress',
+          processed: processedCount,
+          total: totalCount
+        }).catch(() => {});
+      })
     );
     await Promise.all(promises);
-    console.log('TabTamer: startup scan complete');
+    console.log(`TabTamer: startup scan complete — ${totalCount} tabs processed`);
   } catch (err) {
     console.error('TabTamer: startup scan error', err);
   } finally {
+    // Clear startup progress tracking
+    _startupProgress = null;
+
     // Restore normal badge (group count or OFF) after scan completes
     await updateBadge(false);
   }
@@ -501,7 +528,8 @@ async function getPopupState() {
       totalCost,
       totalCalls,
       totalEstimatedTokens,
-      totalLiveTokens
+      totalLiveTokens,
+      startupProgress: _startupProgress
     };
   } catch (err) {
     console.error('TabTamer: getPopupState error', err);
@@ -516,7 +544,8 @@ async function getPopupState() {
       totalCost: 0,
       totalCalls: 0,
       totalEstimatedTokens: 0,
-      totalLiveTokens: 0
+      totalLiveTokens: 0,
+      startupProgress: null
     };
   }
 }

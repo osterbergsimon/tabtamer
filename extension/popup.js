@@ -16,6 +16,11 @@ const processingText = document.getElementById('processing-text');
 const errorState = document.getElementById('error-state');
 const groupSearchInput = document.getElementById('group-search-input');
 
+// T10.12: Startup scan progress elements
+const startupProgress = document.getElementById('startup-progress');
+const progressBarFill = document.getElementById('progress-bar-fill');
+const progressText = document.getElementById('progress-text');
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let popupState = null;
@@ -83,6 +88,17 @@ function renderState(state) {
     processingText.textContent = `Classifying ${state.processingCount} tab${state.processingCount !== 1 ? 's' : ''}…`;
   } else {
     processingIndicator.classList.remove('visible');
+  }
+
+  // T10.12: Startup scan progress bar
+  if (state.startupProgress && state.startupProgress.total > 0) {
+    startupProgress.classList.add('visible');
+    const pct = Math.round((state.startupProgress.processed / state.startupProgress.total) * 100);
+    progressBarFill.style.width = `${pct}%`;
+    progressText.textContent = `Startup scan: ${state.startupProgress.processed} / ${state.startupProgress.total} tabs`;
+  } else {
+    startupProgress.classList.remove('visible');
+    progressBarFill.style.width = '0%';
   }
 
   // Group count
@@ -182,6 +198,7 @@ function showLoading() {
   document.getElementById('loading-state').style.display = 'block';
   document.querySelector('.toggle-section').style.display = 'none';
   document.querySelector('.processing-indicator').style.display = 'none';
+  document.querySelector('.startup-progress').style.display = 'none';
   document.querySelector('.stats-section').style.display = 'none';
   document.querySelector('.group-list').style.display = 'none';
   document.querySelector('.recent-section').style.display = 'none';
@@ -195,6 +212,7 @@ function hideLoading() {
   document.getElementById('loading-state').style.display = 'none';
   document.querySelector('.toggle-section').style.display = '';
   document.querySelector('.stats-section').style.display = '';
+  // The startup progress visibility is handled by renderState
   document.querySelector('.group-list').style.display = '';
   document.querySelector('.recent-section').style.display = '';
   document.querySelector('.footer').style.display = '';
@@ -303,4 +321,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadPopupState();
   await updateClassifyBtnText();
+});
+
+// T10.12: Listen for live startup scan progress updates from background
+browser.runtime.onMessage.addListener((message) => {
+  if (message.type === 'startupProgress') {
+    if (message.total > 0) {
+      startupProgress.classList.add('visible');
+      const pct = Math.round((message.processed / message.total) * 100);
+      progressBarFill.style.width = `${pct}%`;
+      progressText.textContent = `Startup scan: ${message.processed} / ${message.total} tabs`;
+    } else {
+      startupProgress.classList.remove('visible');
+      progressBarFill.style.width = '0%';
+    }
+    // Update popupState if available so render consistency is maintained
+    if (popupState) {
+      popupState.startupProgress = { processed: message.processed, total: message.total };
+    }
+  }
 });
