@@ -7365,4 +7365,240 @@ All 16 tests pass. Now let me mark the task as completed and write an iteration 
 [tool: iteratr-tools__iteration-summary] ...
 [tool: iteratr-tools__task-update] ✓ (output: 36 bytes)
 [tool: iteratr-tools__iteration-summary] ✓ (output: 34 bytes)
-Task complete. I should stop here as per the workflow rules.Task T7.2 is complete. The fix ensures that when the LLM returns an empty/falsy response, the consumed tokens are still tracked via 
+Task complete. I should stop here as per the workflow rules.Task T7.2 is complete. The fix ensures that when the LLM returns an empty/falsy response, the consumed tokens are still tracked via `updateCosts()` before the early return, so local cost tracking stays accurate.
+--- Agent finished: end_turn | Duration: 46.284s | Model: opencode-go/deepseek-v4-flash | Tokens: in=11172 out=2248 cache_read=141696 cache_write=0 ---
+The user wants me to commit the modified files. Let me stage and commit them.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 11 bytes)
+Now commit with a clear conventional message.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 113 bytes)
+Done. The commit was created successfully.Committed. The diff shows 2 files changed: `extension/background.js` (+6/-4, though net is +5 additional lines for the fix) and `build.log.clean` (which often auto-updates from testing).
+--- Agent finished: end_turn | Duration: 7.785s | Model: opencode-go/deepseek-v4-flash | Tokens: in=496 out=298 cache_read=45056 cache_write=0 ---
+
+✓ Iteration #12 complete
+
+Let me start by picking the next highest priority task. Let me look at the remaining tasks:
+
+- [P2] TAS-6: T7.6: Fix stale title in onUpdated listener
+- [P3] TAS-19: T7.19: Update DESIGN.md
+- [P3] TAS-20: T7.20: Update README.md
+- [P3] TAS-21: T7.21: Add documentation for custom LLM endpoints
+- [P2] TAS-4: T7.4: Fix loadManagedGroups silent failure
+- [P2] TAS-5: T7.5: Fix content.js monkey-patch fragility
+- [P2] TAS-8: T7.8: Suppress notifyMissingApiKey during startup scan
+- [P4] TAS-22: Meta: Do nothing
+- [P2] TAS-3: T7.3: Fix stale overwrite count in importCache
+- [P2] TAS-7: T7.7: Strengthen excluded domain validation
+
+The highest priority remaining tasks at P2. Let me pick the first one. Let me use task-next to see what it suggests.
+[tool: iteratr-tools__task-next] ...
+
+[tool: iteratr-tools__task-next] ...
+[tool: iteratr-tools__task-next] ✓ (output: 193 bytes)
+The next task is T7.3: Fix stale overwrite count in importCache. Let me mark it as in_progress and then work on it.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 38 bytes)
+Let me first read the relevant section in background.js to understand the current code and find the stale overwrite count issue.Let me read the relevant code in `background.js` around the `handleCacheFileSelected` function.
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 17 bytes)
+Let me search for the import cache related functions.
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 17 bytes)
+Maybe the function is named differently. Let me look at the background.js file more broadly.
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 2263 bytes)
+Let me look at the import/export related functions. The task mentions `handleCacheFileSelected` around line 514-517, but I can't find that. Let me search more broadly.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 2488 bytes)
+Let me search for the import/export functions specifically. The task mentions `handleCacheFileSelected` but I can't find that exact function name. Let me search more broadly.
+[tool: bash] ...
+
+[tool: bash] ...
+Let me look at the full file to understand its structure.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 5894 bytes)
+I don't see any import/export section in background.js. The cache import/export might be in options.js since it's a UI action. Let me check options.js.
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 4262 bytes)
+Now let me read the `handleCacheFileSelected` function to understand the stale overwrite count issue.
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 3800 bytes)
+Let me read the clearCache function to see how it handles the stale count issue, and compare it with the import function.
+
+Actually, looking at the code, I don't see a "stale" count issue as described in the task. Let me re-read the task:
+
+> **T7.3: Fix stale overwrite count in `importCache`**
+> In `background.js` `handleCacheFileSelected()` around line 514-517, the cache
+> is read a second time inside a template literal for the `confirm()` dialog.
+> Between the merge-decision read and this confirm read, another operation
+> could have modified the cache, making the count shown to the user incorrect.
+> Cache the count from the first read and use the cached value in the message.
+
+Wait, they mention background.js but the function is in options.js. Let me look more closely at the merge path. Looking at line 552-583:
+
+When the user does merge (doMerge === true), the current cache is read at line 560. The existing count is known at that point.
+
+When the user does overwrite (doMerge === false), the confirm dialog at line 576-578 shows `importedCount` which is from the import file - not from reading the existing cache. So the "overwrite count" issue is... hmm, let me think again.
+
+Actually wait - looking more carefully at the code, the issue is about the merge path. In the merge path:
+1. Line 552-556: User is asked "merge or overwrite"
+2. Line 558-572: If merge, it reads the existing cache, iterates through imported entries, and merges
+3. Line 574-585: If overwrite, it asks for confirmation, then writes
+
+But the task description says: "the cache is read a second time inside a template literal for the confirm() dialog. Between the merge-decision read and this confirm read, another operation could have modified the cache."
+
+Wait, maybe the OLD code (before refactoring) read the cache twice? Let me check the clearCache function for comparison:
+
+Let me read the clearCache function to see how it handles this.
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 2669 bytes)
+Now let me re-read the task description more carefully:
+
+> **T7.3: Fix stale overwrite count in `importCache`**
+> In `background.js` `handleCacheFileSelected()` around line 514-517, the cache
+> is read a second time inside a template literal for the `confirm()` dialog.
+> Between the merge-decision read and this confirm read, another operation
+> could have modified the cache, making the count shown to the user incorrect.
+> Cache the count from the first read and use the cached value in the message.
+
+OK, so the task mentions background.js but the actual code is in options.js. Let me look at this more carefully. Let me check if there's an old version of the code that reads the cache twice. Looking at the current code:
+
+1. Line 560: `const result = await browser.storage.local.get(CACHE_KEY);` - this is in the merge branch
+2. The overwrite branch (line 574-585) doesn't read the cache at all - it just shows `importedCount` which comes from the imported file.
+
+Wait, maybe the issue is different. Let me look at the merge path more carefully.
+
+In the merge path:
+- Line 560: reads existing cache
+- Then iterates and writes
+
+But what about the overwrite confirm dialog message? Line 576-578 shows:
+```
+`Replace the entire cache with ${importedCount} imported entr${importedCount === 1 ? 'y' : 'ies'}?\n` +
+`This will delete all existing entries.`
+```
+
+This only shows the imported count, not the existing count. So there's no second read of the cache here.
+
+Hmm, but the task says "the cache is read a second time inside a template literal for the confirm() dialog." Maybe I'm looking at a version that already got partially fixed? Let me check the git log to see if this was already fixed.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1447 bytes)
+Let me check if the task might have been referring to the rules import path instead, which has a similar pattern. Let me look at `handleRulesFileSelected`.
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 3353 bytes)
+OK, I see that the `handleRulesFileSelected` has the same pattern as `handleCacheFileSelected` - both seem fine with respect to stale counts. But the task specifically mentions `importCache` and `handleCacheFileSelected`. Let me re-read the issue.
+
+The task says:
+> In `background.js` `handleCacheFileSelected()` around line 514-517, the cache is read a second time inside a template literal for the `confirm()` dialog.
+
+But `handleCacheFileSelected` is in options.js, not background.js. And looking at the current code, I don't see any second read.
+
+Wait - maybe the task was written before the code was refactored. The task references old line numbers (514-517 in background.js). But looking at the current code in options.js, the function has been refactored to use `showConfirmModal` (from T7.11). The stale count issue may have been partially or fully addressed by the modal refactoring.
+
+Let me check the git history for what the code looked like before the modal refactoring.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1178 bytes)
+Interesting! The commit message says: "Remove stale cache re-read in overwrite confirmation (implicit T7.3 fix)"
+
+So T7.3 was already implicitly fixed in the T7.11 commit (d936a05). But the task T7.3 is still marked as remaining in our task list. Let me verify this by looking at the current code and checking if there's indeed no stale read issue.
+
+Let me check what the old code looked like by looking at the parent of that commit.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 2116 bytes)
+Let me see the full function before the fix:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1904 bytes)
+Let me see the rest of the function:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1375 bytes)
+Now I can see the bug clearly. In the old code at line 522-523:
+
+```javascript
+const confirmOverwrite = confirm(
+  `Replace the entire cache with ${importedCount} imported entr${importedCount === 1 ? 'y' : 'ies'}?\n` +
+  `This will delete all ${Object.keys((await browser.storage.local.get(CACHE_KEY))[CACHE_KEY] || {}).length} existing entries.`
+);
+```
+
+This reads the cache a second time (line `await browser.storage.local.get(CACHE_KEY)`) inside the confirm dialog template literal. Between the first read (for the merge decision) and this second read, another operation could have modified the cache, making the count shown to the user incorrect.
+
+But looking at the current code (after the T7.11 fix):
+
+```javascript
+const confirmOverwrite = await showConfirmModal(
+  `Replace the entire cache with ${importedCount} imported entr${importedCount === 1 ? 'y' : 'ies'}?\n` +
+  `This will delete all existing entries.`
+);
+```
+
+The second read was removed! It no longer reads the cache to show the count. So T7.3 was already implicitly fixed by T7.11.
+
+However, the task T7.3 is still marked as remaining. Let me verify the current code doesn't have any stale count issue and that the fix is complete.
+
+The current code:
+1. At line 544: `const importedCount = Object.keys(imported).length;` - reads count from imported file
+2. At line 552-556: First modal asks merge or overwrite - no cache read
+3. At line 558-572: Merge path reads cache once, merges, writes
+4. At line 574-585: Overwrite path shows confirm with importedCount (no cache read), writes
+
+So the stale cache read was indeed removed in the T7.11 commit. This task is already done.
+
+But wait - I need to check if there's still any remaining stale count issue somewhere. Let me look more carefully at the clearCache function. It does:
+1. Read cache to get entryCount (line 606)
+2. Show confirm modal with entryCount (line 613-614)
+3. Clear cache (line 621)
+
+That's fine because it reads once and uses the cached value.
+
+Let me check the `handleRulesFileSelected` function too - it doesn't read existing rules for the count.
+
+So it seems like T7.3 was already fixed implicitly by T7.11. The task can be marked as completed since the current code no longer has the stale count issue.
+
+But let me verify there are no other stale cache re-reads in the codebase.Ah, I see! The T7.11 commit (`d936a05`) already implicitly fixed T7.3 when it replaced `confirm()` dialogs with inline modals. Let me verify the old code had the issue and the current code is clean.
+
+Let me confirm the fix is complete:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 2251 bytes)
+The current code is clean:
+1. `importedCount` is read once from the imported file (line 544)
+2. The overwrite confirm modal (line 576-578) uses `importedCount` directly, not reading from cache
+3. No second cache read in any confirm dialog
+
+Compare with the old cod
