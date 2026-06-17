@@ -23,6 +23,9 @@ let _recentClassifications = [];
 // Pending classification count for processing indicator
 let _pendingClassificationCount = 0;
 
+// Custom group colors override (group name → color)
+let _customGroupColors = null;
+
 // Flag to suppress missing-API-key notification during startup
 let _startupInProgress = false;
 
@@ -80,7 +83,14 @@ async function retryWithBackoff(fetchFn, options = {}) {
 // ─── Group Color Assignment ─────────────────────────────────────────────────────
 // T5.6: Deterministically derive a color from the group name for visual consistency
 
-function getGroupColor(name) {
+async function getGroupColor(name) {
+  // T8.11: Check for custom color override first
+  if (_customGroupColors === null) {
+    await loadCustomGroupColors();
+  }
+  if (_customGroupColors && _customGroupColors[name]) {
+    return _customGroupColors[name];
+  }
   // djb2 hash for deterministic color selection
   let hash = 5381;
   for (let i = 0; i < name.length; i++) {
@@ -88,6 +98,17 @@ function getGroupColor(name) {
     hash |= 0; // Convert to 32bit integer
   }
   return GROUP_COLORS[Math.abs(hash) % GROUP_COLORS.length];
+}
+
+// T8.11: Load custom group colors from storage
+async function loadCustomGroupColors() {
+  try {
+    const result = await browser.storage.local.get(GROUP_COLORS_KEY);
+    _customGroupColors = result[GROUP_COLORS_KEY] || {};
+  } catch (err) {
+    console.warn('TabTamer: loadCustomGroupColors — storage read failed', err);
+    _customGroupColors = {};
+  }
 }
 
 // ─── Group Name Normalization ──────────────────────────────────────────────────
@@ -575,6 +596,12 @@ browser.storage.onChanged.addListener((changes, areaName) => {
     // T4.7: Update toolbar badge on settings change
     updateBadge();
   }
+
+  // T8.11: Refresh custom group colors when changed from options page
+  if (areaName === 'local' && changes[GROUP_COLORS_KEY]) {
+    _customGroupColors = changes[GROUP_COLORS_KEY].newValue || {};
+    console.log('TabTamer: custom group colors updated from storage change');
+  }
 });
 
 // ─── Group Assignment ────────────────────────────────────────────────────────
@@ -603,7 +630,7 @@ async function assignToGroup(tabId, groupName) {
         console.log(`TabTamer: tab ${tabId} closed before group creation`);
         return;
       }
-      const groupColor = getGroupColor(groupName);
+      const groupColor = await getGroupColor(groupName);
       const newGroup = await browser.tabGroups.create({
         title: groupName,
         windowId: tab.windowId,
@@ -617,7 +644,7 @@ async function assignToGroup(tabId, groupName) {
     try {
       const currentGroup = await browser.tabGroups.get(groupId);
       if (!currentGroup.color) {
-        const assignedColor = getGroupColor(groupName);
+        const assignedColor = await getGroupColor(groupName);
         await browser.tabGroups.update(groupId, { color: assignedColor });
         console.log(`TabTamer: assigned color "${assignedColor}" to existing group "${groupName}"`);
       }
@@ -964,6 +991,8 @@ async function mergeSimilarGroups() {
     }
 
     // T5.6: Assign colors to any groups still missing them after merge
+    // T8.11: Reload custom colors before (re)assigning colors
+    await loadCustomGroupColors();
     await assignColorsToGroups();
 
     // T4.7: Update badge after group merge
@@ -980,7 +1009,7 @@ async function assignColorsToGroups() {
     let updatedCount = 0;
     for (const group of groups) {
       if (!group.color && group.title) {
-        const color = getGroupColor(group.title);
+        const color = await getGroupColor(group.title);
         await browser.tabGroups.update(group.id, { color });
         updatedCount++;
       }
@@ -1058,8 +1087,10 @@ browser.runtime.onStartup.addListener(async () => {
   browser.storage.local.remove('tabtamerNotifiedNoApiKey');
   // T4.2: Load managed group IDs from storage BEFORE startup scan
   await loadManagedGroups();
+  // T8.11: Load custom group colors
+  await loadCustomGroupColors();
   // T5.6: Assign colors to existing groups without one
-  assignColorsToGroups();
+  await assignColorsToGroups();
   // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
   startupScan();
   // Phase 2: Create periodic alarms
@@ -1087,8 +1118,11 @@ browser.runtime.onInstalled.addListener(async (details) => {
     // T4.2: Load managed group IDs from storage
     await loadManagedGroups();
 
+    // T8.11: Load custom group colors
+    await loadCustomGroupColors();
+
     // T5.6: Assign colors to existing groups without one (one-time migration)
-    assignColorsToGroups();
+    await assignColorsToGroups();
 
     // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
     // Run startup scan on install/update to classify existing tabs

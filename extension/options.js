@@ -35,6 +35,31 @@ const cacheTableBody = document.getElementById('cache-table-body');
 const cacheEmptyMessage = document.getElementById('cache-empty-message');
 const dashboardCacheCount = document.getElementById('dashboard-cache-count');
 
+// ─── Group Colors Cache ────────────────────────────────────────────
+// T8.11: Load custom group colors for color picker rendering
+
+let _groupColors = {};
+
+const GROUP_COLOR_NAMES = ['grey', 'blue', 'red', 'yellow', 'purple', 'pink', 'green', 'orange', 'cyan'];
+
+async function loadGroupColors() {
+  try {
+    const result = await browser.storage.local.get(GROUP_COLORS_KEY);
+    _groupColors = result[GROUP_COLORS_KEY] || {};
+  } catch (err) {
+    console.error('TabTamer: failed to load group colors', err);
+    _groupColors = {};
+  }
+}
+
+async function saveGroupColors() {
+  try {
+    await browser.storage.local.set({ [GROUP_COLORS_KEY]: _groupColors });
+  } catch (err) {
+    console.error('TabTamer: failed to save group colors', err);
+  }
+}
+
 // ─── Loading state helper ────────────────────────────────────────────────────
 
 function setButtonLoading(button, isLoading, loadingText) {
@@ -59,6 +84,24 @@ function applyTheme(theme) {
   } else {
     document.documentElement.setAttribute('data-theme', theme);
   }
+}
+
+// ─── Color helper (T8.11) ───────────────────────────────────────────
+// Map color name to a CSS color for inline swatch rendering
+
+function getColorCss(colorName) {
+  const colorMap = {
+    grey: '#a09f9b',
+    blue: '#4a86e8',
+    red: '#ff3b30',
+    yellow: '#ff9f0a',
+    purple: '#bf5af2',
+    pink: '#ff6488',
+    green: '#34c759',
+    orange: '#ff9500',
+    cyan: '#64d2ff'
+  };
+  return colorMap[colorName] || '#a09f9b';
 }
 
 // ─── Toast helper ─────────────────────────────────────────────────────────────
@@ -265,7 +308,7 @@ async function loadCacheDashboard() {
 
     if (filtered.length === 0) {
       // No results match the search
-      cacheTableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px; color: var(--text-muted);">No matching entries</td></tr>`;
+      cacheTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted);">No matching entries</td></tr>`;
       return;
     }
 
@@ -273,6 +316,16 @@ async function loadCacheDashboard() {
     const rows = filtered.map(([domain, group]) => {
       const escapedDomain = domain.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const escapedGroup = group.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const currentColor = _groupColors[group] || '';
+      const colorOptions = GROUP_COLOR_NAMES.map(c => {
+        const selected = c === currentColor ? 'selected' : '';
+        const swatchBg = getColorCss(c);
+        return `<option value="${c}" ${selected} style="background-color: ${swatchBg};">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`;
+      }).join('');
+      const colorPicker = `<select class="color-picker" data-group-name="${escapedGroup}" style="font-size: 11px; padding: 2px 4px; width: 90px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text);">
+        <option value="" ${currentColor === '' ? 'selected' : ''}>Auto</option>
+        ${colorOptions}
+      </select>`;
       return `<tr data-domain="${escapedDomain}" data-group="${escapedGroup}">
         <td style="padding: 6px 8px; word-break: break-all;" class="cache-domain-cell">${escapedDomain}</td>
         <td style="padding: 6px 8px; word-break: break-all;" class="cache-group-cell">
@@ -282,6 +335,7 @@ async function loadCacheDashboard() {
                         background: var(--bg); border: 1px solid var(--primary);
                         border-radius: 4px; color: var(--text);">
         </td>
+        <td style="padding: 6px 8px; text-align: center; vertical-align: middle;">${colorPicker}</td>
         <td style="padding: 6px 8px; text-align: right; white-space: nowrap;">
           <button class="btn-cache-action btn-cache-edit" data-action="edit">Edit</button>
           <button class="btn-cache-action btn-cache-save" data-action="save" style="display:none;">Save</button>
@@ -396,6 +450,14 @@ function setupCacheDashboardEvents() {
         showToast('Failed to update cache entry', 'error');
       }
 
+      // T8.11: Migrate custom color when group is renamed
+      if (oldGroup !== newGroup && oldGroup in _groupColors) {
+        _groupColors[newGroup] = _groupColors[oldGroup];
+        delete _groupColors[oldGroup];
+        await saveGroupColors();
+        console.log(`TabTamer: migrated custom color from "${oldGroup}" to "${newGroup}"`);
+      }
+
       // Exit edit mode
       exitEditMode(row, domain);
       loadCacheDashboard(); // Refresh to keep state consistent
@@ -429,6 +491,28 @@ function setupCacheDashboardEvents() {
     cacheSearch._debounceTimer = setTimeout(() => {
       loadCacheDashboard();
     }, 200);
+  });
+
+  // T8.11: Color picker change handler
+  cacheTableBody.addEventListener('change', async (event) => {
+    const select = event.target.closest('.color-picker');
+    if (!select) return;
+
+    const row = select.closest('tr');
+    if (!row) return;
+
+    const groupName = row.dataset.group;
+    const color = select.value;
+
+    if (color) {
+      _groupColors[groupName] = color;
+    } else {
+      delete _groupColors[groupName];
+    }
+
+    await saveGroupColors();
+    const colorLabel = color ? color : 'auto (deterministic)';
+    showToast(`Color for "${groupName}" set to ${colorLabel}`, 'success');
   });
 }
 
@@ -1097,15 +1181,17 @@ function setupTabNavigation() {
 // ─── Event listeners ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+  loadGroupColors().then(() => {
+    loadCacheDashboard();
+  });
   loadSettings();
   loadCosts();
   loadCacheStats();
   loadVersion();
   loadShortcuts();
-  loadCacheDashboard();
-  setupCacheDashboardEvents();
   loadExcludedDomains();
   loadRulesTable();
+  setupCacheDashboardEvents();
   setupRulesTableEvents();
   setupTabNavigation();
 });
