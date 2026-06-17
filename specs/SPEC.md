@@ -1,317 +1,225 @@
-# TabTamer — Phase 10
+# TabTamer — Phase 11
 
 ## Overview
 
-Phase 10 delivers the three most-requested missing features from DESIGN.md:
-**multi-provider support** (OpenRouter, Ollama, Together AI presets), **live cost
-tracking** (actual token usage from API responses, user-configurable pricing),
-and **LLM-assisted rule creation** (proactively suggest rules after classification).
-Alongside these, we fix 4 critical bugs, close 6 UX gaps, and add 4 accessibility
-improvements.
+Phase 11 is a **stability & intelligence** release. We fix 8 bugs (including a
+hibernation badge race, duplicate code, and provider preset cost overwrite),
+close 6 UX gaps (keyboard shortcuts, error feedback, source indicators), and
+deliver the foundation for **LLM-powered batch tab clustering** — sending all
+ungrouped tabs in a single LLM call for coherent, cost-efficient grouping.
 
-The theme: **trust and flexibility**. Users gain control over their AI provider
-and costs, the LLM becomes a collaborative assistant that teaches the extension
-permanent rules, and sharp edges are smoothed for daily use.
+The theme: **make the LLM see the whole picture, and make the extension feel
+polished for daily use.**
 
 ## Files to modify
 
 ```
 extension/
-├── manifest.json          (bump 1.9.0 → 1.10.0, CSP for multi-provider)
-├── background.js          (multi-provider, live tokens, rule suggestion toasts,
-│                            Retry-After:0 fix, _lastAccessTimes persist on unload,
-│                            content port reconnect, badge emoji, startup progress)
-├── lib/constants.js       (remove hardcoded API_ENDPOINT, COST_PER_TOKEN,
-│                            TOKENS_CLASSIFY, TOKENS_MERGE; add provider presets)
-├── lib/utils.js           (fix normalizeGroupName for camelCase proper nouns;
-│                            add isWellKnownProperNoun helper)
-├── options.html           (provider preset selector, $/M-token input, fetch-pricing
-│                            button, bulk rule actions, toast duration slider,
-│                            last-classified timestamps in cache dashboard)
-├── options.js             (multi-provider settings, live cost display, fetch
-│                            pricing, bulk rule ops, tab persistence on reload,
-│                            undo for cache edits, ARIA labels on color pickers)
-├── popup.html             (search/filter in group list, tab title on classify
-│                            button, tooltips on group tags, aria-label on toggle)
-├── popup.js               (filter groups, show active tab info, delayed close
-│                            after classify)
-├── search.html            (aria role="listbox" on results)
-├── search.js              (Ctrl+W to close, aria-activedescendant)
-├── content.js             (auto-reconnect port on disconnect)
-└── icons/
-    └── icon-48-dark.png   (new dark-theme toolbar icon variant)
+├── manifest.json          (bump 1.10.0 → 1.11.0, add _execute_browser_action command)
+├── background.js          (fix badge race, consolidate helpers → lib/utils.js,
+│                            fix markGroupManaged redundancy, fix _managedGroupIds init,
+│                            fix _showRuleSuggestion timeout persistence,
+│                            add batch clustering mode, add source to recent classifications)
+├── lib/utils.js           (import _getCacheGroupName, _getCacheTimestamp from bg.js;
+│                            add _getCacheGroupName, _getCacheTimestamp exports)
+├── lib/constants.js       (add SEARCH_DEBOUNCE_MS import path for options.js)
+├── popup.html             (keyboard shortcut hint, interactive group tags)
+├── popup.js               (refactor showLoading/hideLoading, error feedback on classify,
+│                            source indicators in recent list, interactive group tags,
+│                            empty-state guidance)
+├── options.html           (reset-to-defaults button, spinner for suggest-rules modal,
+│                            rules-table hit counts column)
+├── options.js             (fix onProviderPresetChange cost overwrite, use SEARCH_DEBOUNCE_MS,
+│                            reset-to-defaults logic, hit count display, refactor _debounceTimer)
+├── search.html            (tab action buttons: close, ungroup)
+├── search.js              (close tab action, ungroup action, batch-select handling)
+└── tests/
+    └── background.test.js (tests for batch clustering, badge fix, helper consolidation)
 ```
 
 ## Tasks
 
-### T10.0: Read AGENTS.md
+### Read conventions
 
-- [ ] **T10.0: Read AGENTS.md**
-  Read `AGENTS.md` for project conventions, gotchas, and architecture
-  notes. Also read `DESIGN.md` for component architecture.
+- [ ] **T11.0: Read AGENTS.md and DESIGN.md**
+  Read `AGENTS.md` for project conventions, gotchas (normalizeGroupName, local
+  keyword, test environment quirk with Node.js/nix-shell), and architecture notes.
+  Read `DESIGN.md` for remaining open questions and component design.
 
-### Bugs (blockers first)
+### Bugs
 
-- [ ] **T10.1: Fix `retryWithBackoff` mishandling `Retry-After: 0`**
-  In `background.js`, the `retryWithBackoff` function parses the
-  `Retry-After` header with `parseInt(header, 10)`. When the header is
-  `"0"` (meaning "retry immediately"), `parseInt('0', 10)` returns `0`
-  which is falsy, causing the code to fall through to the default delay.
-  Fix: explicitly check for `!== null` / `!isNaN()` instead of truthiness.
+- [ ] **T11.1: Fix hibernation badge race condition**
+  In `extension/background.js`, `hibernateIdleTabs()` directly calls
+  `browser.browserAction.setBadgeText({ text: '💤' + count })`, but
+  `updateBadge()` is debounced at 500ms and will overwrite the hibernation
+  indicator within half a second. Fix: have `hibernateIdleTabs()` call
+  `updateBadge()` (which respects the group count + managed state) instead of
+  directly setting the badge, OR set a flag that `updateBadge()` checks to
+  prepend the 💤 prefix. Ensure the badge shows group count normally after the
+  hibernation sweep completes.
 
-- [ ] **T10.2: Fix `normalizeGroupName` destroying camelCase proper nouns**
-  In `lib/utils.js`, `normalizeGroupName()` lowercases everything after
-  the first letter, turning "GitHub" → "Github", "YouTube" → "Youtube",
-  "GitLab" → "Gitlab". Add a `KNOWN_CAMELCASE` set alongside the existing
-  `KNOWN_ACRONYMS` set, checked before applying the generic title-case
-  transformation. Include at minimum: GitHub, YouTube, GitLab, Reddit,
-  LinkedIn, eBay, Upwork, WhatsApp, PayPal, TikTok, WordPress, Medium,
-  Substack, UberEats, DoorDash.
+- [ ] **T11.2: Consolidate duplicate helper functions into lib/utils.js**
+  `_getCacheGroupName` and `_getCacheTimestamp` exist in both
+  `extension/background.js` (~line 828) and `extension/options.js` (~line 403).
+  Move both functions to `extension/lib/utils.js`, export them, and update both
+  callers to import from the shared module. This eliminates ~14 lines of
+  duplicate code and ensures cache structure changes only need one update.
+  Verify existing tests still pass after the refactor.
 
-- [ ] **T10.3: Fix content script port disconnect — add auto-reconnect**
-  In `content.js`, when the background script restarts, the `browser.runtime`
-  port disconnects (`onDisconnect` fires) and the content script removes
-  its SPA navigation patches but never reconnects. SPA detection stops
-  until the user manually reloads the page. Add a reconnect loop:
-  on disconnect, wait 2s, then call `browser.runtime.connect()` again
-  and re-attach the history monkey-patches.
+- [ ] **T11.3: Fix hardcoded debounce in cache search**
+  In `extension/options.js`, the cache search input handler uses a literal
+  `200` millisecond delay instead of `SEARCH_DEBOUNCE_MS` from
+  `extension/lib/constants.js`. Replace the magic number with the constant.
+  Also refactor `_debounceTimer` from an ad-hoc DOM element property to a
+  module-scoped variable.
 
-- [ ] **T10.4: Persist `_lastAccessTimes` on `beforeunload`**
-  In `background.js`, `_lastAccessTimes` is throttled to persist to storage
-  every 30 seconds. If the browser closes before the timer fires, access
-  times since the last persist are lost, causing incorrect hibernation
-  decisions. Add a `runtime.onSuspend` listener (for clean shutdown) and a
-  `beforeunload`-equivalent to flush immediately. Also reduce the persist
-  interval from 30s to 15s as a belt-and-suspenders measure.
+- [ ] **T11.4: Fix provider preset cost overwrite bug**
+  In `extension/options.js`, `onProviderPresetChange()` compares
+  `currentCost === 1.0` to decide whether to overwrite the user's cost-per-M
+  setting. A user who deliberately sets $1.00/M-token gets it overwritten when
+  switching presets. Fix: track whether the user has manually edited the cost
+  field (via a `data-user-edited` attribute or a module-scoped flag), and only
+  auto-fill the cost on preset change if the user hasn't customized it.
 
-### Big Features
+- [ ] **T11.5: Remove redundant storage writes in markGroupManaged**
+  In `extension/background.js`, `markGroupManaged()` writes to
+  `browser.storage.local` every time it's called, even when the group ID is
+  already tracked in `_managedGroupIds`. Add an early-return check: if the
+  group is already in the set, skip the storage write. This eliminates wasteful
+  I/O during bulk classification (e.g., startup scan assigning 20 tabs to the
+  same group).
 
-- [ ] **T10.5: Multi-provider support — configurable API endpoint + model + key**
-  Replace the hardcoded `API_ENDPOINT` in `lib/constants.js` with a
-  user-configurable setting (`customEndpoint` in `browser.storage.local`).
-  Ship with one-click provider presets:
-  - **OpenRouter**: `https://openrouter.ai/api/v1/chat/completions`
-  - **Ollama** (local): `http://localhost:11434/v1/chat/completions`
-  - **Together AI**: `https://api.together.xyz/v1/chat/completions`
-  - **Custom**: free-text URL input
-  Add a provider selector (dropdown + custom field) to `options.html`
-  and `options.js`. When a preset is selected, auto-fill the endpoint
-  and suggest a default model. Update `background.js` to read endpoint
-  from settings at call time (not import time). Update `manifest.json`
-  CSP `connect-src` to support dynamic endpoints (use `*` wildcard or
-  add `https://openrouter.ai/*`, `http://localhost:11434/*`,
-  `https://api.together.xyz/*`). Update permissions similarly.
+- [ ] **T11.6: Persist _showRuleSuggestion timeout across extension reload**
+  In `extension/background.js`, `_showRuleSuggestion()` uses `setTimeout` to
+  auto-dismiss suggestion notifications after 30 seconds. If the background
+  page is suspended (event page), the timeout is lost and
+  `_pendingSuggestionNotificationIds` accumulates orphaned entries. Fix: store
+  pending suggestion metadata (notification ID + expiry timestamp) in
+  `browser.storage.local`, and on startup, re-check expired suggestions and
+  clean up.
 
-- [ ] **T10.6: Live cost tracking — actual token usage from API responses**
-  In `background.js`, after each successful LLM API call, extract
-  `usage.total_tokens` (or `usage.prompt_tokens + completion_tokens`)
-  from the response JSON. Store the real token count in the `costs`
-  storage alongside the old estimates. Update the cost display in
-  `options.js` and `popup.js` to show both estimated and live totals.
-  Remove the hardcoded `TOKENS_CLASSIFY=150` and `TOKENS_MERGE=500`
-  constants from `lib/constants.js`; compute estimates dynamically
-  from prompt length instead.
+- [ ] **T11.7: Fix _managedGroupIds initialization inconsistency**
+  In `extension/background.js`, `_managedGroupIds` is initialized to `null` on
+  storage load failure (line ~295) and later "healed" to `new Set()` by
+  `markGroupManaged`. Other functions check `!managedGroupIds` and skip
+  operations — but a healed empty Set passes `!` check (empty Set is truthy)
+  vs. `null` (falsy), creating inconsistent behavior. Fix: always initialize to
+  `new Set()` regardless of load outcome, and use `_managedGroupIds.size === 0`
+  for "not yet loaded" checks instead of falsiness.
 
-- [ ] **T10.7: User-configurable pricing — $/M-token rate with "Fetch pricing"**
-  Replace the hardcoded `COST_PER_TOKEN=0.000001` ($1/M) in
-  `lib/constants.js` with a user setting `costPerMillionTokens` (default
-  `1.0` for $1/M). Add a number input to `options.html` labeled "$/M tokens".
-  Add a "Fetch pricing" button that queries the selected provider's pricing
-  endpoint (if available) and auto-fills the rate. In `options.js`, label
-  costs as "estimated" if based on estimate tokens + user rate, or "live"
-  if based on actual tokens + user rate. Update `background.js` cost
-  calculations to use the user's rate.
+- [ ] **T11.8: Refactor popup showLoading/hideLoading to use CSS classes**
+  In `extension/popup.js`, `showLoading()` and `hideLoading()` directly
+  manipulate `element.style.display` on 8 hardcoded elements. This is fragile
+  and races with `renderState()`. Replace with CSS class toggling: add a
+  `.loading` class on the popup container, and use CSS rules
+  (`.loading .recent-list { display: none }`, etc.) to handle visibility.
+  This is a single class toggle instead of 8 inline style mutations.
 
-- [ ] **T10.8: LLM-assisted rule creation — per-classification prompt**
-  After the LLM successfully classifies a domain (cache miss → API call),
-  show a non-blocking toast or notification: *"Save `github.com → Code`
-  as a rule?"* with Approve/Dismiss actions. Approving adds a rule via
-  the rules engine. Dismissing does nothing. Track dismissed suggestions
-  in storage to avoid re-prompting for the same domain within 30 days.
-  Implement in `background.js` using `browser.notifications.create()` with
-  buttons, and a `browser.notifications.onButtonClicked` listener to
-  handle the Approve action.
+### Feature: Batch Tab Clustering
 
-- [ ] **T10.9: LLM-assisted rule creation — batch cache scanning**
-  Add a "Suggest Rules" button to the options page cache dashboard.
-  When clicked, sample up to 50 cache entries, build a prompt listing
-  domain→group mappings, and ask the LLM: *"Identify patterns in these
-  domain→group mappings and suggest rules. Each rule should be a glob
-  pattern + group name. Return a JSON array of {pattern, groupName,
-  confidence} objects."* Display results in a modal with checkboxes for
-  the user to approve/reject each suggestion. Approved suggestions become
-  enabled rules. Implement in `options.html` + `options.js` +
-  `background.js` (the API call goes through background for consistent
-  auth handling).
+- [ ] **T11.9: Implement LLM-powered batch tab clustering for startup scan**
+  Add a new function `batchClassifyTabs(tabs)` in `extension/background.js`.
+  During `startupScan()`, collect all ungrouped tabs (those with no group and
+  no cache/rule match) and send them in a single LLM call. The prompt format:
+  ```
+  You are a tab grouping assistant. Given a list of tabs with URLs and titles,
+  group them into 3-7 coherent groups. Return JSON only:
+  {"groups": [{"name": "Group Name", "tabIndices": [0, 3, 7]}, ...]}
+  ```
+  Parse the response, create groups, and assign tabs in batch. Individual
+  classification (`classifyAndAssign()`) remains for new tabs opened during
+  browsing. Add a preference `batchClusteringEnabled` (default: true) in
+  options. This reduces API costs (1 call instead of N) and produces more
+  coherent groups since the LLM sees all tabs together.
 
-- [ ] **T10.10: Per-tab temporary override — "Move to group X just this once"**
-  Add a context menu item "Move to group…" with a submenu of existing
-  TabTamer-managed group names. When selected, move the tab to that group
-  without updating the cache or creating a rule — it's a one-time override.
-  Implement in `background.js` via `browser.contextMenus.create()` and
-  `browser.contextMenus.onClicked`. Dynamically rebuild the submenu when
-  groups change.
+### UX Improvements
 
-### UX & Polish
+- [ ] **T11.10: Add keyboard shortcut to open popup**
+  In `extension/manifest.json`, add a `commands` entry for
+  `_execute_browser_action` with a suggested shortcut (e.g., Ctrl+Shift+E on
+  Linux/Windows, Cmd+Shift+E on Mac). Show the shortcut hint in the popup
+  footer: "Press Ctrl+Shift+E to open". Update `extension/popup.html`
+  accordingly.
 
-- [ ] **T10.11: Add undo for cache entry edit/delete**
-  In `options.js`, when a cache entry is edited or deleted, store the
-  previous value in a temporary undo stack. Show a toast: "Cache entry
-  deleted — Undo" with a clickable Undo action. The undo restores the
-  entry. Stack depth: 10. Auto-clear after 10 seconds.
+- [ ] **T11.11: Show error feedback when "Classify Tab" fails**
+  In `extension/popup.js`, the "Classify Tab" button handler closes the popup
+  after 500ms regardless of outcome (line ~285). If the LLM call fails, the
+  user sees "Classifying…" and the window closes with no indication of failure.
+  Fix: wait for the classification result before closing, show a brief
+  success/error state (green checkmark or red X) for 1.5 seconds, then close.
+  If the call fails, keep the popup open and show the error message.
 
-- [ ] **T10.12: Show progress during startup scan**
-  In `background.js`, during `startupScan()`, send periodic progress
-  messages to the popup and update the badge with "N/M" (e.g., "3/42")
-  instead of just "…". The popup should show a progress bar or count
-  when scans are in progress. Add a `runtime.sendMessage` call after
-  each classified tab during startup scan, and handle the message in
-  `popup.js`.
+- [ ] **T11.12: Add source indicators to recent classifications**
+  In `extension/popup.js`, the recent classifications list shows
+  `domain → group` but doesn't indicate whether it was a rule match (free),
+  cache hit (free), or LLM call (costs money). Add a small colored dot or icon
+  next to each entry: 🟢 for rule, 🟡 for cache, 🔵 for LLM. In
+  `extension/background.js`, store the source (`'rule'`, `'cache'`, `'llm'`)
+  alongside each recent classification entry. Show a legend at the bottom of
+  the recent list.
 
-- [ ] **T10.13: Add search/filter to popup group list**
-  In `popup.html`, add a small search input above the group list.
-  In `popup.js`, filter the rendered groups by substring match on
-  group name as the user types. Debounce at 150ms.
+- [ ] **T11.13: Add empty-state guidance to popup**
+  In `extension/popup.js`, when no managed groups exist, show actionable text
+  instead of the bare "No TabTamer-managed groups yet" message. New text:
+  "Open a few tabs and browse — they'll auto-group as you go. Or click
+  'Classify Tab' to group the current tab now." Update
+  `extension/popup.html` with the new copy.
 
-- [ ] **T10.14: Show active tab info on "Classify Tab" button and delay close**
-  In `popup.html`, update the button text to "Classify `tabtitle.com`"
-  (truncated to 30 chars). In `popup.js`, after clicking classify, show
-  a brief "Classifying…" state on the button for 500ms before closing
-  the popup, so the user sees confirmation.
+- [ ] **T11.14: Add "Reset to defaults" button in options**
+  In `extension/options.html`, add a "Reset to Defaults" button in the
+  settings section (near the Save button). In `extension/options.js`,
+  implement `resetToDefaults()`: restore all storage keys to the hardcoded
+  defaults defined in the file, then reload the form. Show a confirmation
+  dialog before resetting. Store defaults in a single `DEFAULTS` const object
+  for easy maintenance.
 
-- [ ] **T10.15: Add "last classified" timestamp to cache dashboard**
-  In `background.js`, when caching a domain→group mapping, store a
-  `timestamp` alongside the group name (or in a parallel
-  `cacheTimestamps` object). In `options.js`, display "Classified 3
-  days ago" or "Classified 2026-01-15" in each cache dashboard row.
+- [ ] **T11.15: Add hit count column to rules table**
+  In `extension/options.html`, add a "Hits" column to the rules table showing
+  how many times each rule has matched. In `extension/options.js`, track hit
+  counts in the rules engine (increment on each `findMatchingRule()` match,
+  store in `browser.storage.local` under `ruleHitCounts`). Display in the
+  table with a reset button to zero all counts. This helps users identify
+  which rules are doing the most work.
 
-- [ ] **T10.16: Persist options page tab selection on reload**
-  In `options.js`, save the active tab name to `sessionStorage` (not
-  extension storage — only for the current page session). On page load,
-  restore the last active tab. This survives F5 but not full page close.
+### Search Page Enhancements
 
-- [ ] **T10.17: Add dark theme toolbar icon variant**
-  Create a 48×48 dark-theme icon `icons/icon-48-dark.png` (light-on-dark
-  version of the existing icon). Reference it in `manifest.json` via
-  `browser_action.default_icon` with the `"dark"` theme key, or use
-  `browser.browserAction.setIcon()` in `background.js` based on the
-  user's dark mode setting.
+- [ ] **T11.16: Add tab management actions to search page**
+  In `extension/search.html` and `extension/search.js`, add per-result action
+  buttons: "Close Tab" (sends `browser.tabs.remove`) and "Ungroup" (removes
+  tab from its current group via `browser.tabs.ungroup`). Support keyboard
+  shortcuts: Ctrl+W to close the focused result, Ctrl+U to ungroup. Add a
+  batch-select mode (checkboxes) for closing/ungrouping multiple tabs at once.
+  Show a confirmation toast for destructive actions with undo (5s window).
 
-- [ ] **T10.18: Add bulk actions to rules table**
-  In `options.html`, add "Select All" / "Deselect All" checkboxes and
-  "Delete Selected" / "Disable Selected" / "Enable Selected" buttons
-  above the rules table. In `options.js`, implement multi-select logic
-  and batch operations.
+### Polish
 
-- [ ] **T10.19: Add tooltips to truncated popup group tags**
-  In `popup.html`, add `title` attributes to group name elements showing
-  the full group name. CSS truncation hides overflow but the native
-  tooltip on hover reveals the full text.
+- [ ] **T11.17: Add loading spinner to "Suggest Rules from Cache" modal**
+  In `extension/options.html`, replace the static "Analyzing cache entries…"
+  text with an animated CSS spinner (use the same `.spinner` class from other
+  loading states). In `extension/options.js`, show the spinner during the LLM
+  call and hide it when results arrive.
 
-- [ ] **T10.20: Add Ctrl+W to close Smart Tab Search**
-  In `search.js`, add a keydown listener: if Ctrl+W (or Cmd+W on Mac)
-  is pressed, close the search tab via `window.close()`. This matches
-  user expectation that Ctrl+W closes any tab.
+### Tests
 
-- [ ] **T10.21: Fix cache dashboard Domain column word-breaking**
-  In `options.js`, change the CSS for the Domain column from
-  `word-break: break-all` to `overflow-wrap: break-word` so domain
-  names break at natural boundaries (dots, hyphens) rather than
-  mid-character.
-
-### Accessibility
-
-- [ ] **T10.22: Add ARIA labels to cache dashboard color pickers**
-  In `options.js`, add `aria-label="Color for domain.com"` to each
-  `<select>` element rendered in the cache dashboard table.
-
-- [ ] **T10.23: Add aria-label to popup toggle switch**
-  In `popup.html`, add `aria-label="Toggle TabTamer auto-grouping"`
-  to the pause toggle switch element.
-
-- [ ] **T10.24: Add ARIA listbox role to Smart Tab Search results**
-  In `search.html`, add `role="listbox"` to the results container `<div>`
-  and `role="option"` + `aria-selected` to each result item. In
-  `search.js`, manage `aria-activedescendant` on the listbox as the
-  selection changes.
-
-- [ ] **T10.25: Add keyboard toggle visual confirmation**
-  In `background.js`, when `Ctrl+Shift+G` toggles TabTamer, fire a
-  brief `browser.notifications.create()` toast: "TabTamer: ON" or
-  "TabTamer: OFF" with the current state. Use a short-lived
-  notification (auto-dismiss in 2s).
+- [ ] **T11.18: Update tests for Phase 11 changes**
+  Run `nix-shell -p nodejs_22` then `npm test`. Update
+  `tests/background.test.js` to cover: batch clustering (mock multi-tab LLM
+  response), badge fix (verify updateBadge is called not setBadgeText directly),
+  source indicators in recent classifications, and _managedGroupIds
+  initialization. Ensure all 16 existing tests still pass. Add new tests for
+  consolidated utils functions.
 
 ### Documentation
 
-- [ ] **T10.26: Bump manifest version**
-  Update `manifest.json` version from `1.9.0` to `1.10.0`.
+- [ ] **T11.19: Update DESIGN.md open questions**
+  Remove "LLM-assisted rule creation" (done in Phase 10), "Multi-provider
+  support" (done in Phase 10), and "Live cost tracking" (done in Phase 10)
+  from the open questions section. Add "Batch tab clustering" as a new
+  implemented feature note. Keep "Manifest v3 migration" and "Cross-browser
+  support" as deferred.
 
 - [ ] **Meta: Do nothing — spec loop is handled by loop.sh**
-  This is a deliberate no-op. Do NOT run iteratr or the spec-writer from here.
-  Simply mark this task as done without taking any action.
-
-## Design notes
-
-### Multi-provider storage schema
-
-```json
-{
-  "settings": {
-    "providerPreset": "openrouter",
-    "customEndpoint": "https://openrouter.ai/api/v1/chat/completions",
-    "apiKey": "sk-...",
-    "model": "openai/gpt-4o-mini",
-    "costPerMillionTokens": 0.15,
-    "costPerMillionTokensInput": null,
-    "costPerMillionTokensOutput": null
-  }
-}
-```
-
-Provider presets (stored in constants, not user storage):
-
-| Preset | Endpoint | Default Model | ~$/M tokens |
-|--------|----------|---------------|-------------|
-| `opencode` | `https://opencode.ai/zen/go/v1/chat/completions` | `deepseek-v4-flash` | $1.00 |
-| `openrouter` | `https://openrouter.ai/api/v1/chat/completions` | `openai/gpt-4o-mini` | $0.15 |
-| `together` | `https://api.together.xyz/v1/chat/completions` | `meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8` | $0.20 |
-| `ollama` | `http://localhost:11434/v1/chat/completions` | `llama3.2` | $0.00 (local) |
-| `custom` | (user-provided) | (user-provided) | (user-provided) |
-
-### CSP and permissions for multi-provider
-
-Manifest v2 requires explicit `connect-src` entries. We must add:
-- `https://openrouter.ai/*`
-- `https://api.together.xyz/*`
-- `http://localhost:11434/*` (Ollama local)
-
-And matching host permissions for Firefox.
-
-### normalizeGroupName fix approach
-
-Rather than a complex linguistic model, add a `KNOWN_CAMELCASE` set of
-well-known proper nouns that use camelCase. This is a pragmatic 80/20
-solution — covers the most common cases without false positives. The set
-can be expanded over time.
-
-### Rule suggestion persistence
-
-Track dismissed suggestions in storage:
-```json
-{
-  "dismissedRuleSuggestions": {
-    "github.com": 1718640000000
-  }
-}
-```
-Entries older than 30 days are pruned. The Approve action creates a rule
-via `rules-engine.js` and removes any dismissal.
-
-### Undo stack for cache edits
-
-Store in module-scoped variable (not persistent — cleared on extension reload):
-```js
-let _cacheUndoStack = []; // max 10 entries
-```
-Each entry: `{action: 'delete'|'edit', domain, groupName, previousGroupName?}`.
-Toast shows for 10s then auto-expires.
+  This is a deliberate no-op. The outer shell loop (./loop.sh) handles
+  the build → spec-write → build cycle. Do NOT run iteratr or the
+  spec-writer from here. Simply mark this task as done without taking
+  any action.
