@@ -6,3 +6,4 @@ Thumbs.db
 
 specs/archive/
 build.log*
+node_modules/

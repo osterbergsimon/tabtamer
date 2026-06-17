@@ -2885,4 +2885,414 @@ Wait, looking at the git status:
 - .gitignore - modified
 - build.log.clean - modified
 - extension/background.js - modified
-- package-lock
+- package-lock.json - untracked (need to add)
+- tests/background.test.js - part of tests/ untracked directory
+
+Let me check the diffs first to understand what changes are in each file.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 22651 bytes)
+So the changes are:
+1. `.gitignore` - changed `build.log` to `build.log*` to ignore all build.log files
+2. `build.log.clean` - some content was added (seems like build output/notes)
+3. `extension/background.js` - the T7.1 fix I just made + some other changes
+
+Let me check what the full diff of background.js is - the user said +19/-12 which seems like more than just my 5 lines added. Let me check.
+
+Also, `package-lock.json` and `tests/background.test.js` are untracked files that need to be added.
+
+Let me check the full diff for background.js and also check what's in the untracked files.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 880 bytes)
+So the diff for background.js is just my T7.1 fix. The user mentioned "+19/-12" but that seems to be the total count across all modified files. Let me check the other files.
+
+Let me check what's in the untracked files.
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 168 bytes)
+[tool: bash] ✓ (output: 2517 bytes)
+OK so I see the diffs:
+1. `.gitignore` - simple change from `build.log` to `build.log*`
+2. `build.log.clean` - has accumulated a lot of build log content (349 lines added)
+3. `extension/background.js` - my T7.1 fix (7 lines added)
+
+The other files mentioned are:
+- `package-lock.json` - untracked (new file)
+- `tests/background.test.js` - part of untracked `tests/` directory
+
+Let me check these untracked files to see what's in them before committing.
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 27 bytes)
+[tool: bash] ✓ (output: 89 bytes)
+Let me check the tests/background.test.js to understand what it contains. Also let me verify the full list of files the user wants committed:
+- .gitignore (modified)
+- build.log.clean (modified)
+- extension/background.js (modified - my T7.1 fix)
+- package-lock.json (untracked/new)
+- tests/background.test.js (part of untracked tests/ directory)
+
+Let me check what tests/background.test.js contains and check if tests/setup.js should also be included.
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 656 bytes)
+[tool: bash] ✓ (output: 2716 bytes)
+The tests/ directory contains:
+- `setup.js` - mock browser API setup for Node.js testing
+- `background.test.js` - tests for background.js functions
+
+The user asked to commit tests/background.test.js specifically. But setup.js is also needed for the tests to work. Let me check if setup.js is already tracked or not.
+
+Actually, looking at the git status, the entire `tests/` directory is untracked. The user listed `tests/background.test.js` specifically. I should stage only that file as instructed.
+
+But wait, the test won't work without setup.js. The user might want me to stage just background.test.js first and then setup.js separately, or maybe they want both. Let me just follow the instructions exactly as given: stage only the listed files.
+
+Let me now stage and commit.I can see the changes. Let me stage only the listed files and commit:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 11 bytes)
+Good. Now let me check that the right files are staged and commit.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 278 bytes)
+The staged files match what the user requested. Now let me create a clear commit message. The main change is the T7.1 fix in background.js, with other files being supporting changes (gitignore, build logs, package lock, tests).
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 223 bytes)
+Let me verify the commit looks correct.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1285 bytes)
+Committed successfully. Here's a summary:
+
+**Commit `c76f489`** — `fix: wrap inner tabs.get in try/catch to handle tab-closed race (T7.1)`
+
+**Files staged & committed** (5 files, +4782/-3):
+- `.gitignore` — ignore all `build.log*` files
+- `build.log.clean` — accumulated build log entries
+- `extension/background.js` — **T7.1 fix**: wrap inner `browser.tabs.get(tabId)` in try/catch for silent handling of closed tabs (+7/-0)
+- `package-lock.json` — Node package lock (new file)
+- `tests/background.test.js` — unit tests for background.js (new file)
+
+Not pushed.
+--- Agent finished: end_turn | Duration: 37.502s | Model: opencode-go/deepseek-v4-flash | Tokens: in=9609 out=2054 cache_read=268800 cache_write=0 ---
+
+✓ Iteration #3 complete
+
+Let me analyze the current state. We have 18 remaining tasks. I need to pick the highest priority unblocked task. Let me check the priority levels:
+
+- P0 (critical) - none remaining
+- P1 (high) - none remaining (T7.9 and T7.10 completed)
+- P2 (medium) - many remaining
+- P3 (low) - documentation tasks
+- P4 (backlog) - meta task
+
+So the highest priority unblocked tasks are all P2. Let me look at which one might be blocked or have dependencies.
+
+Looking at the tasks:
+- T7.16 (Extract shared constants) might be a dependency for T7.17 (Extract shared utilities) and others
+- T7.14 (Options page tabs) might benefit from T7.16/17 first
+- Most other tasks are independent
+
+Let me check if there are any dependency relationships:
+- T7.16: Extract shared constants - this is foundational, things that use constants would benefit
+- T7.17: Extract shared utilities - also foundational
+
+But actually many tasks are independent bug fixes. Let me just pick the highest priority unblocked task.
+
+Let me use task-next to get the suggested next task.
+[tool: iteratr-tools__task-next] ...
+
+[tool: iteratr-tools__task-next] ...
+[tool: iteratr-tools__task-next] ✓ (output: 246 bytes)
+The task system suggests T7.11 (Replace blocking confirm() dialogs with inline modals). Let me check if it has any dependencies or blockers first. But it's P2 priority, unblocked. Let me take this task.
+
+Actually, wait - looking at the task list more carefully, I see T7.16 (Extract shared constants) and T7.17 (Extract shared utilities) are also P2. These are foundational tasks that would be good to do first since they touch common code that other tasks might rely on. But they're big refactoring tasks.
+
+However, task-next specifically suggested T7.11. Let me go with that.
+
+Actually, let me think about what makes sense from a dependency perspective. T7.11 is about replacing `confirm()` dialogs with inline modals in options.html/options.js. This doesn't depend on T7.16 or T7.17. It's self-contained.
+
+Let me mark it as in_progress and then implement it.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 39 bytes)
+Now let me first understand the current codebase. Let me read the relevant files to understand the confirm() usage.Let me start by examining the current code to understand the `confirm()` usage and the options page structure.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 23275 bytes)
+[tool: read] ✓ (output: 46027 bytes)
+Now I understand the codebase. I need to:
+
+1. Create an inline modal component in `options.html` (CSS + HTML)
+2. Create a `showConfirmModal(message)` function in `options.js` that returns a Promise
+3. Replace all `confirm()` calls with the new modal
+
+Let me find all `confirm()` calls in options.js:
+
+1. Line 295-298: Cache edit - "move tabs" confirmation
+2. Line 345: Cache delete confirmation
+3. Line 490-493: Cache import merge/overwrite choice
+4. Line 514-517: Cache import overwrite confirmation (re-reads cache for count - this is T7.3's bug too!)
+5. Line 552-554: Clear cache confirmation
+6. Line 960-963: Rules import merge/overwrite choice
+7. Line 974-976: Rules import overwrite confirmation
+
+Let me also check background.js for confirm() calls.
+
+Let me plan the inline modal:
+
+**HTML**: A modal overlay with a message, confirm button, cancel button (and optionally a close X button). Hidden by default.
+
+**CSS**: Overlay covers full screen, semi-transparent background. Modal is centered with shadow, rounded corners.
+
+**JavaScript**: `showConfirmModal(message)` returns a Promise that resolves to `true` if confirmed, `false` if cancelled. It creates the modal dynamically or uses a static one in the HTML.
+
+I'll use a static modal in the HTML since that's cleaner for WebExtensions. The modal will be hidden by default and shown when needed.
+
+Let me design this carefully.
+
+For the modal, I'll add it to the HTML as a hidden overlay, with CSS styling, and implement the `showConfirmModal` function.
+
+Let me also consider the T7.3 connection: line 514-517 reads the cache again inside the confirm message. When I replace with modal, I should also fix that bug (T7.3) - cache the count.
+
+Actually, the task scope says T7.11 specifically. Let me focus on that. But since I'm replacing the confirm, I can fix T7.3 at the same time as a bonus since they're in the same function. Actually, the rules say ONE task per iteration. Let me stick to T7.11.
+
+Let me now implement:
+
+1. Add modal HTML to options.html (just before the toast or at the end of the container)
+2. Add modal CSS to options.html
+3. Add `showConfirmModal(message)` function to options.js
+4. Replace all `confirm()` calls
+
+Let me write the code.
+
+For the modal:
+
+```html
+<!-- ─── Confirm Modal ─────────────────────────────────────────── -->
+<div id="confirm-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-dialog">
+    <p id="confirm-modal-message" class="modal-message"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" id="confirm-modal-ok">OK</button>
+      <button type="button" class="btn btn-test" id="confirm-modal-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+```
+
+CSS:
+```css
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-dialog {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modal-message {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+```
+
+For the JavaScript:
+
+```javascript
+function showConfirmModal(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    const messageEl = document.getElementById('confirm-modal-message');
+    const okBtn = document.getElementById('confirm-modal-ok');
+    const cancelBtn = document.getElementById('confirm-modal-cancel');
+
+    messageEl.textContent = message;
+    modal.style.display = 'flex';
+
+    function cleanup() {
+      modal.style.display = 'none';
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+    }
+
+    function onOk() {
+      cleanup();
+      resolve(true);
+    }
+
+    function onCancel() {
+      cleanup();
+      resolve(false);
+    }
+
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+```
+
+Wait, there's also the case where the message has formatting like `\n\n` and bolding. The `confirm()` allows actual newlines. With `white-space: pre-wrap`, `\n` will be preserved in textContent. The bolding (like `**merge**`) won't render as bold but that's fine - it'll show as text.
+
+Actually, looking at the confirm messages more carefully:
+
+Line 295:
+```
+`Group name changed from "${oldGroup}" to "${newGroup}".\n\n` +
+`Move existing tabs from "${oldGroup}" to "${newGroup}"?`
+```
+This uses `\n\n` for spacing. `pre-wrap` handles this.
+
+Line 345:
+```
+`Remove "${domain}" from the cache? The next visit will trigger a fresh LLM classification.`
+```
+Simple text.
+
+Line 490-493:
+```
+`Import ${importedCount} cache entr${importedCount === 1 ? 'y' : 'ies'}?\n\n` +
+`Click OK to **merge** (add new entries, keep existing).\n` +
+`Click Cancel to **overwrite** (replace all existing entries).`
+```
+Uses `\n\n` and `**markdown bold**`. The `**` will just show as asterisks in text. That's acceptable.
+
+Line 514-517:
+```
+`Replace the entire cache with ${importedCount} imported entr${importedCount === 1 ? 'y' : 'ies'}?\n` +
+`This will delete all ${Object.keys((await browser.storage.local.get(CACHE_KEY))[CACHE_KEY] || {}).length} existing entries.`
+```
+Uses `\n`. Also has the stale read bug (T7.3).
+
+Line 551-552:
+```
+`Clear all ${entryCount} cached domain mapping${entryCount !== 1 ? 's' : ''}? This will cause LLM API calls for every domain on next visit.`
+```
+Simple.
+
+Line 960-963:
+```
+`Import ${imported.length} rule${imported.length !== 1 ? 's' : ''}?\n\n` +
+`Click OK to **merge** (add new rules at the end).\n` +
+`Click Cancel to **overwrite** (replace all existing rules).`
+```
+
+Line 974-976:
+```
+`Replace all existing rules with ${imported.length} imported rule${imported.length !== 1 ? 's' : ''}?`
+```
+
+OK, all of these use plain text with newlines. The `pre-wrap` approach works.
+
+Now, one thing I need to consider: some of these confirm dialogs have a "default" action. For example, the merge/overwrite one: OK = merge, Cancel = overwrite. The modal needs to handle this properly. The existing code uses OK for "merge" and Cancel for "overwrite" which is done by checking the confirm() return value.
+
+Let me also handle keyboard interaction - pressing Enter should trigger OK, Escape should trigger Cancel.
+
+Let me also consider: should I use a single reusable modal in the HTML, or create it dynamically? I'll use a static one in HTML for simplicity and accessibility.
+
+Let me also consider the interaction with the existing code structure. Currently `confirm()` is synchronous (blocking). But `showConfirmModal` returns a Promise. So I need to convert all the `if (confirm(...))` patterns to `if (await showConfirmModal(...))`.
+
+Wait - all the confirm() calls are already inside async functions! So I can just use `await showConfirmModal(...)`.
+
+Let me verify the calls are all inside async functions:
+
+1. Line 295: Inside the save button click handler which is `async (event) => { ... }` ✓
+2. Line 345: Inside `async (event) => { ... }` ✓
+3. Line 490: Inside `async function handleCacheFileSelected(event)` ✓
+4. Line 514: Inside `async function handleCacheFileSelected(event)` ✓
+5. Line 552: Inside `async function clearCache()` ✓
+6. Line 960: Inside `async function handleRulesFileSelected(event)` ✓
+7. Line 974: Inside `async function handleRulesFileSelected(event)` ✓
+
+All are async! Perfect.
+
+Now, let me also think about the edge cases:
+- If user clicks the overlay background, should it cancel? Probably yes.
+- What about multiple modals stacking? Not needed for this use case since confirm is one-at-a-time.
+
+Let me also handle the OK button text: some confirm dialogs have custom button semantics. In the existing code, `confirm()` returns true/false, and the code checks:
+- If true → do something, if false → do something else (like merge vs overwrite)
+- This is fine, the modal just returns true/false
+
+Now let me implement the changes.
+
+Actually wait, I should also look at the "Group name changed" confirm to make sure my modal handles the case correctly:
+
+```javascript
+const moveTabs = confirm(
+  `Group name changed from "${oldGroup}" to "${newGroup}".\n\n` +
+  `Move existing tabs from "${oldGroup}" to "${newGroup}"?`
+);
+if (moveTabs) {
+  // move tabs...
+}
+```
+
+This is a yes/no question. OK = yes (move), Cancel = no (don't move). That works with our modal.
+
+Let me now implement everything.Now I have a clear picture. I need to:
+
+1. Add modal HTML to `options.html` (inline confirm overlay)
+2. Add modal CSS styling
+3. Create `showConfirmModal(message)` function in `options.js` (returns Promise)
+4. Replace all 7 `confirm()` calls with `await showConfirmModal()`
+
+Let me start with the HTML modal markup:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool

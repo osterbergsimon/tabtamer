@@ -1,9 +1,11 @@
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
 const { resetMocks, mockStorage, mockTabGroups, mockTabs } = require('./setup');
 
-// Load background.js — its top-level listeners register but are no-ops in mock
-require('../extension/background.js');
+// Run background.js in global scope (like a <script> tag would)
+// Functions like extractDomain, getCachedGroup etc. become global
+eval(fs.readFileSync(require.resolve('../extension/background.js'), 'utf8'));
 
 beforeEach(() => {
   resetMocks();
@@ -64,13 +66,13 @@ describe('isEnabled', () => {
   });
 
   it('returns true when enabled is true', async () => {
-    await mockStorage.local.set({ tabtamerSettings: { enabled: true, apiKey: 'sk-test' } });
+    await browser.storage.local.set({ tabtamerSettings: { enabled: true, apiKey: 'sk-test' } });
     const result = await isEnabled();
     assert.strictEqual(result, true);
   });
 
   it('returns false when enabled is false', async () => {
-    await mockStorage.local.set({ tabtamerSettings: { enabled: false } });
+    await browser.storage.local.set({ tabtamerSettings: { enabled: false } });
     const result = await isEnabled();
     assert.strictEqual(result, false);
   });
@@ -83,7 +85,7 @@ describe('getSettings', () => {
   });
 
   it('returns stored settings', async () => {
-    await mockStorage.local.set({ tabtamerSettings: { apiKey: 'sk-abc', model: 'deepseek-v4-pro', enabled: true } });
+    await browser.storage.local.set({ tabtamerSettings: { apiKey: 'sk-abc', model: 'deepseek-v4-pro', enabled: true } });
     const settings = await getSettings();
     assert.strictEqual(settings.apiKey, 'sk-abc');
     assert.strictEqual(settings.model, 'deepseek-v4-pro');
@@ -93,23 +95,25 @@ describe('getSettings', () => {
 
 describe('assignToGroup', () => {
   it('creates a new group when none exists', async () => {
-    mockTabGroups.query.resolves([]);
-    mockTabGroups.create.resolves({ id: 42, title: 'GitHub', windowId: 1 });
+    browser.tabGroups.query.resolves([]);
+    browser.tabGroups.create.resolves({ id: 42, title: 'Code', windowId: 1 });
 
-    await assignToGroup(1, 'GitHub');
+    await assignToGroup(1, 'Code');
 
-    assert.ok(mockTabGroups.create.calledOnceWith({ title: 'GitHub', windowId: 1 }));
-    assert.ok(mockTabs.group.calledOnce);
-    assert.deepStrictEqual(mockTabs.group.firstCall.args[0], { tabIds: [1], groupId: 42 });
+    assert.ok(browser.tabGroups.create.calledOnce);
+    assert.strictEqual(browser.tabGroups.create.firstCall.args[0].title, 'Code');
+    assert.strictEqual(browser.tabGroups.create.firstCall.args[0].windowId, 1);
+    assert.ok(browser.tabs.group.calledOnce);
+    assert.deepStrictEqual(browser.tabs.group.firstCall.args[0], { tabIds: [1], groupId: 42 });
   });
 
   it('reuses existing group', async () => {
-    mockTabGroups.query.resolves([{ id: 7, title: 'GitHub' }]);
+    browser.tabGroups.query.resolves([{ id: 7, title: 'GitHub' }]);
 
     await assignToGroup(1, 'GitHub');
 
-    assert.ok(mockTabGroups.create.notCalled);
-    assert.ok(mockTabs.group.calledOnce);
-    assert.deepStrictEqual(mockTabs.group.firstCall.args[0], { tabIds: [1], groupId: 7 });
+    assert.ok(browser.tabGroups.create.notCalled);
+    assert.ok(browser.tabs.group.calledOnce);
+    assert.deepStrictEqual(browser.tabs.group.firstCall.args[0], { tabIds: [1], groupId: 7 });
   });
 });

@@ -1,0 +1,15 @@
+{
+  "name": "tabtamer",
+  "version": "1.0.0",
+  "description": "Firefox extension for LLM-powered tab auto-grouping",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "lint": "web-ext lint --source-dir extension/"
+  },
+  "devDependencies": {
+    "chai": "^5.0.0",
+    "sinon": "^19.0.0",
+    "web-ext": "^8.0.0"
+  }
+}
