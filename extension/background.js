@@ -608,6 +608,43 @@ function updateBadge(processing) {
   }, 500);
 }
 
+// ─── Toolbar Icon Theme (T10.17) ───────────────────────────────────────────
+
+// T10.17: Update toolbar icon based on theme setting (light/dark/system)
+async function _updateToolbarIcon() {
+  try {
+    const settings = await getSettings();
+    const theme = settings.theme || 'system';
+
+    let useDark = false;
+    if (theme === 'dark') {
+      useDark = true;
+    } else if (theme === 'system') {
+      if (typeof window !== 'undefined' && window.matchMedia) {
+        useDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+    }
+
+    await browser.browserAction.setIcon({
+      path: useDark ? 'icons/icon-48-dark.png' : 'icons/icon-48.png'
+    });
+  } catch (err) {
+    console.warn('TabTamer: failed to update toolbar icon', err);
+  }
+}
+
+// T10.17: Listen for system theme changes and update icon accordingly
+function _setupAutoThemeListener() {
+  try {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      const darkModeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+      darkModeMedia.addListener(() => _updateToolbarIcon());
+    }
+  } catch (err) {
+    console.warn('TabTamer: failed to set up auto theme listener', err);
+  }
+}
+
 // ─── Keyboard Shortcuts ────────────────────────────────────────────────────
 // T4.5: Handle command shortcuts defined in manifest.json
 
@@ -904,6 +941,9 @@ browser.storage.onChanged.addListener((changes, areaName) => {
     }
     // T4.7: Update toolbar badge on settings change
     updateBadge();
+
+    // T10.17: Update toolbar icon when theme setting changes
+    _updateToolbarIcon();
   }
 
   // T8.11: Refresh custom group colors when changed from options page
@@ -2079,6 +2119,10 @@ browser.runtime.onStartup.addListener(async () => {
   await migrateCacheFormat();
   // T5.6: Assign colors to existing groups without one
   await assignColorsToGroups();
+  // T10.17: Update toolbar icon for dark/light theme
+  _updateToolbarIcon();
+  // T10.17: Listen for system theme changes
+  _setupAutoThemeListener();
   // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
   startupScan();
   // T10.10: Rebuild the "Move to group…" context submenu with current groups
@@ -2132,6 +2176,11 @@ browser.runtime.onInstalled.addListener(async (details) => {
 
     // T5.6: Assign colors to existing groups without one (one-time migration)
     await assignColorsToGroups();
+
+    // T10.17: Update toolbar icon for dark/light theme
+    _updateToolbarIcon();
+    // T10.17: Listen for system theme changes
+    _setupAutoThemeListener();
 
     // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
     // Run startup scan on install/update to classify existing tabs
