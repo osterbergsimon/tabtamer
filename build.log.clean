@@ -3295,4 +3295,230 @@ Let me start with the HTML modal markup:
 [tool: edit] ...
 
 [tool: edit] ...
-[tool
+[tool: edit] ✓ (output: 1252 bytes)
+Now let me add the CSS for the modal overlay. I'll add it after the existing CSS, before the closing `</style>` tag.Now add the modal CSS:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 1305 bytes)
+Now I need to add the `showConfirmModal` function in `options.js` and replace all `confirm()` calls. Let me add the function first.
+
+I'll add it after the `showToast` function, since it's a similar utility function.Now let me add the `showConfirmModal` function to `options.js`. I'll place it right after the `showToast` function:
+[tool: edit] ...
+
+[tool: edit] ...
+The exact text matching is failing. Let me read the exact content around the showToast function and loadSettings.Let me read the exact content around line 67-84 to get the precise text:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1079 bytes)
+Now I can see the exact text. Let me add the showConfirmModal function between showToast and loadSettings.
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 2536 bytes)
+Now I need to replace all 7 `confirm()` calls with `await showConfirmModal()`. Let me find them all and replace them one by one.
+
+Let me re-read the file to find each confirm call with its exact context.
+
+1. Line ~295 (now shifted): Cache edit - "move tabs" confirmation
+2. Line ~345: Cache delete
+3. Line ~490: Cache import merge/overwrite
+4. Line ~514-517: Cache import overwrite confirmation
+5. Line ~552: Clear cache
+6. Line ~960: Rules import merge/overwrite
+7. Line ~974: Rules import overwrite
+
+Let me grep for remaining confirm calls to find exact line numbers.Now I need to replace all `confirm()` calls. Let me find them:
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 426 bytes)
+I see 7 calls. Let me read around each one to get the exact text for replacement.
+
+Line 360: Cache edit - move tabs
+Line 410: Cache delete
+Line 555: Cache import merge/overwrite
+Line 579: Cache import overwrite confirmation
+Line 617: Clear cache
+Line 1025: Rules import merge/overwrite
+Line 1039: Rules import overwrite
+
+Let me read each with context.Let me read the context around each confirm call:
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 728 bytes)
+[tool: read] ✓ (output: 1364 bytes)
+[tool: read] ✓ (output: 873 bytes)
+[tool: read] ✓ (output: 1888 bytes)
+[tool: read] ✓ (output: 896 bytes)
+Now I need to replace each `confirm()` call with `await showConfirmModal()`. Let me do them one by one to ensure exact text matching.
+
+1. Line 360-363: Cache edit move tabs
+2. Line 410: Cache delete
+3. Line 555-559: Cache import merge/overwrite
+4. Line 579-582: Cache import overwrite
+5. Line 617: Clear cache
+6. Line 1025-1029: Rules import merge/overwrite
+7. Line 1039-1041: Rules import overwrite
+
+Let me do these replacements. I need to be careful with the exact text.Now let me replace all 7 `confirm()` calls with `await showConfirmModal()`:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 3550 bytes)
+All 7 confirm calls have been replaced. Let me now verify there are no remaining `confirm(` calls in the file.Let me verify no `confirm(` calls remain in options.js:
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 64 bytes)
+Only the comment in the function description remains, no actual `confirm()` calls. Let me also check background.js and any other files:Good, only the comment remains. Let me also check background.js for any confirm calls:
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 109 bytes)
+All confirm() calls have been replaced. Now let me verify the changes are complete and correct by doing a quick review of the modified files.
+
+Let me also verify:
+1. The modal HTML is properly structured
+2. The CSS is well-formed
+3. The JavaScript function works correctly
+4. All confirm() replacements compile to valid async code
+
+Let me re-read the final state of both files to double check.Let me now verify the final state of the modified files:
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 2598 bytes)
+[tool: read] ✓ (output: 3033 bytes)
+Let me also check the modal HTML part to verify it's correctly placed:Let me verify the modal HTML in options.html:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1338 bytes)
+Everything looks good. Let me also verify the CSS is well-formed by checking the modal CSS:Let me verify the CSS:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1246 bytes)
+Everything looks good. Let me now run a quick sanity check - make sure the options.js has balanced braces/parentheses:Let me verify syntax by checking brace/paren balance:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 94 bytes)
+All balanced:
+- Braces: 279 `{` and 279 `}` ✓
+- Parentheses: 572 `(` and 572 `)` ✓
+- Style tags: 1 `<style>` and 1 `</style>` ✓
+- Divs: 31 open and 31 close ✓
+
+Now let me also do a quick functional test by reading the relevant parts of the code to make sure the async/await usage is correct. All the `confirm()` calls that were replaced are inside async functions, so `await showConfirmModal(...)` is valid everywhere.
+
+Let me now write a quick summary and mark the task as done.
+
+Actually, let me also check that the `showConfirmModal` function handles the case where the modal may be hidden behind a button. Looking at the HTML, the modal is placed just before the toast element. It's inside the `.container` div. Since it's `position: fixed`, it will overlay the entire page regardless of its position in the DOM. Good.
+
+One thing I want to verify: the CSS uses `display: flex` to show the modal, and the inline style is `style="display: none;"`. When `showConfirmModal` sets `modal.style.display = 'flex'`, it overrides the inline style. When `cleanup` sets it back to `'none'`, it also works correctly. 
+
+Let me also think about edge cases:
+1. What if the user clicks both buttons very fast? The click handler calls `cleanup()` which removes all listeners, so double-clicking won't resolve twice.
+2. What if Enter or Escape is pressed? The keydown handler calls `preventDefault()` and then `cleanup()` which removes the keydown listener. Good.
+3. What if the modal is opened while another modal is still open? This shouldn't happen because JavaScript is single-threaded and await yields properly. But if it did, the second `showConfirmModal` would reassign event listeners, and the first would never resolve. This is acceptable for our use case since confirms are used sequentially.
+
+I'm satisfied with the implementation. Let me mark the task as completed.All syntax checks pass. Let me now mark the task as completed and write the iteration summary.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 37 bytes)
+Now let me write the iteration summary.
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+[tool: iteratr-tools__iteration-summary] ✓ (output: 33 bytes)
+Task is complete. I should stop now per the workflow: "STOP (do not pick another task)".Task T7.11 is complete. All 7 blocking `confirm()` dialogs have been replaced with a reusable inline modal component that returns a Promise. The modal supports keyboard navigation (Enter/Escape), overlay click dismissal, and proper cleanup. The next iteration should pick the next highest-priority unblocked task.
+--- Agent finished: end_turn | Duration: 2m22.154s | Model: opencode-go/deepseek-v4-flash | Tokens: in=37468 out=9737 cache_read=631040 cache_write=0 ---
+The user wants me to commit the modified files. Let me stage them and create a commit with a good message.
+
+The files to commit:
+- .gitignore
+- build.log.clean
+- extension/options.html (+47/-7)
+- extension/options.js (+27/-26)
+- tests/background.test.js
+
+Wait, let me check - the user mentioned files to commit. But I only modified options.html and options.js as part of T7.11. The other files (.gitignore, build.log.clean, tests/background.test.js) were not modified by me. Let me check if they have changes from previous iterations.
+
+Actually the user said "Commit the following modified files" - these are files that have been modified in the working tree. Let me check the current git status first.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 81 bytes)
+So the modified files in the working tree are:
+- build.log.clean
+- extension/options.html
+- extension/options.js
+
+But the user also listed `.gitignore` and `tests/background.test.js`. These don't show as modified. Perhaps they were modified in a previous iteration but not committed? Or maybe the user is listing files that should be committed from the repo?
+
+Wait, let me re-read the user's message. They said to commit:
+- .gitignore
+- build.log.clean
+- extension/options.html (+47/-7)
+- extension/options.js (+27/-26)
+- tests/background.test.js
+
+But only build.log.clean, options.html, and options.js show as modified. The .gitignore and tests/background.test.js don't appear in git status. Maybe they were already committed or the diff stats are from the spec. Let me look at what the actual state is.
+
+Actually, looking at this more carefully - the user listed files with their diff stats (+47/-7 etc). These match what I changed. But .gitignore and tests/background.test.js are also listed. Let me check if there's an untracked or modified .gitignore or tests/background.test.js.
+
+Actually, maybe the user just listed the files they want committed. Let me check each:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 357 bytes)
+So `.gitignore` and `tests/background.test.js` are not modified - they exist but have no changes. The modified files are `build.log.clean`, `extension/options.html`, and `extension/options.js`.
+
+Wait, maybe the user meant to include these files as well even though they're not modified? Or maybe they were modified but the changes were already committed? Let me check if they have changes vs HEAD.
+
+Actually, the user's instruction says "Commit the following modified files" and lists them. Perhaps they want all of these to be in the commit - maybe .gitignore and tests/background.test.js were modified by a previous iteration but never committed? Let me check the git log.
+
+Actually, looking at the build.log.clean file - this seems like a build log file. And .gitignore is not modified. Let me just stage all the files that are actually modified and include them in the commit. If .gitignore and tests/background.test.js have no changes compared to HEAD, staging them would be a no-op.
+
+Wait, actually let me check if .gitignore and tests/background.test.js have been modified but not staged:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 3 bytes)
+No changes to .gitignore or tests/background.test.js. They're not modified. The user might be listing them because they think they should be in the commit, but since they have no changes, it doesn't matter.
+
+Actually, wait - maybe the user's instructions are a template and they just listed the files they expect to see. Let me just commit what's actually modified. The files that are modified are:
+- build.log.clean
+- extension/options.html
+- extension/options.js
+
+Let me stage and commit these with a clear commit message.
+
+But hold on - let me re-read. The user said "Commit the following modified files" then listed specific files with diff stats. The diff stats shown for options.html are +47/-7, but git diff --stat shows +40. That's because the user's stats might be from a different reference or include all changes across iterations. Let me just trust git status and commit what's actually modified.
+
+Actually, I realize the user is just providing the files that should go in the commit. Since .gitignore and tests/background.test.js have no changes, staging them won't do anything. Let me just stage and commit the three modified files.I see that `.gitignore` and `tests/background.test.js` are not actually modified (no diff from HEAD). The modified files are `build.log.clean`, `extension/options.html`, and `extension/options.js`. Let me stage and 

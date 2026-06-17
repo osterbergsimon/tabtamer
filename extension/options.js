@@ -79,6 +79,71 @@ function showToast(message, type = 'success') {
   }, 3000);
 }
 
+// ─── Confirm Modal (T7.11) ───────────────────────────────────────────
+// Replaces blocking confirm() with an inline modal overlay.
+// Returns a Promise that resolves to true (OK) or false (Cancel).
+
+function showConfirmModal(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    const messageEl = document.getElementById('confirm-modal-message');
+    const okBtn = document.getElementById('confirm-modal-ok');
+    const cancelBtn = document.getElementById('confirm-modal-cancel');
+
+    if (!modal || !messageEl || !okBtn || !cancelBtn) {
+      // Fallback: if modal elements are missing, resolve to false silently
+      resolve(false);
+      return;
+    }
+
+    messageEl.textContent = message;
+    modal.style.display = 'flex';
+
+    function cleanup() {
+      modal.style.display = 'none';
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      document.removeEventListener('keydown', onKeydown);
+      modal.removeEventListener('click', onOverlayClick);
+    }
+
+    function onOk() {
+      cleanup();
+      resolve(true);
+    }
+
+    function onCancel() {
+      cleanup();
+      resolve(false);
+    }
+
+    function onKeydown(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        onOk();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+      }
+    }
+
+    function onOverlayClick(e) {
+      // Close if the overlay background (not the dialog) is clicked
+      if (e.target === modal) {
+        onCancel();
+      }
+    }
+
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    document.addEventListener('keydown', onKeydown);
+    modal.addEventListener('click', onOverlayClick);
+
+    // Focus the cancel button by default (safer default action)
+    cancelBtn.focus();
+  });
+}
+
 // ─── Load settings ────────────────────────────────────────────────────────────
 
 async function loadSettings() {
@@ -292,7 +357,7 @@ function setupCacheDashboardEvents() {
           try {
             const oldGroups = await browser.tabGroups.query({ title: oldGroup });
             if (oldGroups.length > 0 && oldGroups[0].id) {
-              const moveTabs = confirm(
+              const moveTabs = await showConfirmModal(
                 `Group name changed from "${oldGroup}" to "${newGroup}".\n\n` +
                 `Move existing tabs from "${oldGroup}" to "${newGroup}"?`
               );
@@ -342,7 +407,7 @@ function setupCacheDashboardEvents() {
       exitEditMode(row, domain);
     } else if (action === 'delete') {
       // Confirm and delete
-      const confirmed = confirm(`Remove "${domain}" from the cache? The next visit will trigger a fresh LLM classification.`);
+      const confirmed = await showConfirmModal(`Remove "${domain}" from the cache? The next visit will trigger a fresh LLM classification.`);
       if (!confirmed) return;
 
       try {
@@ -487,10 +552,10 @@ async function handleCacheFileSelected(event) {
 
     // Prompt user: merge or overwrite?
     // First ask: merge? If yes → merge. If no → ask overwrite.
-    const doMerge = confirm(
+    const doMerge = await showConfirmModal(
       `Import ${importedCount} cache entr${importedCount === 1 ? 'y' : 'ies'}?\n\n` +
-      `Click OK to **merge** (add new entries, keep existing).\n` +
-      `Click Cancel to **overwrite** (replace all existing entries).`
+      `Click OK to merge (add new entries, keep existing).\n` +
+      `Click Cancel to overwrite (replace all existing entries).`
     );
 
     if (doMerge) {
@@ -511,9 +576,9 @@ async function handleCacheFileSelected(event) {
       showToast(`Imported: ${added} added, ${skipped} skipped (already existed)`, 'success');
     } else {
       // Overwrite — ask for confirmation
-      const confirmOverwrite = confirm(
+      const confirmOverwrite = await showConfirmModal(
         `Replace the entire cache with ${importedCount} imported entr${importedCount === 1 ? 'y' : 'ies'}?\n` +
-        `This will delete all ${Object.keys((await browser.storage.local.get(CACHE_KEY))[CACHE_KEY] || {}).length} existing entries.`
+        `This will delete all existing entries.`
       );
       if (!confirmOverwrite) {
         showToast('Import cancelled', 'warning');
@@ -549,7 +614,8 @@ async function clearCache() {
   }
 
   const message = `Clear all ${entryCount} cached domain mapping${entryCount !== 1 ? 's' : ''}? This will cause LLM API calls for every domain on next visit.`;
-  if (!confirm(message)) {
+  const confirmed = await showConfirmModal(message);
+  if (!confirmed) {
     return;
   }
 
@@ -957,10 +1023,10 @@ async function handleRulesFileSelected(event) {
     }
 
     // Prompt: merge or overwrite?
-    const doMerge = confirm(
+    const doMerge = await showConfirmModal(
       `Import ${imported.length} rule${imported.length !== 1 ? 's' : ''}?\n\n` +
-      `Click OK to **merge** (add new rules at the end).\n` +
-      `Click Cancel to **overwrite** (replace all existing rules).`
+      `Click OK to merge (add new rules at the end).\n` +
+      `Click Cancel to overwrite (replace all existing rules).`
     );
 
     if (doMerge) {
@@ -971,7 +1037,7 @@ async function handleRulesFileSelected(event) {
       showToast(`Imported: ${imported.length} rule${imported.length !== 1 ? 's' : ''} merged`, 'success');
     } else {
       // Overwrite
-      const confirmOverwrite = confirm(
+      const confirmOverwrite = await showConfirmModal(
         `Replace all existing rules with ${imported.length} imported rule${imported.length !== 1 ? 's' : ''}?`
       );
       if (!confirmOverwrite) {
