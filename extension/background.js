@@ -378,6 +378,18 @@ async function getPopupState() {
       console.warn('TabTamer: getPopupState — error querying groups', err.message);
     }
 
+    // T9.14: Read cost tracking data for popup display
+    let totalCost = 0;
+    let totalCalls = 0;
+    try {
+      const costResult = await browser.storage.local.get(COSTS_KEY);
+      const costs = costResult[COSTS_KEY] || {};
+      totalCost = costs.totalCost || 0;
+      totalCalls = costs.calls || 0;
+    } catch (err) {
+      console.warn('TabTamer: getPopupState — error reading costs', err.message);
+    }
+
     return {
       enabled,
       managedGroupCount: groupNames.length,
@@ -385,7 +397,9 @@ async function getPopupState() {
       managedGroupTabCounts,
       recentClassifications: _recentClassifications,
       processingCount: _pendingClassificationCount,
-      hibernatedCount: _hibernatedCount
+      hibernatedCount: _hibernatedCount,
+      totalCost,
+      totalCalls
     };
   } catch (err) {
     console.error('TabTamer: getPopupState error', err);
@@ -396,7 +410,9 @@ async function getPopupState() {
       managedGroupTabCounts: {},
       recentClassifications: [],
       processingCount: 0,
-      hibernatedCount: 0
+      hibernatedCount: 0,
+      totalCost: 0,
+      totalCalls: 0
     };
   }
 }
@@ -959,9 +975,12 @@ browser.alarms.onAlarm.addListener((alarm) => {
 async function updateCosts(tokens) {
   try {
     const result = await browser.storage.local.get(COSTS_KEY);
-    const costs = result[COSTS_KEY] || { calls: 0, estimatedTokens: 0 };
+    const costs = result[COSTS_KEY] || { calls: 0, estimatedTokens: 0, totalCost: 0 };
     costs.calls += 1;
     costs.estimatedTokens += tokens;
+    costs.totalCost = (costs.totalCost || 0) + tokens * COST_PER_TOKEN;
+    // Round to 6 decimal places to avoid floating-point artifacts
+    costs.totalCost = Math.round(costs.totalCost * 1e6) / 1e6;
     await browser.storage.local.set({ [COSTS_KEY]: costs });
   } catch (err) {
     console.error('TabTamer: cost tracking error', err);

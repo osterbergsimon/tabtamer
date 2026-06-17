@@ -84,6 +84,11 @@ Permissions needed:
 | **Auth** | `Authorization: Bearer <api-key>` |
 | **Cost/tab** | ~200 tokens × ~$0.10/M ≈ $0.00002 (first visit only) |
 
+**Token cost estimation:** Hardcoded $/M-token rates drift as providers update
+pricing. For semi-accurate costs, agents can fetch current pricing from the
+provider's API or pricing page (e.g. `https://opencode.ai/pricing`). The
+cost-tracking UI in options should surface whether rates are estimated or live.
+
 ### 3. Rules Engine
 
 **Optimization layer on top of LLM classification.** The LLM is the core
@@ -101,7 +106,9 @@ prompt the user *"Save `github.com → Code` as a rule?"* The LLM could also
 suggest rules proactively — e.g. batch-scanning the cache for patterns and
 proposing rules with confidence scores.
 
-**User override:** Users must always be able to bypass rules:
+**User override:** Users must always be able to bypass or disable rules:
+- **Global disable** — toggle rules engine off entirely; all tabs go straight
+  to cache → LLM, ignoring rules. For users who prefer pure LLM classification.
 - **Right-click → "Classify This Tab"** — forces LLM re-classification even
   when a rule matches
 - **Manual rule management** — add, edit, disable, delete, or reorder rules
@@ -372,9 +379,11 @@ Previously open questions addressed across Phases 2–9:
 ## Open questions
 
 1. **LLM-assisted rule creation** — When the LLM classifies a domain, the
-   extension could prompt: "Save `github.com → Code` as a rule?" to
-   progressively migrate from pay-per-call to free rule-based matching.
-   Reduces API costs and latency over time.
+   extension should prompt: "Save `github.com → Code` as a rule?" The LLM
+   could also batch-scan the cache to propose rules proactively. This closes
+   the loop: LLM classifies → user approves → rule locks it in → LLM never
+   called for that domain again. Design is ready (see Rules Engine section);
+   implementation is the remaining work.
 2. **Manifest v3 migration** — Firefox is phasing out manifest v2. Migrating
    will require replacing background scripts with service workers (no DOM
    access, no `window`). **Deferred**: tracked separately.

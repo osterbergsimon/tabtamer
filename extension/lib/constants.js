@@ -46,6 +46,10 @@ const TOAST_IMPORT_MS = 5000;
 const TOKENS_CLASSIFY = 150;
 const TOKENS_MERGE = 500;
 
+// Estimated cost per token in USD (used for popup cost display)
+// Based on typical LLM API pricing (~$1 per 1M tokens)
+const COST_PER_TOKEN = 0.000001;
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Periodic Task Intervals
 // ═══════════════════════════════════════════════════════════════════════════════

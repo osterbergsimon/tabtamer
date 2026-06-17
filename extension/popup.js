@@ -93,6 +93,16 @@ function renderState(state) {
     document.getElementById('hibernated-row').style.display = 'none';
   }
 
+  // T9.14: LLM Cost display
+  if (state.totalCalls && state.totalCalls > 0) {
+    document.getElementById('cost-row').style.display = 'flex';
+    // Format cost with up to 4 decimal places, trim trailing zeros
+    const formattedCost = state.totalCost.toFixed(4).replace(/\.?0+$/, '');
+    document.getElementById('cost-value').textContent = `$${formattedCost} (${state.totalCalls} call${state.totalCalls !== 1 ? 's' : ''})`;
+  } else {
+    document.getElementById('cost-row').style.display = 'none';
+  }
+
   // Group names with tab counts
   if (state.managedGroupNames && state.managedGroupNames.length > 0) {
     groupNamesContainer.innerHTML = state.managedGroupNames

@@ -61,9 +61,13 @@ Ask: what would make this extension 10× better? What would a daily user love?
   - What's the ONE feature that could make this feel like v2.0?
 
   Concrete examples of the ambition level:
-  - **LLM-assisted rule creation**: when the LLM classifies a domain, prompt
-    the user "Save `github.com → Code` as a rule?" to progressively migrate
-    from pay-per-call to free rule-based matching. Saves costs and latency.
+  - **LLM-assisted rule creation**: the LLM classifies a tab → prompt the user
+    "Save `github.com → Code` as a rule?" → user approves → rule locks in, LLM
+    never called for that domain again. The LLM could also batch-scan the cache
+    and proactively suggest rules with confidence scores. This closes the loop:
+    LLM intelligence builds the rule set, rules eliminate future API costs.
+    User must always be able to override rules (force LLM or handle manually),
+    including a global toggle to turn rules off entirely and use LLM-only mode.
   - Adaptive group renaming: rename groups when their content drifts (e.g. a
     "GitHub" group filling with docs pages becomes "Dev Resources").
   - Firefox Container integration: auto-assign tabs to containers based on
