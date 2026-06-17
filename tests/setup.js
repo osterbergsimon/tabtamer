@@ -42,8 +42,10 @@ const mockTabs = {
   group: sinon.stub().resolves(),
   update: sinon.stub().resolves(),
   query: sinon.stub().resolves([]),
+  discard: sinon.stub().resolves(),
   onUpdated: { addListener: sinon.stub() },
   onRemoved: { addListener: sinon.stub() },
+  onActivated: { addListener: sinon.stub() },
 };
 
 const mockNotifications = { create: sinon.stub().resolves() };
@@ -65,6 +67,10 @@ const mockBrowserAction = {
   setBadgeText: sinon.stub().resolves(),
 };
 
+const mockWindows = {
+  getAll: sinon.stub().resolves([]),
+};
+
 const mockCommands = { onCommand: { addListener: sinon.stub() } };
 
 const mockContextMenus = {
@@ -80,6 +86,7 @@ globalThis.browser = {
   runtime: mockRuntime,
   alarms: mockAlarms,
   browserAction: mockBrowserAction,
+  windows: mockWindows,
   commands: mockCommands,
   contextMenus: mockContextMenus,
 };

@@ -26,6 +26,17 @@ let _pendingClassificationCount = 0;
 // Custom group colors override (group name → color)
 let _customGroupColors = null;
 
+// ─── Tab Hibernation Engine (T9.19) ──────────────────────────────────────────
+
+// In-memory tracking of tab access times (tabId → timestamp)
+let _lastAccessTimes = {};
+
+// Timer for throttled persistence to storage (max once per 30s)
+let _lastAccessStorageTimer = null;
+
+// Count of tabs hibernated in this session
+let _hibernatedCount = 0;
+
 // ─── Retry with Backoff ──────────────────────────────────────────────────────────
 // T5.5: Unified retry loop with exponential backoff, rate-limit handling
 
@@ -112,6 +123,35 @@ async function loadCustomGroupColors() {
     console.warn('TabTamer: loadCustomGroupColors — storage read failed', err);
     _customGroupColors = {};
   }
+}
+
+// ─── Tab Hibernation — Access Time Tracking (T9.19) ───────────────────────────
+
+async function loadAccessTimes() {
+  try {
+    const result = await browser.storage.local.get(TABTAMER_LAST_ACCESS_KEY);
+    _lastAccessTimes = result[TABTAMER_LAST_ACCESS_KEY] || {};
+  } catch (err) {
+    console.warn('TabTamer: loadAccessTimes — storage read failed', err);
+    _lastAccessTimes = {};
+  }
+}
+
+function persistAccessTimes() {
+  if (_lastAccessStorageTimer) return;
+  _lastAccessStorageTimer = setTimeout(async () => {
+    _lastAccessStorageTimer = null;
+    try {
+      await browser.storage.local.set({ [TABTAMER_LAST_ACCESS_KEY]: _lastAccessTimes });
+    } catch (err) {
+      console.warn('TabTamer: persistAccessTimes — storage write failed', err);
+    }
+  }, STORAGE_THROTTLE_MS);
+}
+
+function updateLastAccess(tabId) {
+  _lastAccessTimes[tabId] = Date.now();
+  persistAccessTimes();
 }
 
 // ─── Group Name Normalization ──────────────────────────────────────────────────
@@ -220,8 +260,10 @@ const _processingTabs = new Set();
 // TAS-2: Watch new tabs and classify them
 
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  // Process when URL changes to a real page
+  // T9.19: Track tab navigation as user activity for hibernation
   if (changeInfo.url && tab.url) {
+    updateLastAccess(tabId);
+
     // T3.6: Debounce rapid URL changes — only classify the final URL in a burst
     if (_debounceTimers.has(tabId)) {
       clearTimeout(_debounceTimers.get(tabId));
@@ -240,6 +282,13 @@ browser.tabs.onRemoved.addListener((tabId) => {
     _debounceTimers.delete(tabId);
     console.log(`TabTamer: tab ${tabId} closed — cancelled pending debounce timer`);
   }
+  // T9.19: Clean up last access tracking when tab is closed
+  delete _lastAccessTimes[tabId];
+});
+
+// T9.19: Track tab activation for hibernation idle detection
+browser.tabs.onActivated.addListener((activeInfo) => {
+  updateLastAccess(activeInfo.tabId);
 });
 
 // T3.4: Handle SPA navigations from content script
@@ -287,7 +336,8 @@ async function getPopupState() {
       managedGroupCount: groupNames.length,
       managedGroupNames: groupNames,
       recentClassifications: _recentClassifications,
-      processingCount: _pendingClassificationCount
+      processingCount: _pendingClassificationCount,
+      hibernatedCount: _hibernatedCount
     };
   } catch (err) {
     console.error('TabTamer: getPopupState error', err);
@@ -296,7 +346,8 @@ async function getPopupState() {
       managedGroupCount: 0,
       managedGroupNames: [],
       recentClassifications: [],
-      processingCount: 0
+      processingCount: 0,
+      hibernatedCount: 0
     };
   }
 }
@@ -823,6 +874,7 @@ function createAlarms() {
   browser.alarms.create('cleanup', { periodInMinutes: CLEANUP_INTERVAL_MIN });
   browser.alarms.create('merge', { periodInMinutes: MERGE_INTERVAL_MIN });
   browser.alarms.create('cost-log', { periodInMinutes: COST_LOG_INTERVAL_MIN });
+  browser.alarms.create(HIBERNATE_ALARM_NAME, { periodInMinutes: HIBERNATE_INTERVAL_MIN });
 }
 
 browser.alarms.onAlarm.addListener((alarm) => {
@@ -835,6 +887,9 @@ browser.alarms.onAlarm.addListener((alarm) => {
   } else if (alarm.name === 'cost-log') {
     console.log('TabTamer: alarm fired — cost summary');
     logCostSummary();
+  } else if (alarm.name === HIBERNATE_ALARM_NAME) {
+    console.log('TabTamer: alarm fired — hibernation check');
+    hibernateIdleTabs();
   }
 });
 
@@ -860,6 +915,106 @@ async function logCostSummary() {
     console.log(`TabTamer: cost summary — ${costs.calls} API calls, ~${costs.estimatedTokens} estimated tokens`);
   } catch (err) {
     console.error('TabTamer: cost summary error', err);
+  }
+}
+
+// ─── Tab Hibernation Engine (T9.19) ────────────────────────────────────────────
+
+async function hibernateIdleTabs() {
+  try {
+    if (!(await isEnabled())) return;
+
+    const settings = await getSettings();
+    const hibernateAfter = settings.hibernateAfterMinutes;
+    if (!hibernateAfter || hibernateAfter === 'never') return;
+    const hibernateAfterMs = hibernateAfter * 60 * 1000;
+
+    // Load per-group opt-out list
+    let optOutGroups = [];
+    try {
+      const result = await browser.storage.local.get(HIBERNATE_OPT_OUT_KEY);
+      optOutGroups = result[HIBERNATE_OPT_OUT_KEY] || [];
+    } catch (err) {
+      console.warn('TabTamer: hibernate — could not load opt-out list', err);
+    }
+
+    // Filter to managed groups only
+    if (!_managedGroupIds) {
+      console.log('TabTamer: hibernate — no managed group IDs, skipping');
+      return;
+    }
+    const allGroups = await browser.tabGroups.query({});
+    const managedGroups = allGroups.filter(g => _managedGroupIds.has(g.id));
+    const managedGroupIdSet = new Set(managedGroups.map(g => g.id));
+
+    // Build groupId → title map for opt-out check
+    const groupIdToTitle = {};
+    for (const g of managedGroups) {
+      groupIdToTitle[g.id] = g.title;
+    }
+
+    // Get active tab IDs per window
+    const windows = await browser.windows.getAll({ populate: true });
+    const activeTabIds = new Set();
+    for (const w of windows) {
+      if (w.tabs) {
+        for (const t of w.tabs) {
+          if (t.active) activeTabIds.add(t.id);
+        }
+      }
+    }
+
+    // Find tabs to discard
+    const allTabs = await browser.tabs.query({});
+    const now = Date.now();
+    const toDiscard = [];
+
+    for (const tab of allTabs) {
+      // Skip non-managed groups
+      if (!tab.groupId || !managedGroupIdSet.has(tab.groupId)) continue;
+      // Skip pinned tabs
+      if (tab.pinned) continue;
+      // Skip audible tabs
+      if (tab.audible) continue;
+      // Skip active tabs
+      if (activeTabIds.has(tab.id)) continue;
+      // Skip already discarded tabs
+      if (tab.discarded) continue;
+
+      // Check per-group opt-out
+      const groupTitle = groupIdToTitle[tab.groupId];
+      if (groupTitle && optOutGroups.includes(groupTitle)) continue;
+
+      // Check idle time
+      const lastAccess = _lastAccessTimes[tab.id] || tab.lastAccessed || 0;
+      if (now - lastAccess < hibernateAfterMs) continue;
+
+      toDiscard.push(tab.id);
+    }
+
+    if (toDiscard.length === 0) {
+      console.log('TabTamer: hibernate — no idle tabs to discard');
+      return;
+    }
+
+    // Discard in batches of 10 to avoid overwhelming the browser
+    const batchSize = 10;
+    for (let i = 0; i < toDiscard.length; i += batchSize) {
+      const batch = toDiscard.slice(i, i + batchSize);
+      try {
+        await browser.tabs.discard(batch);
+      } catch (discardErr) {
+        console.warn('TabTamer: hibernate — batch discard error', discardErr.message);
+      }
+    }
+
+    _hibernatedCount += toDiscard.length;
+    console.log(`TabTamer: hibernate — discarded ${toDiscard.length} idle tab(s)`);
+
+    // Update badge with hibernated count indicator
+    browser.browserAction.setBadgeText({ text: `💤${_hibernatedCount}` });
+  } catch (err) {
+    console.error('TabTamer: hibernate error', err);
   }
 }
 
@@ -1124,11 +1279,13 @@ browser.runtime.onStartup.addListener(async () => {
   await loadManagedGroups();
   // T8.11: Load custom group colors
   await loadCustomGroupColors();
+  // T9.19: Load tab access times for hibernation tracking
+  await loadAccessTimes();
   // T5.6: Assign colors to existing groups without one
   await assignColorsToGroups();
   // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
   startupScan();
-  // Phase 2: Create periodic alarms
+  // Phase 2: Create periodic alarms (includes hibernation alarm)
   createAlarms();
 });
 
@@ -1155,6 +1312,9 @@ browser.runtime.onInstalled.addListener(async (details) => {
 
     // T8.11: Load custom group colors
     await loadCustomGroupColors();
+
+    // T9.19: Load tab access times for hibernation tracking
+    await loadAccessTimes();
 
     // T5.6: Assign colors to existing groups without one (one-time migration)
     await assignColorsToGroups();

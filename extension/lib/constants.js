@@ -85,3 +85,25 @@ const MAX_RECENT = 5;
 
 // Maximum tokens for LLM classification responses
 const CLASSIFY_MAX_TOKENS = 30;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tab Hibernation (T9.19)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Storage key for tab last-access times map (tabId → timestamp)
+const TABTAMER_LAST_ACCESS_KEY = 'tabtamerLastAccess';
+
+// Alarm name for periodic hibernation check
+const HIBERNATE_ALARM_NAME = 'tabtamer-hibernate';
+
+// Interval for hibernation alarm (minutes)
+const HIBERNATE_INTERVAL_MIN = 10;
+
+// Default idle time before tabs are discarded (minutes)
+const DEFAULT_HIBERNATE_MINUTES = 30;
+
+// Storage key for per-group hibernation opt-out (array of group names)
+const HIBERNATE_OPT_OUT_KEY = 'tabtamerHibernateOptOut';
+
+// Throttle interval for persisting access times to storage (ms)
+const STORAGE_THROTTLE_MS = 30000;

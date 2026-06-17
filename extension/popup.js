@@ -84,6 +84,14 @@ function renderState(state) {
   // Group count
   groupCount.textContent = state.managedGroupCount;
 
+  // Hibernated count
+  if (state.hibernatedCount && state.hibernatedCount > 0) {
+    document.getElementById('hibernated-row').style.display = 'flex';
+    document.getElementById('hibernated-count').textContent = `${state.hibernatedCount} tab${state.hibernatedCount !== 1 ? 's' : ''}`;
+  } else {
+    document.getElementById('hibernated-row').style.display = 'none';
+  }
+
   // Group names
   if (state.managedGroupNames && state.managedGroupNames.length > 0) {
     groupNamesContainer.innerHTML = state.managedGroupNames
