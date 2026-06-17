@@ -206,20 +206,42 @@ toggleSwitch.addEventListener('keydown', (e) => {
 
 // ─── Classify Active Tab ───────────────────────────────────────────────────
 
+// T10.14: Update classify button text with current tab info
+async function updateClassifyBtnText() {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tabs.length === 0) return;
+    const tab = tabs[0];
+    const label = tab.title || tab.url || '';
+    const truncated = label.length > 30 ? label.substring(0, 27) + '...' : label;
+    classifyBtn.textContent = `Classify ${truncated}`;
+    classifyBtn.title = `Classify ${tab.url || tab.title || 'current tab'}`;
+  } catch (err) {
+    // Fall back to default text
+    classifyBtn.textContent = 'Classify Tab';
+  }
+}
+
 async function handleClassifyNow() {
   try {
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     if (tabs.length === 0) return;
     const tab = tabs[0];
+    // T10.14: Show 'Classifying…' state for 500ms before closing
+    classifyBtn.textContent = 'Classifying…';
+    classifyBtn.disabled = true;
     await browser.runtime.sendMessage({
       type: 'classifyNow',
       tabId: tab.id,
       url: tab.url,
       title: tab.title
     });
+    await new Promise(resolve => setTimeout(resolve, 500));
     window.close();
   } catch (err) {
     console.error('TabTamer popup: classify failed', err);
+    classifyBtn.textContent = 'Classify Tab';
+    classifyBtn.disabled = false;
   }
 }
 
@@ -251,4 +273,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   await loadPopupState();
+  await updateClassifyBtnText();
 });
