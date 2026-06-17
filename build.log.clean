@@ -404,4 +404,275 @@ Task 1 is complete. Now I should STOP per the rules — the workflow says "ONE t
 
 The iteration summary is written with all findings. Task 2 will be done in iteration #2.Task 1 is complete. I've exhaustively inspected every source file and documented **40+ findings** across 7 categories:
 
-- **8 bugs** (race conditions, cost undercounting, silent
+- **8 bugs** (race conditions, cost undercounting, silent failure modes, stale data)
+- **7 missing features** (no popup, no manual group override, DESIGN.md gaps)
+- **8 UX issues** (no classification feedback, misleading badge, dated dialogs)
+- **7 code quality items** (monolithic 1069-line background.js, duplicate constants, magic numbers)
+- **3 security concerns** (plaintext API key, over-broad content script, missing CSP directive)
+- **5 performance issues** (N+1 queries in merge, redundant group queries, startup flood)
+- **5 documentation gaps** (outdated DESIGN.md, sparse README)
+- **10 ambitious v2.0 features** (custom rules engine, smart tab search, tab hibernation, container integration, confidence scores, adaptive renaming, and more)
+
+Per the spec workflow, I stop here. Task 2 (writing the fresh `specs/SPEC.md`) is for iteration #2.
+--- Agent finished: end_turn | Duration: 2m28.559s | Model: opencode-go/deepseek-v4-pro | Tokens: in=49517 out=9916 cache_read=373632 cache_write=0 ---
+The user wants me to commit the modified files. Let me check the current git status to see what's modified, then stage and commit only the listed files.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 242 bytes)
+So `build.log.clean` is untracked and `specs/SPEC-write-next.md` doesn't show as modified (it's tracked already). Let me check if SPEC-write-next.md has any changes.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 11 bytes)
+`specs/SPEC-write-next.md` has no changes — it's already committed as-is. `build.log.clean` is the only new file. Let me add and commit it.`specs/SPEC-write-next.md` has no unstaged changes (already committed). Only `build.log.clean` is new. Staging and committing:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 139 bytes)
+Committed successfully. No push per instructions.Committed: `6141609 chore: add build.log.clean (clean build output log)`. Only `build.log.clean` was staged — `specs/SPEC-write-next.md` had no modifications to commit. Not pushed per instructions.
+--- Agent finished: end_turn | Duration: 14.029s | Model: opencode-go/deepseek-v4-pro | Tokens: in=3390 out=425 cache_read=225280 cache_write=0 ---
+
+✓ Iteration #1 complete
+
+Let me analyze the situation:
+
+1. I'm in a SPEC-write session, iteration #2
+2. Task 1 (TAS-1) is already completed - the deep inspection has been done
+3. Task 2 (TAS-2) is remaining - write the next SPEC.md
+4. I have all the findings from the previous iteration
+
+I need to:
+1. Pick the next task (TAS-2)
+2. Mark it in_progress
+3. Write the SPEC.md based on all findings
+4. Mark it completed
+5. Write iteration-summary
+6. Call session-complete
+
+Let me first check what already exists in specs/ to determine the phase number.
+[tool: iteratr-tools__task-next] ...
+
+[tool: iteratr-tools__task-next] ...
+[tool: iteratr-tools__task-next] ✓ (output: 437 bytes)
+Let me check what exists in the specs directory and look at the manifest for the current version.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+
+[tool: ls] ...
+
+[tool: ls] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: iteratr-tools__task-update] ✓ (output: 38 bytes)
+[tool: ls] ✓ (output: 42 bytes)
+[tool: bash] ✓ (output: 63 bytes)
+So there are already Phase 1 and Phase 2 specs in the archive. I need to look at the current manifest.json to see what version it's at, then determine the next phase.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1492 bytes)
+[tool: read] ✓ (output: 1347 bytes)
+So Phase 6 was the last spec, and the manifest is at version 1.6.0. The next phase would be Phase 7. But wait, let me check how many phases there actually are in the archive.
+
+Let me also check whether the most recent Phase 2 archive file corresponds to a "Phase 2" naming scheme. Looking at the archive files: `SPEC-phase01` and `SPEC-phase02`. These seem to be earlier specs. The current version is 1.6.0 and the last phase was Phase 6.
+
+Now, I have all the findings from iteration #1. I need to write a fresh SPEC.md for Phase 7 (or Phase 3 if we're counting differently... but looking at the archive, Phase 6 was the last one based on the spec file).
+
+Wait, let me check the full listing of the archive to be sure.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 241 bytes)
+Interesting - there are only two archived specs: Phase 1 and Phase 2. But the last spec that was written (Phase 6) must be what's currently in `specs/SPEC.md`. Let me check.
+
+Wait, the spec says "the old spec has been moved to `specs/archive/`" but I only see Phase 1 and 2 there. The last spec might have been `SPEC-write-next.md` or `SPEC-review.md`. Let me check what those are.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 2025 bytes)
+[tool: read] ✓ (output: 4519 bytes)
+OK so the specs directory has:
+- `SPEC-write-next.md` - this is the CURRENT spec being executed (the spec-writer spec)
+- `SPEC-review.md` - this is the progress reviewer spec
+- `archive/` - has Phase 1 and Phase 2 archived specs
+
+But the actual latest Phase was Phase 6 (based on the archive file content I read). Let me check the git log to determine the current phase.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 1344 bytes)
+So Phase 6 was the last implemented phase. The next should be Phase 7. The manifest version is 1.6.0, so the next would be 1.7.0.
+
+Wait, but looking at the archive, there are only Phase 1 and Phase 2. Let me check if the git log shows Phase 3-5 specs too.
+
+From the git log:
+- Phase 6 was the most recent (from commit 485cfc2 "Phase 6 spec")
+- There are Phase 6 commits
+
+But I only see Phase 1 and 2 in the archive. The loop.sh must archive old specs and perhaps only kept the most recent 2. Let me not worry about the archive naming and just determine the next phase from git. From the latest commits, it's clear Phase 6 was last, so next is Phase 7.
+
+Actually wait - let me re-examine. The git log shows:
+- `485cfc2 feat: Phase 6 spec — acronym preservation, hashchange, race fixes, privacy, perf`
+- `bc4bada loop.sh: detect no-op builds, add quit mechanisms`
+
+So Phase 6 was the last. The archive has Phase 1 and 2, meaning specs Phase 3, 4, 5 must have been archived away or never existed in the archive dir. Maybe the loop.sh only keeps the most recent specs or something.
+
+Anyway, the current version is 1.6.0, next should be 1.7.0, and the next phase is Phase 7.
+
+Let me now look at one of the archived specs to see the format they use.
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 2737 bytes)
+Interesting! The archive file `SPEC-phase02-20260617-183316.md` actually contains "Phase 6" content. So the numbering in the archive filenames is different from the actual phase numbers. The archive just uses `phase01`, `phase02` etc. sequentially. The actual Phase 6 is stored in `SPEC-phase02`.
+
+Now I know the format. The actual next phase is Phase 7, bumping manifest version from 1.6.0 to 1.7.0.
+
+Let me now write the SPEC.md. I have all the findings from iteration #1, which are comprehensive:
+
+**Bugs (8 found):**
+1. Race: tab closed between `tabs.get` and `tabGroups.create` in `assignToGroup` (line 581)
+2. Cost undercounting for empty/parseable LLM responses (line 687-689)
+3. `importCache` overwrite count is stale (line 514-517)
+4. `loadManagedGroups` failure = silent full-stop (line 361)
+5. `content.js` monkey-patches `history.pushState`/`replaceState` globally
+6. `onUpdated` listener fires before page title is available
+7. Excluded domain validation is too weak (options.js)
+8. `notifyMissingApiKey` fires during startup scan
+
+**Missing Features (7 found):**
+1. DESIGN.md says cache is cleared on extension update — Not implemented
+2. DESIGN.md cost estimate is outdated
+3. No "always put domain X in group Y" manual override (custom rules)
+4. No popup/toolbar popup
+5. No group color customization UI
+6. No cross-window group awareness
+7. No import/export of full settings (only cache)
+
+**UX Issues (8 found):**
+1. No visual feedback during classification
+2. Badge shows total group count, not TabTamer-managed group count
+3. Toast auto-dismiss too fast for import results
+4. Cache dashboard uses blocking `confirm()` dialogs
+5. Excluded domains section shows no entry count
+6. No undo for cache deletions
+7. Options page is one long scroll
+8. No dark-mode aware badge colors
+
+**Code Quality (7 found):**
+1. Duplicate storage key constants in background.js and options.js
+2. `background.js` is 1069 lines — monolithic
+3. Magic numbers not fully extracted
+4. `normalizeGroupName` acronym detection is case-sensitive
+5. Empty catch in `isEnabled()`
+6. No shared utility module
+7. Hardcoded API endpoint
+
+**Security (3 found):**
+1. API key stored in plaintext
+2. Content script injected into ALL pages
+3. CSP allows connections to any host (missing `connect-src`)
+
+**Performance (5 found):**
+1. `startupScan` could flood the browser
+2. `mergeSimilarGroups` queries all tabs per group
+3. `updateBadge` called on every group assignment
+4. No short-lived cache for tabGroups.query
+5. `updateCacheForRename` does O(n) scan
+
+**Documentation (5 found):**
+1. DESIGN.md cache-clearing claim is false
+2. DESIGN.md cost estimate is wrong
+3. README.md is sparse
+4. No documentation for custom LLM endpoint
+5. TESTING.md is well-maintained (acknowledged)
+
+**Ambitious v2.0 Features (10 brainstormed):**
+1. Custom group rules engine
+2. Smart tab search popup
+3. Tab hibernation/auto-discard
+4. Group statistics & health dashboard
+5. Confidence-aware classification with user feedback loop
+6. Firefox Container integration
+7. Multi-window group merge/awareness
+8. Group color & label customization with preview
+9. Adaptive group renaming
+10. Keyboard shortcut to jump to group
+
+Now I need to pick the best tasks for Phase 7. Since Phase 6 already addressed a lot, I should focus on:
+- Remaining bugs (especially the race conditions and silent failures)
+- The biggest UX issues
+- 1-2 big v2.0 features
+- Documentation fixes
+
+Let me prioritize:
+
+**Bugs (blockers):**
+1. Race condition in `assignToGroup` (bug #1)
+2. Cost undercounting (bug #2)
+3. `importCache` stale count (bug #3)
+4. `loadManagedGroups` silent failure (bug #4)
+5. `content.js` monkey-patch fragility (bug #5)
+6. Title in `onUpdated` may be stale (bug #6)
+7. Excluded domain validation weak (bug #7)
+8. `notifyMissingApiKey` fires during startup (bug #8)
+
+**Missing Features:**
+- Custom group rules engine (#1 v2.0 feature!) 
+- Toolbar popup with stats and quick actions
+- Group color customization
+- Import/export full settings
+
+**UX Polish:**
+- Replace blocking `confirm()` with inline modals
+- Visual feedback during classification
+- Badge shows only TabTamer-managed groups
+- Toast dismiss time configurable
+- Options page sections/tabs
+
+**Code Quality:**
+- Extract shared constants to a module
+- Extract shared utilities
+- Extract magic numbers to constants
+- Fix acronym detection case sensitivity
+- Fix empty catch in `isEnabled()`
+
+Let me write the spec now. I'll bump to version 1.7.0, call it Phase 7.
+
+Actually, I need to be smart about what to include. The spec says "at least 1-2 big features per spec". I'll include:
+1. All 8 bugs (prioritized)
+2. The custom rules engine as the big v2.0 feature
+3. Toolbar popup as a second big feature
+4. Key UX improvements
+5. Code quality improvements (shared modules)
+6. Documentation updates
+
+Let me write this now.Now I have all the context. The last implemented phase was Phase 6 (version 1.6.0), so the next is Phase 7 (version 1.7.0). Let me write the fresh SPEC.md combining all findings from the deep inspection.
+[tool: write] ...
+
+[tool: write] ...
+[tool: write] ✓ (output: 58 bytes)
+The SPEC.md has been written. Let me verify it looks correct by reading it back, then mark the task as complete, write the iteration summary, and call session-complete.
+
+Actually, I should just verify it quickly and then complete. Let me also check the manifest version bump is correct.Let me verify the spec is well-formed:
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 499 bytes)
+22 unchecked tasks, 0 checked. The spec is well-formed. Let me now mark TAS-2 as completed, write the iteration summary, and call sessio
