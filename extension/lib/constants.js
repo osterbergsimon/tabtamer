@@ -110,6 +110,9 @@ const HIBERNATE_INTERVAL_MIN = 10;
 // Default idle time before tabs are discarded (minutes)
 const DEFAULT_HIBERNATE_MINUTES = 30;
 
+// Cooldown period for classification failure notifications (5 minutes) — T9.16
+const CLASSIFY_FAILURE_COOLDOWN_MS = 300000;
+
 // Storage key for cache of recent classifications (T9.15 — persists across restarts)
 const RECENT_CLASSIFICATIONS_KEY = 'tabtamerRecentClassifications';
 

@@ -20,6 +20,9 @@ let _managedGroupIds = new Set();
 // Last 5 successful classifications for the popup UI
 let _recentClassifications = [];
 
+// T9.16: Timestamp tracking for throttling classification failure notifications
+let _lastClassifyFailureNotification = 0;
+
 // T9.10: Helper to add a classification entry with overflow trim
 function _addRecentClassification(entry) {
   _recentClassifications.unshift(entry);
@@ -903,6 +906,8 @@ async function classifyAndAssign(tabId, url, title, domain) {
     }), { label: `classification for ${domain}` });
 
     if (!response) {
+      // T9.16: Notify user on silent LLM classification failure
+      await notifyClassifyFailure(domain);
       return; // All retries exhausted — leave tab ungrouped
     }
 
@@ -958,6 +963,30 @@ async function notifyMissingApiKey() {
     console.log('TabTamer: notified user about missing API key');
   } catch (err) {
     console.error('TabTamer: notifyMissingApiKey error', err);
+  }
+}
+
+// ─── Classification Failure Notification (T9.16) ────────────────────────────
+// T9.16: Notify user when retryWithBackoff exhausts all retries for a
+// classification call. Throttled to once per CLASSIFY_FAILURE_COOLDOWN_MS.
+
+async function notifyClassifyFailure(domain) {
+  try {
+    const now = Date.now();
+    if (now - _lastClassifyFailureNotification < CLASSIFY_FAILURE_COOLDOWN_MS) {
+      return; // Suppressed — too soon since last notification
+    }
+    _lastClassifyFailureNotification = now;
+
+    await browser.notifications.create('tabtamer-classify-failure', {
+      type: 'basic',
+      iconUrl: 'icons/icon-48.png',
+      title: 'TabTamer',
+      message: `Could not classify tab — ${domain}. Check your API key and connection.`
+    });
+    console.log(`TabTamer: notified user about classification failure for ${domain}`);
+  } catch (err) {
+    console.error('TabTamer: notifyClassifyFailure error', err);
   }
 }
 
