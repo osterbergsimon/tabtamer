@@ -14,10 +14,13 @@ const refreshBtn = document.getElementById('refresh-btn');
 const processingIndicator = document.getElementById('processing-indicator');
 const processingText = document.getElementById('processing-text');
 const errorState = document.getElementById('error-state');
+const groupSearchInput = document.getElementById('group-search-input');
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let popupState = null;
+let _groupSearchTerm = '';
+let _groupSearchDebounce = null;
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
@@ -103,15 +106,22 @@ function renderState(state) {
     document.getElementById('cost-row').style.display = 'none';
   }
 
-  // Group names with tab counts
-  if (state.managedGroupNames && state.managedGroupNames.length > 0) {
-    groupNamesContainer.innerHTML = state.managedGroupNames
+  // Group names with tab counts (T10.13: filter by search term)
+  let displayGroups = state.managedGroupNames || [];
+  if (_groupSearchTerm) {
+    const term = _groupSearchTerm.toLowerCase();
+    displayGroups = displayGroups.filter(name => name.toLowerCase().includes(term));
+  }
+  if (displayGroups.length > 0) {
+    groupNamesContainer.innerHTML = displayGroups
       .map(name => {
         const count = (state.managedGroupTabCounts && state.managedGroupTabCounts[name]) || 0;
         const display = count > 0 ? `${escapeHtml(name)} (${count})` : escapeHtml(name);
         return `<span class="group-tag" title="${escapeHtml(name)}">${display}</span>`;
       })
       .join('');
+  } else if (_groupSearchTerm) {
+    groupNamesContainer.innerHTML = '<span class="group-list-empty">No groups match "' + escapeHtml(_groupSearchTerm) + '"</span>';
   } else {
     groupNamesContainer.innerHTML = '<span class="group-list-empty">No TabTamer-managed groups yet</span>';
   }
@@ -195,6 +205,18 @@ function hideError() {
 }
 
 // ─── Event Listeners ──────────────────────────────────────────────────────────
+
+// ─── Group Search (T10.13) ──────────────────────────────────────
+
+if (groupSearchInput) {
+  groupSearchInput.addEventListener('input', () => {
+    _groupSearchTerm = groupSearchInput.value.trim();
+    if (_groupSearchDebounce) clearTimeout(_groupSearchDebounce);
+    _groupSearchDebounce = setTimeout(() => {
+      if (popupState) renderState(popupState);
+    }, 150);
+  });
+}
 
 toggleSwitch.addEventListener('click', handleToggle);
 toggleSwitch.addEventListener('keydown', (e) => {
