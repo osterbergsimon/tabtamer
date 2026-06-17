@@ -216,7 +216,11 @@ function renderResults() {
     // First letter for the icon
     const initial = (tab.groupName || tab.title || '?').charAt(0).toUpperCase();
 
+    const isChecked = selectedTabs.has(tab.id);
+    const ungroupDisabled = tab.groupId <= 0;
+
     return `<div class="result-item${isSelected ? ' selected' : ''}" data-index="${index}">
+      <input type="checkbox" class="result-checkbox" data-index="${index}" ${isChecked ? 'checked' : ''}>
       <div class="result-icon group-color-${tab.groupColor || 'grey'}">${initial}</div>
       <div class="result-info">
         <div class="result-title">${titleHtml}</div>
@@ -224,6 +228,10 @@ function renderResults() {
       </div>
       ${groupTag}
       ${windowLabel}
+      <div class="result-actions">
+        <button class="action-btn action-ungroup" data-tab-id="${tab.id}" title="Ungroup (Ctrl+U)" ${ungroupDisabled ? 'disabled style="opacity:0.2;cursor:default;"' : ''}>⊞</button>
+        <button class="action-btn action-close" data-tab-id="${tab.id}" title="Close (Ctrl+W)">✕</button>
+      </div>
     </div>`;
   }).join('');
 
@@ -308,6 +316,235 @@ async function closeSearch() {
   }
 }
 
+// ─── Tab Actions ─────────────────────────────────────────────────────────────
+
+/** Close a single tab and show undo toast */
+async function closeTab(tabId) {
+  try {
+    await browser.tabs.remove(tabId);
+
+    // Show toast with undo
+    showToast('Tab closed', async () => {
+      try {
+        await browser.sessions.restore();
+      } catch (e) {
+        console.warn('TabTamer search: could not restore tab', e.message);
+      }
+    });
+
+    // Update local data
+    allTabs = allTabs.filter(t => t.id !== tabId);
+    filteredTabs = filteredTabs.filter(t => t.id !== tabId);
+    selectedTabs.delete(tabId);
+
+    // Clamp selection index
+    if (selectedIndex >= filteredTabs.length) {
+      selectedIndex = Math.max(0, filteredTabs.length - 1);
+    }
+
+    renderResults();
+    updateStatus();
+    updateBatchToolbar();
+  } catch (err) {
+    console.error('TabTamer search: failed to close tab', err);
+    showToast('Failed to close tab', null, true);
+  }
+}
+
+/** Remove a tab from its group */
+async function ungroupTab(tabId) {
+  try {
+    await browser.tabs.ungroup(tabId);
+
+    // Update local state for both datasets
+    const updateTab = (t) => {
+      if (t && t.id === tabId) {
+        t.groupId = -1;
+        t.groupName = '';
+        t.groupColor = 'grey';
+      }
+    };
+    allTabs.forEach(updateTab);
+    filteredTabs.forEach(updateTab);
+
+    // Remove from selection since ungrouped tabs don't need batch ungroup
+    selectedTabs.delete(tabId);
+
+    showToast('Tab ungrouped');
+    renderResults();
+    updateBatchToolbar();
+  } catch (err) {
+    console.error('TabTamer search: failed to ungroup tab', err);
+    showToast('Failed to ungroup tab', null, true);
+  }
+}
+
+// ─── Toast System ──────────────────────────────────────────────────────────────
+
+/**
+ * Show a toast notification with optional undo action.
+ * @param {string} message - Toast text
+ * @param {Function|null} undoCallback - Called if user clicks Undo
+ * @param {boolean} isError - If true, red background
+ */
+function showToast(message, undoCallback, isError = false) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  if (isError) toast.style.background = '#ff3b30';
+
+  const msgSpan = document.createElement('span');
+  msgSpan.textContent = message;
+  toast.appendChild(msgSpan);
+
+  if (undoCallback) {
+    const undoBtn = document.createElement('button');
+    undoBtn.className = 'toast-undo';
+    undoBtn.textContent = 'Undo';
+    undoBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      clearTimeout(toastTimeout);
+      toast.classList.add('toast-out');
+      setTimeout(() => toast.remove(), 300);
+      try {
+        await undoCallback();
+      } catch (err) {
+        console.warn('TabTamer search: undo failed', err);
+      }
+    });
+    toast.appendChild(undoBtn);
+  }
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'toast-dismiss';
+  dismissBtn.textContent = '✕';
+  dismissBtn.addEventListener('click', () => {
+    clearTimeout(toastTimeout);
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 300);
+  });
+  toast.appendChild(dismissBtn);
+
+  container.appendChild(toast);
+
+  // Auto-dismiss after 5s
+  toastTimeout = setTimeout(() => {
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 300);
+  }, 5000);
+}
+
+// ─── Batch Operations ──────────────────────────────────────────────────────────
+
+/** Close all selected tabs */
+async function batchClose() {
+  const ids = Array.from(selectedTabs);
+  if (ids.length === 0) return;
+
+  try {
+    await browser.tabs.remove(ids);
+    const count = ids.length;
+
+    // Update local data
+    allTabs = allTabs.filter(t => !selectedTabs.has(t.id));
+    filteredTabs = filteredTabs.filter(t => !selectedTabs.has(t.id));
+    selectedTabs.clear();
+
+    showToast(`${count} tab${count !== 1 ? 's' : ''} closed`, async () => {
+      // Restore tabs in reverse order (most recently closed first)
+      try {
+        for (let i = 0; i < count; i++) {
+          await browser.sessions.restore();
+        }
+      } catch (e) {
+        console.warn('TabTamer search: could not restore all tabs', e.message);
+      }
+    });
+
+    // Clamp selection index
+    if (selectedIndex >= filteredTabs.length) {
+      selectedIndex = Math.max(0, filteredTabs.length - 1);
+    }
+
+    renderResults();
+    updateStatus();
+    updateBatchToolbar();
+  } catch (err) {
+    console.error('TabTamer search: failed to batch close', err);
+    showToast('Failed to close tabs', null, true);
+  }
+}
+
+/** Ungroup all selected tabs */
+async function batchUngroup() {
+  const ids = Array.from(selectedTabs);
+  if (ids.length === 0) return;
+
+  try {
+    for (const id of ids) {
+      await browser.tabs.ungroup(id);
+      // Update local state
+      const updateTab = (t) => {
+        if (t && t.id === id) {
+          t.groupId = -1;
+          t.groupName = '';
+          t.groupColor = 'grey';
+        }
+      };
+      allTabs.forEach(updateTab);
+      filteredTabs.forEach(updateTab);
+    }
+
+    selectedTabs.clear();
+    showToast(`${ids.length} tab${ids.length !== 1 ? 's' : ''} ungrouped`);
+    renderResults();
+    updateBatchToolbar();
+  } catch (err) {
+    console.error('TabTamer search: failed to batch ungroup', err);
+    showToast('Failed to ungroup tabs', null, true);
+  }
+}
+
+/** Toggle checkbox selection for a given filtered index */
+function toggleCheckbox(index) {
+  const tab = filteredTabs[index];
+  if (!tab) return;
+
+  if (selectedTabs.has(tab.id)) {
+    selectedTabs.delete(tab.id);
+  } else {
+    selectedTabs.add(tab.id);
+  }
+
+  renderResults();
+  updateBatchToolbar();
+}
+
+/** Update batch toolbar visibility and button states */
+function updateBatchToolbar() {
+  const toolbar = document.getElementById('batch-toolbar');
+  const countEl = document.getElementById('batch-count');
+  const ungroupBtn = document.getElementById('batch-ungroup-btn');
+  const closeBtn = document.getElementById('batch-close-btn');
+
+  if (!toolbar || !countEl) return;
+
+  const count = selectedTabs.size;
+  countEl.textContent = `${count} selected`;
+
+  if (count > 0) {
+    toolbar.classList.add('active');
+    ungroupBtn.disabled = false;
+    closeBtn.disabled = false;
+  } else {
+    toolbar.classList.remove('active');
+    ungroupBtn.disabled = true;
+    closeBtn.disabled = true;
+  }
+}
+
 // ─── Event Listeners ──────────────────────────────────────────────────────────
 
 searchInput.addEventListener('input', () => {
@@ -329,12 +566,49 @@ searchInput.addEventListener('keydown', (e) => {
     closeSearch();
   } else if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
     e.preventDefault();
-    closeSearch();
+    // Close the focused tab
+    if (filteredTabs.length > 0 && selectedIndex >= 0 && selectedIndex < filteredTabs.length) {
+      closeTab(filteredTabs[selectedIndex].id);
+    }
+  } else if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+    e.preventDefault();
+    // Ungroup the focused tab
+    if (filteredTabs.length > 0 && selectedIndex >= 0 && selectedIndex < filteredTabs.length) {
+      const tab = filteredTabs[selectedIndex];
+      if (tab.groupId > 0) {
+        ungroupTab(tab.id);
+      }
+    }
   }
 });
 
-// Click on a result item
+// Click on a result item (delegated)
 resultsContainer.addEventListener('click', (e) => {
+  // Handle action buttons
+  const closeBtn = e.target.closest('.action-close');
+  if (closeBtn) {
+    e.stopPropagation();
+    const tabId = parseInt(closeBtn.dataset.tabId, 10);
+    if (!isNaN(tabId)) {
+      closeTab(tabId);
+    }
+    return;
+  }
+
+  const ungroupBtn = e.target.closest('.action-ungroup');
+  if (ungroupBtn) {
+    e.stopPropagation();
+    if (ungroupBtn.disabled) return;
+    const tabId = parseInt(ungroupBtn.dataset.tabId, 10);
+    if (!isNaN(tabId)) {
+      ungroupTab(tabId);
+    }
+    return;
+  }
+
+  // Don't navigate if clicking a checkbox
+  if (e.target.closest('.result-checkbox')) return;
+
   const item = e.target.closest('.result-item');
   if (!item) return;
 
@@ -345,9 +619,24 @@ resultsContainer.addEventListener('click', (e) => {
   }
 });
 
+// Checkbox change handler (delegated)
+resultsContainer.addEventListener('change', (e) => {
+  const checkbox = e.target.closest('.result-checkbox');
+  if (checkbox) {
+    const index = parseInt(checkbox.dataset.index, 10);
+    if (!isNaN(index)) {
+      toggleCheckbox(index);
+    }
+  }
+});
+
+// Batch toolbar button handlers
+document.getElementById('batch-close-btn').addEventListener('click', batchClose);
+document.getElementById('batch-ungroup-btn').addEventListener('click', batchUngroup);
+
 // Click outside results — focus input
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.result-item') && !e.target.closest('.search-container')) {
+  if (!e.target.closest('.result-item') && !e.target.closest('.search-container') && !e.target.closest('.batch-toolbar') && !e.target.closest('#toast-container')) {
     searchInput.focus();
   }
 });
