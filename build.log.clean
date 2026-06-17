@@ -4578,4 +4578,252 @@ The task is complete. I should now STOP as per the workflow rules - "ONE task pe
 --- Agent finished: end_turn | Duration: 4m8.703s | Model: opencode-go/deepseek-v4-flash | Tokens: in=39342 out=19044 cache_read=880640 cache_write=0 ---
 The user wants me to commit the modified files. Let me follow the instructions:
 
-1. Stage
+1. Stage only the listed files with `git add`
+2. Create a commit with a clear, conventional message
+3. Do NOT push
+
+Let me first check which files are modified to make sure I have the right list.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 114 bytes)
+All 5 files are modified. Let me stage them and commit.Good, those are exactly the 5 modified files. Let me stage and commit them.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 11 bytes)
+Good. Now create the commit.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 275 bytes)
+Interesting - build.log.clean has 1059 lines changed? That's a lot. Let me check if that's expected. Actually, the user listed it as a file to commit, so I'll include it. Let me make the commit.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 502 bytes)
+The backticks in the commit message were interpreted as command substitution by bash. I need to escape them or use single quotes. But single quotes won't work either because the message spans multiple lines. Let me use a heredoc or a temporary file.The backticks were interpreted by bash. Let me rewrite the commit message properly:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 164 bytes)
+The commit was successful. Let me verify it looks correct.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 955 bytes)
+Commit created successfully. Files staged and committed:
+
+- build.log.clean
+- extension/background.js
+- specs/SPEC-review.md
+- specs/SPEC-write-next.md
+- specs/SPEC.md
+
+The commit message is clear and conventional. No push was made.Committed successfully. The 5 files are staged and committed with a clear conventional commit message (`feat:` prefix). No push was made.
+--- Agent finished: end_turn | Duration: 31.78s | Model: opencode-go/deepseek-v4-flash | Tokens: in=1559 out=939 cache_read=384640 cache_write=0 ---
+
+✓ Iteration #5 complete
+
+Let me start by understanding the current state. I need to pick one ready task (highest priority, no blockers) using the task-next tool, then work on it.
+
+Looking at the remaining tasks:
+
+1. T7.2: Fix cost undercounting - P2, likely needs background.js changes
+2. T7.4: Fix loadManagedGroups silent failure - P2, needs background.js changes
+3. T7.14: Options page sections/tabs - P2, needs options.html and options.js changes
+4. T7.15: Configurable toast dismiss time & exclude count - P2
+5. T7.18: Fix empty catch in isEnabled() - P2, background.js
+6. T7.6: Fix stale title in onUpdated listener - P2, background.js
+7. T7.8: Suppress notifyMissingApiKey during startup scan - P2, background.js
+8. T7.16: Extract shared constants to lib/constants.js - P2, multiple files
+9. T7.19: Update DESIGN.md - P3
+10. T7.20: Update README.md - P3
+11. T7.21: Custom LLM endpoint docs - P3
+12. T7.22: Meta - P4
+13. T7.3: Fix stale overwrite count in importCache - P2, background.js
+14. T7.5: Fix content.js monkey-patch - P2, content.js
+15. T7.7: Strengthen excluded domain validation - P2, options.js
+16. T7.13: Fix badge to show only managed groups - P2, background.js
+17. T7.17: Extract shared utilities to lib/utils.js - P2, multiple files
+
+Let me first look at the project structure and understand what's been done so far.Let me start by understanding the current state of the project and picking the next task.
+[tool: iteratr-tools__task-list] ...
+
+[tool: iteratr-tools__task-list] ...
+
+[tool: ls] ...
+
+[tool: ls] ...
+[tool: iteratr-tools__task-list] ✓ (output: 4114 bytes)
+[tool: ls] ✓ (output: 192 bytes)
+Let me look at the AGENTS.md and current project files to understand conventions before starting.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: ls] ...
+
+[tool: ls] ...
+[tool: ls] ✓ (output: 94 bytes)
+[tool: read] ✓ (output: 3959 bytes)
+[tool: read] ✓ (output: 7485 bytes)
+Let me look at the current state of the key files to understand what needs to be done.Let me get the next task and examine the current codebase.
+[tool: iteratr-tools__task-next] ...
+
+[tool: iteratr-tools__task-next] ...
+[tool: iteratr-tools__task-next] ✓ (output: 193 bytes)
+The next task is T7.13: Fix badge to show only TabTamer-managed groups. Let me examine the current background.js to understand the updateBadge() function.Task T7.13 is next: Fix badge to show only TabTamer-managed groups. Let me examine the current background.js to understand the code.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: iteratr-tools__task-update] ✓ (output: 39 bytes)
+[tool: read] ✓ (output: 51120 bytes)
+Now I understand the code. Looking at `updateBadge()` starting at line 378:
+
+```javascript
+function updateBadge(processing) {
+  if (_badgeDebounceTimer) {
+    clearTimeout(_badgeDebounceTimer);
+  }
+  _badgeDebounceTimer = setTimeout(async () => {
+    _badgeDebounceTimer = null;
+    try {
+      const enabled = await isEnabled();
+      if (!enabled) {
+        browser.browserAction.setBadgeText({ text: 'OFF' });
+        browser.browserAction.setBadgeBackgroundColor({ color: '#888888' });
+      } else {
+        // T7.13: Show only TabTamer-managed groups count
+        const groups = await browser.tabGroups.query({});
+        const managedCount = groups.filter(g => _managedGroupIds.has(g.id)).length;
+        // T7.12: Show processing indicator if classifications are in-flight
+        const isProcessing = processing !== undefined ? processing : _pendingClassificationCount > 0;
+        if (isProcessing) {
+          browser.browserAction.setBadgeText({ text: `${managedCount}…` });
+        } else {
+          browser.browserAction.setBadgeText({ text: managedCount > 0 ? String(managedCount) : '' });
+        }
+        browser.browserAction.setBadgeBackgroundColor({ color: '#34c759' });
+      }
+    } catch (err) {
+      console.error('TabTamer: updateBadge error', err);
+    }
+  }, 500);
+}
+```
+
+Wait, looking more carefully at lines 391-392:
+
+```javascript
+        const groups = await browser.tabGroups.query({});
+        const managedCount = groups.filter(g => _managedGroupIds.has(g.id)).length;
+```
+
+This already shows only TabTamer-managed groups. The comment says "T7.13: Show only TabTamer-managed groups count". So it seems like T7.13 is already implemented!
+
+Let me check if there are any remaining uses of `browser.tabGroups.query({})` that might be querying all groups without filtering.
+
+Looking at the code:
+1. Line 391-392: `updateBadge()` - Already uses `_managedGroupIds.has(g.id)` filter ✓
+2. Line 321-330: `getPopupState()` - Already uses `_managedGroupIds.has(g.id)` filter ✓
+3. Line 764: `classifyAndAssign()` - `const allGroups = await browser.tabGroups.query({});` - This queries all groups for the LLM prompt. That's intentional - it needs to know ALL existing groups to suggest reusing them.
+4. Line 940: `mergeSimilarGroups()` - `const groups = await browser.tabGroups.query({});` - This queries all groups for merge analysis. That's also intentional.
+5. Line 1065: `assignColorsToGroups()` - `const groups = await browser.tabGroups.query({});` - This is for assigning colors to all groups missing them, which is intentional.
+6. Line 677: `assignToGroup()` - `const groups = await browser.tabGroups.query({ title: groupName });` - Only queries for the specific group name, not all groups.
+
+Wait, actually T7.13 is about fixing the badge to show only TabTamer-managed groups. Looking at the code again, lines 391-392 already implement this filtering. The comment "T7.13: Show only TabTamer-managed groups count" is already there.
+
+But let me check if there's a case where the badge shows ALL groups (including manual ones) somewhere else. Let me search for any other places where badge count is set.
+
+Actually, looking at the complete code, the `updateBadge()` function seems to already be correct. It queries ALL groups but then filters by `_managedGroupIds`. But wait - what if `_managedGroupIds` is empty? Then `managedCount` would be 0 and the badge would be empty. That's the desired behavior - only show TabTamer-managed groups.
+
+But wait - T7.13 says "Fix badge to show only TabTamer-managed groups. Change updateBadge() to query only groups whose IDs are in _managedGroupIds." Looking at line 391-392, this is already done! Let me see if there are any edge cases I'm missing.
+
+Actually, I think this task might already be complete! Let me look at the git log to see if it was committed as part of another task.
+
+Hmm, but the task list shows it as uncompleted. Let me check the build.log or recent changes more carefully.
+
+Let me re-examine: lines 391-392 show:
+```javascript
+        const groups = await browser.tabGroups.query({});
+        const managedCount = groups.filter(g => _managedGroupIds.has(g.id)).length;
+```
+
+This fetches ALL groups then filters in JS. An optimization would be to... well, there's no way to query only specific group IDs with `browser.tabGroups.query()`. The API doesn't seem to support filtering by IDs. So the current approach of fetching all and filtering in JS is the correct approach.
+
+Wait, I should check if there are other places that set badge text and might use the total count instead of managed count. Let me search.
+
+Looking at the code:
+- Line 237: `browser.browserAction.setBadgeText({ text: '…' });` — startup scan indicator
+- Line 387: `browser.browserAction.setBadgeText({ text: 'OFF' });` — disabled
+- Line 397-399: Inside updateBadge — already using managedCount
+
+So the badge is already showing only managed groups. This task may already be complete.
+
+Let me check if maybe the task description is about a different issue - perhaps the badge was originally using `_managedGroupIds.size` directly or something else?
+
+Let me look at what the original code was before Phase 7 changes. But I don't have access to git history easily. Let me check git log.
+
+Actually, let me check git diff or recent changes to see if T7.13 was already done.
+
+Let me just verify the task is actually done by checking that updateBadge() properly filters to managed groups only. From my reading of lines 391-392, it absolutely does. The comment even references T7.13.
+
+So this task is already complete! I should mark it as completed.
+
+Wait - but I should double-check. Let me look at whether there's perhaps a second badge-related bug. Let me check all calls to `setBadgeText` to see if any directly use an unfiltered count.
+[tool: grep] ...
+
+[tool: grep] ...
+
+[tool: grep] ...
+
+[tool: grep] ...
+[tool: grep] ✓ (output: 540 bytes)
+[tool: grep] ✓ (output: 504 bytes)
+Looking at the results:
+
+1. `updateBadge()` at line 391 already uses `_managedGroupIds.has(g.id)` to filter - the badge shows only TabTamer-managed groups count.
+
+2. `getPopupState()` at line 323 also already filters by `_managedGroupIds.has(g.id)`.
+
+So T7.13 is already correctly implemented! The code at lines 391-392 reads:
+
+```javascript
+        const groups = await browser.tabGroups.query({});
+        const managedCount = groups.filter(g => _managedGroupIds.has(g.id)).length;
+```
+
+This shows only the TabTamer-managed groups count in the badge.
+
+Let me mark this task as completed since it's already done.I see that T7.13 is already implemented in the code. The `updateBadge()` function at line 391-392 already filters groups to only show TabTamer-managed ones:
+
+```javascript
+const groups = await browser.tabGroups.query({});
+const managedCount = groups.filter(g => _managedGroupIds.has(g.id)).length;
+```
+
+And the `getPopupState()` at line 323 also uses the same filter. The badge text now correctly shows only managed groups count (or `OFF`, or `{count}…` for processing).
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 37 bytes)
+Now I need to write the iteration summary and stop, as per the rules. Let me get the next task to work on for the next iteration.
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+[tool: iteratr-tools__iteration-summary] ✓ (output: 33 bytes)
+Wait, the rules say:
+- ONE task per iteration - complete fully, then STOP
+- Write iteration-summary before stopping
+- Call session-complete only when ALL tasks done
+
+Since T7.13 is already done, I should mark it complete and s
