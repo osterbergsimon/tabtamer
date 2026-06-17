@@ -358,6 +358,7 @@ group splitting into theme-based sub-groups might produce "Code / AG Grid",
 
 ### LLM prompt
 
+**Current (domain-based):**
 ```
 System: You are a tab organizer. Given a URL and page title,
 return a short group name (1-3 words, Title Case).
@@ -371,6 +372,23 @@ Title: feat: add new module by user · Pull Request #123 · NixOS/nixpkgs
 
 Assistant:
 NixOS
+```
+
+**Future (content-based):**
+```
+System: You are a tab organizer. Given a URL, page title, and the
+page's main content, return a short group name (1-3 words, Title Case)
+that captures the TOPIC or PROJECT, not the domain.
+Examples: "AG Grid", "NixOS", "React", "Dotfiles", "Email", "YouTube".
+Return ONLY the group name, no explanation or punctuation.
+
+User:
+URL: https://www.ag-grid.com/javascript-data-grid/getting-started/
+Title: Getting Started | AG Grid
+Content: AG Grid is a high-performance JavaScript data grid...
+
+Assistant:
+AG Grid
 ```
 
 ### Error handling
@@ -442,21 +460,19 @@ Previously open questions addressed across Phases 2–9:
 18. **Loading spinner** — Popup shows a spinner animation while state is loading.
 19. **Classification failure notification** — Firefox notification when LLM classification fails after all retries.
 20. **Recent classifications persistence** — Classification history survives browser restarts via storage persistence.
+21. **Batch tab clustering** — `batchClassifyTabs()` sends all ungrouped tabs in a single LLM call during startup scan, producing coherent groups and reducing API costs (1 call instead of N). Preference `batchClusteringEnabled` (default: true) configurable in options. Added in Phase 11.
 
 ## Open questions
 
-1. **LLM-assisted rule creation** — see Rules Engine section; design is ready,
-   implementation is the remaining work.
-2. **Multi-provider support** — Allow any OpenAI-compatible endpoint
-   (OpenRouter, Together, Ollama, llama.cpp). Protocol is identical; just need
-   configurable base URL + model + API key fields. Could ship with provider
-   presets and auto-fetch pricing.
-3. **Live cost tracking** — Replace hardcoded `TOKENS_CLASSIFY`/`TOKENS_MERGE`
-   with actual `usage.total_tokens` from API responses. Replace hardcoded
-   `COST_PER_TOKEN` with user-configurable $/M-token rate. See LLM API section.
-4. **Manifest v3 migration** — Firefox is phasing out manifest v2. Migrating
+1. **Content-based classification** — Extract page headlines and visible text
+   so the LLM classifies by *topic/theme* instead of just domain. Cross-domain
+   grouping (docs site + GitHub + forum → one group). See section 11.
+2. **Group splitting** — When a group grows beyond a threshold, ask the LLM to
+   suggest 2–5 sub-groups by theme. User approves, tabs get redistributed.
+   See section 12.
+3. **Manifest v3 migration** — Firefox is phasing out manifest v2. Migrating
    will require replacing background scripts with service workers (no DOM
    access, no `window`). **Deferred**: tracked separately.
-5. **Cross-browser support** — Currently Firefox-only (`browser.*` API).
+4. **Cross-browser support** — Currently Firefox-only (`browser.*` API).
    Chrome compatibility (manifest v3, `chrome.*` API) would require a
    polyfill or separate build.

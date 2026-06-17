@@ -61,6 +61,16 @@ Ask: what would make this extension 10× better? What would a daily user love?
   - What's the ONE feature that could make this feel like v2.0?
 
   Concrete examples of the ambition level:
+  - **Content-based classification**: extract page headlines and visible text
+    so the LLM classifies by *topic/theme* instead of just domain. Cross-domain
+    grouping — docs site + GitHub repo + StackOverflow thread all in one group
+    because they're about the same library. Currently only URL + title are sent;
+    reading <title>, <h1>, and first ~500 chars of visible text would let the
+    LLM see what the page is actually about. Opt-in; skipped for rule matches.
+  - **Group splitting**: when a group grows beyond a threshold (e.g. 15 tabs),
+    ask the LLM to suggest 2–5 sub-groups by theme. "Code" with 40 tabs becomes
+    "Code / AG Grid", "Code / Rust", "Code / Dotfiles". Hierarchical naming
+    keeps parent context visible. User approves the split via notification.
   - **LLM-assisted rule creation**: the LLM classifies a tab → prompt the user
     "Save `github.com → Code` as a rule?" → user approves → rule locks in, LLM
     never called for that domain again. The LLM could also batch-scan the cache
