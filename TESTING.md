@@ -272,6 +272,79 @@
 9. Test with the extension disabled (toggle off in popup)
 10. **Expected**: Clicking "Classify Tab" still sends the message but classification is skipped (extension disabled log)
 
+## Test 19: Hibernation Tracking
+
+*Requires: Tabs in managed groups, hibernateAfterMinutes set to 15 minutes*
+
+1. Open Browser Console (Ctrl+Shift+J)
+2. Open a tab to any website (e.g., `https://example.com`)
+3. **Expected**: The tab is classified into a managed group
+4. Wait for the hibernation alarm (every 10 minutes) or switch to another tab and wait 15 minutes
+5. **Expected logs** (when alarm fires):
+   ```
+   TabTamer: hibernation alarm — checking <n> managed tabs
+   TabTamer: hibernation — discarding <n> idle tab(s)
+   ```
+6. **Expected**: The tab icon becomes greyed out (discarded) but remains in the tab strip
+7. Click the discarded tab
+8. **Expected**: The tab reloads and is no longer discarded
+
+## Test 20: Idle Discard with Per-Group Opt-Out
+
+*Requires: At least 2 managed groups with tabs in each*
+
+1. Open the options page
+2. Navigate to the Cache Dashboard tab
+3. Find a cache entry for a group and check the "No Hibernate" checkbox
+4. **Expected**: Green toast "Hibernation disabled for '<group name>'"
+5. Wait for the hibernation alarm to fire
+6. **Expected**: Tabs in the opt-out group remain loaded (not discarded)
+7. Tabs in other groups are discarded as expected
+8. Uncheck the "No Hibernate" checkbox for the same group
+9. **Expected**: Green toast "Hibernation enabled for '<group name>'"
+10. Wait for the next hibernation alarm
+11. **Expected**: Tabs in the formerly opt-out group are now discarded if idle
+
+## Test 21: Unsaved-Changes Warning
+
+1. Open the options page
+2. Modify any setting (e.g., change the model dropdown)
+3. Try to close the tab or navigate away
+4. **Expected**: A confirmation dialog appears: "You have unsaved changes. Leave anyway?"
+5. Click "Cancel"
+6. **Expected**: The options page stays open, changes are preserved
+7. Click Save
+8. **Expected**: Green toast "Settings saved successfully"
+9. Try to close the tab again
+10. **Expected**: No confirmation dialog (changes are saved)
+
+## Test 22: Bulk Cache Delete
+
+*Requires: At least 3 cached domains in the cache dashboard*
+
+1. Open the options page
+2. Navigate to the Cache Dashboard tab
+3. **Expected**: A "Select All" checkbox is visible in the table header
+4. Check the "Select All" checkbox
+5. **Expected**: All rows are selected (checkboxes checked)
+6. Uncheck one row
+7. **Expected**: "Select All" checkbox becomes unchecked
+8. Click "Delete Selected"
+9. **Expected**: Confirmation dialog showing the number of entries to delete
+10. Click "OK"
+11. **Expected**: Selected entries are removed; toast shows deletion count
+
+## Test 23: Import/Export Excluded Domains
+
+1. Open the options page
+2. Navigate to the Privacy tab
+3. Add some domains to the excluded domains list and save
+4. Click the "Export" button
+5. **Expected**: A JSON file downloads with the excluded domains
+6. Clear the excluded domains list and save
+7. Click the "Import" button and select the exported file
+8. **Expected**: The domains are restored; toast shows import count
+
 ## Automated Verification Summary
 
 The following have been verified automatically:

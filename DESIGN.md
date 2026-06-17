@@ -248,7 +248,7 @@ options page.
 ### 8. Tab Hibernation
 
 Automatically discards idle tabs in TabTamer-managed groups to free memory.
-Runs on a periodic alarm (default: every 15 minutes).
+Runs on a periodic alarm (default: every 10 minutes).
 
 **Behavior:**
 - Only hibernates tabs in groups created by TabTamer
@@ -386,10 +386,16 @@ Previously open questions addressed across Phases 2–9:
 8. **Toolbar popup** — Quick access popup (`popup.html`) with pause toggle, group stats, recent classifications, and a "Classify This Tab" button.
 9. **Smart Tab Search** — Fuzzy-search quick switcher (`search.html`) via `Ctrl+Shift+K` for jumping between tabs across all windows.
 10. **Group color customization** — Users can override deterministic hash colors per group via the cache dashboard color picker.
-11. **Tab hibernation** — Auto-discards idle tabs in managed groups to free memory, with configurable idle threshold and per-group opt-out.
+11. **Tab hibernation** — Auto-discards idle tabs in managed groups to free memory, with configurable idle threshold (10-minute alarm) and per-group opt-out.
 12. **Import/export** — JSON export/import for both the domain→group cache and rules engine, enabling backup and migration.
 13. **Extracted shared modules** — `lib/constants.js`, `lib/utils.js`, and `lib/rules-engine.js` eliminate duplication between background and options pages.
 14. **Inline modals** — Blocking `confirm()` dialogs replaced with accessible inline modals on the options page.
+15. **Unsaved-changes warning** — Beforeunload confirmation dialog on the options page when settings have been modified but not saved.
+16. **Per-group tab counts** — Popup displays tab counts alongside group names (e.g., "GitHub (12)").
+17. **Cost display** — Popup footer shows estimated LLM cost from token usage.
+18. **Loading spinner** — Popup shows a spinner animation while state is loading.
+19. **Classification failure notification** — Firefox notification when LLM classification fails after all retries.
+20. **Recent classifications persistence** — Classification history survives browser restarts via storage persistence.
 
 ## Open questions
 
