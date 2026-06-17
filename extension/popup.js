@@ -201,29 +201,15 @@ async function handleToggle() {
 
 function showLoading() {
   // Show loading spinner, hide main content
+  document.body.classList.add('loading');
   document.getElementById('loading-state').classList.add('visible');
-  document.getElementById('loading-state').style.display = 'block';
-  document.querySelector('.toggle-section').style.display = 'none';
-  document.querySelector('.processing-indicator').style.display = 'none';
-  document.querySelector('.startup-progress').style.display = 'none';
-  document.querySelector('.stats-section').style.display = 'none';
-  document.querySelector('.group-list').style.display = 'none';
-  document.querySelector('.recent-section').style.display = 'none';
-  document.querySelector('.footer').style.display = 'none';
   errorState.style.display = 'none';
 }
 
 function hideLoading() {
   // Hide loading spinner, show main content
+  document.body.classList.remove('loading');
   document.getElementById('loading-state').classList.remove('visible');
-  document.getElementById('loading-state').style.display = 'none';
-  document.querySelector('.toggle-section').style.display = '';
-  document.querySelector('.stats-section').style.display = '';
-  // The startup progress visibility is handled by renderState
-  document.querySelector('.group-list').style.display = '';
-  document.querySelector('.recent-section').style.display = '';
-  document.querySelector('.footer').style.display = '';
-  // The processing indicator visibility is handled by renderState
 }
 
 function showError(message) {
