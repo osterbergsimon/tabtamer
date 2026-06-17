@@ -675,4 +675,171 @@ Actually, I should just verify it quickly and then complete. Let me also check t
 
 [tool: bash] ...
 [tool: bash] ✓ (output: 499 bytes)
-22 unchecked tasks, 0 checked. The spec is well-formed. Let me now mark TAS-2 as completed, write the iteration summary, and call sessio
+22 unchecked tasks, 0 checked. The spec is well-formed. Let me now mark TAS-2 as completed, write the iteration summary, and call session-complete.Good — 261 lines, 22 unchecked tasks, properly structured. Now let me mark the task complete.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 36 bytes)
+Now write the iteration summary and call session-complete.
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__session-complete] ...
+
+[tool: iteratr-tools__session-complete] ...
+[tool: iteratr-tools__iteration-summary] ✓ (output: 33 bytes)
+[tool: iteratr-tools__session-complete] ✓ (output: 23 bytes)
+Done. Session complete. Let me summarize what happened.## Done — Phase 7 spec written
+
+Wrote `specs/SPEC.md` with **22 tasks** for Phase 7 (bump: 1.6.0 → 1.7.0):
+
+- **8 bug fixes** — race conditions, silent failures, stale data, startup notification spam
+- **2 v2.0 headline features** — custom group rules engine (skip LLM for known domains) and toolbar popup (quick actions + group stats)
+- **5 UX improvements** — inline modals, classification spinner badge, accurate group count, options page tabs, configurable toasts
+- **3 code quality refactors** — shared `lib/constants.js` and `lib/utils.js` modules, fix empty catch
+- **3 documentation updates** — README expansion, DESIGN.md corrections, custom LLM endpoint guidance
+- **1 meta no-op** for the loop.sh orchestrator
+--- Agent finished: end_turn | Duration: 1m45.85s | Model: opencode-go/deepseek-v4-pro | Tokens: in=9894 out=7342 cache_read=139904 cache_write=0 ---
+The user wants me to commit specific files. Let me check which files actually need to be committed:
+
+- `build.log.clean` - mentioned, but I should check if it's modified
+- `loop.sh` - mentioned, but I should check if it's modified
+- `specs/SPEC.md` - newly created file
+
+Let me check git status first to see what's actually modified.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 35 bytes)
+So `build.log.clean` is modified and `specs/SPEC.md` is new. `loop.sh` is not showing as modified. Let me stage and commit only the files the user mentioned that actually have changes: `build.log.clean` and `specs/SPEC.md`.Only two files have changes — `build.log.clean` (modified) and `specs/SPEC.md` (new). `loop.sh` is unmodified, so I'll skip it.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 183 bytes)
+Commit successful. Let me confirm it looks right.Committed as `d611b11`:
+
+```
+feat(spec): add Phase 7 spec with 22 tasks (bugs, rules engine, popup, UX polish)
+```
+
+- `build.log.clean` — 1 deletion, tracking the loop output
+- `specs/SPEC.md` — 532 insertions, new file with the full Phase 7 spec
+
+Not pushed.
+--- Agent finished: end_turn | Duration: 10.935s | Model: opencode-go/deepseek-v4-pro | Tokens: in=585 out=533 cache_read=58240 cache_write=0 ---
+
+✓ Iteration #2 complete
+
+Session 'SPEC' reset successfully.
+=== Session: SPEC ===
+Starting at iteration #0
+Max iterations: 44
+Tasks: 0 remaining, 0 completed
+
+The user wants me to load all tasks from the spec into the system. Let me parse through the spec and identify all tasks with their priorities.
+
+Let me organize the tasks:
+
+### Bugs (blockers first) - Priority 0 (critical) since they're blockers
+- T7.1: Fix race condition in assignToGroup - critical bug
+- T7.2: Fix cost undercounting - critical bug
+- T7.3: Fix stale overwrite count in importCache - bug
+- T7.4: Fix loadManagedGroups silent failure - critical bug
+- T7.5: Fix content.js monkey-patch fragility - bug
+- T7.6: Fix stale title in onUpdated listener - bug
+- T7.7: Strengthen excluded domain validation - bug
+- T7.8: Suppress notifyMissingApiKey during startup scan - bug
+
+### Missing features & feature gaps - Priority 1 (high)
+- T7.9: Custom group rules engine (headline feature) - high
+- T7.10: Toolbar popup (headline feature) - high
+
+### UX polish - Priority 2 (medium)
+- T7.11: Replace blocking confirm() dialogs with inline modals
+- T7.12: Add visual feedback during classification
+- T7.13: Fix badge to show only TabTamer-managed groups
+- T7.14: Options page — add sections/tabs
+- T7.15: Configurable toast dismiss time & exclude count
+
+### Code quality - Priority 2-3
+- T7.16: Extract shared constants - medium (foundational)
+- T7.17: Extract shared utilities - medium
+- T7.18: Fix empty catch in isEnabled() - medium
+
+### Documentation - Priority 3 (low)
+- T7.19: Update DESIGN.md
+- T7.20: Update README.md
+- T7.21: Add documentation for custom LLM endpoints
+
+### Meta - Priority 4 (backlog)
+- Meta: Do nothing
+
+Let me load all tasks. I'll group them by nature for efficiency.
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+
+[tool: iteratr-tools__task-add] ...
+[tool: iteratr-tools__task-add] ✓ (output: 1268 bytes)
+[tool: iteratr-tools__task-add] ✓ (output: 534 bytes)
+[tool: iteratr-tools__task-add] ✓ (output: 868 bytes)
+[tool: iteratr-tools__task-add] ✓ (output: 542 bytes)
+[tool: iteratr-tools__task-add] ✓ (output: 769 bytes)
+[tool: iteratr-tools__task-add] ✓ (output: 186 bytes)
+All 22 tasks have been added. Let me verify by listing them to make sure everything is present and matches the spec.
+
+Let me also check that the task ordering matches the spec ordering:
+
+Spec tasks in order:
+1. T7.1 - Bug (critical 0) ✓
+2. T7.2 - Bug (critical 0) ✓
+3. T7.3 - Bug (critical 0) ✓
+4. T7.4 - Bug (critical 0) ✓
+5. T7.5 - Bug (critical 0) ✓
+6. T7.6 - Bug (critical 0) ✓
+7. T7.7 - Bug (critical 0) ✓
+8. T7.8 - Bug (critical 0) ✓
+9. T7.9 - Feature (high 1) ✓
+10. T7.10 - Feature (high 1) ✓
+11. T7.11 - UX (medium 2) ✓
+12. T7.12 - UX (medium 2) ✓
+13. T7.13 - UX (medium 2) ✓
+14. T7.14 - UX (medium 2) ✓
+15. T7.15 - UX (medium 2) ✓
+16. T7.16 - Code quality (medium 2) ✓
+17. T7.17 - Code quality (medium 2) ✓
+18. T7.18 - Code quality (medium 2) ✓
+19. T7.19 - Documentation (low 3) ✓
+20. T7.20 - Documentation (low 3) ✓
+21. T7.21 - Documentation (low 3) ✓
+22. Meta - (backlog 4) ✓
+
+All 22 tasks are loaded. Now I should call iteration-summary.
+[tool: iteratr-tools__task-list] ...
+
+[tool: iteratr-tools__task-list] ...
+[tool: iteratr-tools__task-list] ✓ (output: 4103 bytes)
+All 22 tasks are confirmed loaded. Let me now call iteration-summary to complete the planning iteration.All 22 tasks from the Phase 7 spec have been loaded successfully. Here's the breakdown:
+
+**Critical (8 bugs):** T7.1-T7.8 — race conditions, silent failures, stale data, monkey-patch fragility
+**High (2 features):** T7.9 Custom rules engine, T7.10 Toolbar popup
+**Medium (8):** T7.11-T7.15 UX polish, T7.16-T7.18 code quality (constants/utils extra
