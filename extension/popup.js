@@ -146,7 +146,7 @@ function renderState(state) {
   } else if (_groupSearchTerm) {
     groupNamesContainer.innerHTML = '<span class="group-list-empty">No groups match "' + escapeHtml(_groupSearchTerm) + '"</span>';
   } else {
-    groupNamesContainer.innerHTML = '<span class="group-list-empty">No TabTamer-managed groups yet</span>';
+    groupNamesContainer.innerHTML = '<span class="group-list-empty">Open a few tabs and browse — they\'ll auto-group as you go. Or click \'Classify Tab\' to group the current tab now.</span>';
   }
 
   // Recent classifications
