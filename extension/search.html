@@ -318,6 +318,203 @@
       background: var(--border);
       border-radius: 3px;
     }
+
+    /* ─── Checkboxes ────────────────────────────────────────── */
+    .result-checkbox {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--primary);
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+
+    .result-checkbox:hover {
+      opacity: 1;
+    }
+
+    /* ─── Action Buttons ────────────────────────────────────── */
+    .result-actions {
+      flex-shrink: 0;
+      display: flex;
+      gap: 4px;
+      opacity: 0.4;
+      transition: opacity 0.15s;
+    }
+
+    .result-item:hover .result-actions {
+      opacity: 1;
+    }
+
+    .action-btn {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .action-btn:hover {
+      background: var(--bg);
+      color: var(--text);
+      border-color: var(--primary);
+    }
+
+    .action-btn.action-close:hover {
+      color: #ff3b30;
+      border-color: #ff3b30;
+    }
+
+    .action-btn.action-ungroup:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    /* ─── Batch Toolbar ─────────────────────────────────────── */
+    .batch-toolbar {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 11;
+    }
+
+    .batch-toolbar.active {
+      display: flex;
+    }
+
+    .batch-count {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-right: auto;
+    }
+
+    .batch-btn {
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      background: var(--bg);
+      color: var(--text-muted);
+    }
+
+    .batch-btn:not(:disabled):hover {
+      border-color: var(--primary);
+      color: var(--text);
+    }
+
+    .batch-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .batch-btn.batch-close:not(:disabled):hover {
+      color: #ff3b30;
+      border-color: #ff3b30;
+    }
+
+    /* ─── Toast ─────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      font-size: 13px;
+      font-weight: 500;
+      pointer-events: auto;
+      animation: toast-in 0.3s ease;
+      max-width: 400px;
+    }
+
+    .toast.toast-out {
+      animation: toast-out 0.3s ease forwards;
+    }
+
+    @keyframes toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes toast-out {
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+    }
+
+    .toast-undo {
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid var(--primary);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--primary);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+
+    .toast-undo:hover {
+      background: color-mix(in srgb, var(--primary) 15%, transparent);
+    }
+
+    .toast-dismiss {
+      padding: 2px 6px;
+      font-size: 14px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+
+    .toast-dismiss:hover {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -331,7 +528,7 @@
              autofocus spellcheck="false" autocomplete="off">
     </div>
     <div class="search-hint">
-      <kbd>↑</kbd> <kbd>↓</kbd> navigate · <kbd>Enter</kbd> switch · <kbd>Esc</kbd> close
+      <kbd>↑</kbd> <kbd>↓</kbd> navigate · <kbd>Enter</kbd> switch · <kbd>Ctrl+W</kbd> close · <kbd>Ctrl+U</kbd> ungroup · <kbd>Esc</kbd> exit
     </div>
   </div>
 
@@ -341,6 +538,13 @@
     <span id="window-count"></span>
   </div>
 
+  <!-- Batch Toolbar -->
+  <div class="batch-toolbar" id="batch-toolbar">
+    <span class="batch-count" id="batch-count">0 selected</span>
+    <button class="batch-btn batch-ungroup" id="batch-ungroup-btn" disabled>Ungroup Selected</button>
+    <button class="batch-btn batch-close" id="batch-close-btn" disabled>Close Selected</button>
+  </div>
+
   <!-- Results -->
   <div id="results-container" role="listbox">
     <div class="loading-state">
@@ -348,6 +552,9 @@
       Loading tabs…
     </div>
   </div>
+
+  <!-- Toast -->
+  <div id="toast-container"></div>
 
   <script src="search.js"></script>
 </body>

@@ -12,6 +12,12 @@ let filteredTabs = [];
 let selectedIndex = 0;
 let searchTabId = null;
 
+/** @type {Set<number>} Set of tab IDs selected via checkboxes for batch operations */
+let selectedTabs = new Set();
+
+/** @type {number|null} Timeout ID for auto-dismissing the current toast */
+let toastTimeout = null;
+
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 
 const searchInput = document.getElementById('search-input');

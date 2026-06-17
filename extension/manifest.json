@@ -18,6 +18,7 @@
     "notifications",
     "contextMenus",
     "windows",
+    "sessions",
     "https://opencode.ai/*",
     "https://openrouter.ai/*",
     "https://api.together.xyz/*",
