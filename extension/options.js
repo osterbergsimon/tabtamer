@@ -76,6 +76,10 @@ const cacheTable = document.getElementById('cache-table');
 const cacheTableBody = document.getElementById('cache-table-body');
 const cacheEmptyMessage = document.getElementById('cache-empty-message');
 const dashboardCacheCount = document.getElementById('dashboard-cache-count');
+const cacheSelectAll = document.getElementById('cache-select-all');
+const cacheBulkActions = document.getElementById('cache-bulk-actions');
+const cacheBulkDelete = document.getElementById('cache-bulk-delete');
+const cacheBulkExport = document.getElementById('cache-bulk-export');
 
 // ─── Tab Hibernation DOM refs (T9.19) ──────────────────────────────────────
 
@@ -506,16 +510,20 @@ async function loadCacheDashboard() {
       cacheTable.style.display = 'none';
       cacheEmptyMessage.style.display = 'block';
       cacheTableBody.innerHTML = '';
+      if (cacheBulkActions) cacheBulkActions.style.display = 'none';
       return;
     }
 
     // Show table, hide empty message
     cacheTable.style.display = 'table';
     cacheEmptyMessage.style.display = 'none';
+    // Reset bulk actions toolbar — shown only when checkboxes are checked
+    if (cacheBulkActions) cacheBulkActions.style.display = 'none';
+    if (cacheSelectAll) cacheSelectAll.checked = false;
 
     if (filtered.length === 0) {
       // No results match the search
-      cacheTableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">No matching entries</td></tr>`;
+      cacheTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted);">No matching entries</td></tr>`;
       return;
     }
 
@@ -536,6 +544,9 @@ async function loadCacheDashboard() {
       </select>`;
       const noHibernateChecked = hibernateOptOut.includes(escapedGroup) ? 'checked' : '';
       return `<tr data-domain="${escapedDomain}" data-group="${escapedGroup}">
+        <td style="padding: 6px 8px; text-align: center; vertical-align: middle;">
+          <input type="checkbox" class="cache-select" data-domain="${escapedDomain}" style="accent-color: var(--primary); cursor: pointer;">
+        </td>
         <td style="padding: 6px 8px; overflow-wrap: break-word;" class="cache-domain-cell">${escapedDomain}</td>
         <td style="padding: 6px 8px; word-break: break-all;" class="cache-group-cell">
           <span class="cache-group-text">${escapedGroup}</span>
@@ -844,6 +855,34 @@ function setupCacheDashboardEvents() {
     }, SEARCH_DEBOUNCE_MS);
   });
 
+  // T12.11: Select All / Deselect All for cache
+  if (cacheSelectAll) {
+    cacheSelectAll.addEventListener('change', () => {
+      const checked = cacheSelectAll.checked;
+      document.querySelectorAll('.cache-select').forEach(cb => {
+        cb.checked = checked;
+      });
+      // Show/hide bulk actions toolbar
+      if (cacheBulkActions) {
+        cacheBulkActions.style.display = checked ? 'flex' : 'none';
+      }
+    });
+  }
+
+  // T12.11: Individual checkbox change — sync select-all and show toolbar
+  cacheTableBody.addEventListener('change', (event) => {
+    if (event.target.classList.contains('cache-select')) {
+      const allCheckboxes = document.querySelectorAll('.cache-select');
+      const checked = document.querySelectorAll('.cache-select:checked');
+      if (cacheSelectAll) {
+        cacheSelectAll.checked = allCheckboxes.length > 0 && allCheckboxes.length === checked.length;
+      }
+      if (cacheBulkActions) {
+        cacheBulkActions.style.display = checked.length > 0 ? 'flex' : 'none';
+      }
+    }
+  });
+
   // T8.11: Color picker change handler
   cacheTableBody.addEventListener('change', async (event) => {
     const select = event.target.closest('.color-picker');
@@ -903,6 +942,71 @@ function setupCacheDashboardEvents() {
       }
     }
   });
+}
+
+// ─── Cache Batch Operations (T12.11) ────────────────────────────────────────
+
+async function handleCacheBulkDelete() {
+  const checkboxes = document.querySelectorAll('.cache-select:checked');
+  const domains = Array.from(checkboxes).map(cb => cb.dataset.domain).filter(Boolean);
+  if (domains.length === 0) {
+    showToast('No cache entries selected', 'warning');
+    return;
+  }
+  const confirmed = await showConfirmModal(`Delete ${domains.length} selected cache entr${domains.length === 1 ? 'y' : 'ies'}?`);
+  if (!confirmed) return;
+
+  try {
+    const result = await browser.storage.local.get(CACHE_KEY);
+    const cache = result[CACHE_KEY] || {};
+    for (const domain of domains) {
+      delete cache[domain];
+    }
+    await browser.storage.local.set({ [CACHE_KEY]: cache });
+    showToast(`Deleted ${domains.length} cache entr${domains.length === 1 ? 'y' : 'ies'}`, 'success');
+    loadCacheDashboard();
+    loadCacheStats();
+  } catch (err) {
+    console.error('TabTamer: failed to bulk delete cache entries', err);
+    showToast('Failed to delete cache entries', 'error');
+  }
+}
+
+async function handleCacheBulkExport() {
+  const checkboxes = document.querySelectorAll('.cache-select:checked');
+  const domains = Array.from(checkboxes).map(cb => cb.dataset.domain).filter(Boolean);
+  if (domains.length === 0) {
+    showToast('No cache entries selected', 'warning');
+    return;
+  }
+
+  try {
+    const result = await browser.storage.local.get(CACHE_KEY);
+    const cache = result[CACHE_KEY] || {};
+    const selected = {};
+    for (const domain of domains) {
+      if (cache[domain] !== undefined) {
+        selected[domain] = cache[domain];
+      }
+    }
+
+    const json = JSON.stringify(selected, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tabtamer-selected-cache-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const count = Object.keys(selected).length;
+    showToast(`Exported ${count} selected cache entr${count === 1 ? 'y' : 'ies'}`, 'success');
+  } catch (err) {
+    console.error('TabTamer: failed to export selected cache entries', err);
+    showToast('Failed to export selected cache entries', 'error');
+  }
 }
 
 function exitEditMode(row, domain) {
@@ -2069,6 +2173,14 @@ clearCacheBtn.addEventListener('click', clearCache);
 exportCacheBtn.addEventListener('click', exportCache);
 importCacheBtn.addEventListener('click', () => cacheFileInput.click());
 cacheFileInput.addEventListener('change', handleCacheFileSelected);
+
+// T12.11: Cache batch operations
+if (cacheBulkDelete) {
+  cacheBulkDelete.addEventListener('click', handleCacheBulkDelete);
+}
+if (cacheBulkExport) {
+  cacheBulkExport.addEventListener('click', handleCacheBulkExport);
+}
 resetCostsBtn.addEventListener('click', resetCosts);
 testApiKeyBtn.addEventListener('click', testApiKey);
 saveExcludedDomainsBtn.addEventListener('click', saveExcludedDomains);

@@ -739,16 +739,24 @@
           <table id="cache-table" style="width: 100%; border-collapse: collapse; font-size: 13px; display: none;">
             <thead>
               <tr style="border-bottom: 1px solid var(--border);">
-                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 28%;">Domain</th>
-                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 22%;">Group</th>
-                <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 16%;">Last Classified</th>
+                <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 5%;">
+                  <input type="checkbox" id="cache-select-all" style="accent-color: var(--primary); cursor: pointer;">
+                </th>
+                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 24%;">Domain</th>
+                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 18%;">Group</th>
+                <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 14%;">Last Classified</th>
                 <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 10%;">Color</th>
-                <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 13%;">No Hibernate</th>
+                <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 12%;">No Hibernate</th>
                 <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 15%;">Actions</th>
               </tr>
             </thead>
             <tbody id="cache-table-body"></tbody>
           </table>
+        </div>
+        <!-- T12.11: Batch operations toolbar -->
+        <div id="cache-bulk-actions" style="display: none; gap: 6px; margin-top: 8px;">
+          <button type="button" class="btn btn-test" id="cache-bulk-delete" style="font-size: 11px; padding: 4px 10px;">Delete Selected</button>
+          <button type="button" class="btn btn-test" id="cache-bulk-export" style="font-size: 11px; padding: 4px 10px;">Export Selected</button>
         </div>
         <p id="cache-empty-message" style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">No cached domains yet</p>
 
