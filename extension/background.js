@@ -23,6 +23,9 @@ let _recentClassifications = [];
 // T9.16: Timestamp tracking for throttling classification failure notifications
 let _lastClassifyFailureNotification = 0;
 
+// T10.10: Track context menu item IDs for the "Move to group…" submenu
+let _moveToGroupMenuItems = [];
+
 // T9.10: Helper to add a classification entry with overflow trim
 function _addRecentClassification(entry) {
   _recentClassifications.unshift(entry);
@@ -1546,6 +1549,9 @@ async function mergeSimilarGroups() {
 
     // T4.7: Update badge after group merge
     updateBadge();
+
+    // T10.10: Rebuild "Move to group…" submenu since managed groups may have changed
+    rebuildMoveToGroupMenu();
   } catch (err) {
     console.error('TabTamer: group merge error', err);
   }
@@ -1596,8 +1602,9 @@ async function updateCacheForRename(oldName, newName) {
   }
 }
 
-// ─── Context Menu (Re-classify) ──────────────────────────────────────────────
+// ─── Context Menu (Re-classify + Move To) ──────────────────────────────────
 // T5.8: Manual re-classification via right-click context menu on tabs
+// T10.10: One-time "Move to group…" override via right-click context submenu
 
 try {
   browser.contextMenus.create({
@@ -1607,6 +1614,69 @@ try {
   });
 } catch (err) {
   console.error('TabTamer: context menu creation error', err);
+}
+
+try {
+  browser.contextMenus.create({
+    id: 'tabtamer-move-to-group',
+    title: 'Move to group\u2026',
+    contexts: ['tab']
+  });
+} catch (err) {
+  console.error('TabTamer: move-to-group context menu creation error', err);
+}
+
+// T10.10: Rebuild the "Move to group…" submenu with current TabTamer-managed groups
+async function rebuildMoveToGroupMenu() {
+  // Remove all previous child items
+  for (const itemId of _moveToGroupMenuItems) {
+    try {
+      await browser.contextMenus.remove(itemId);
+    } catch (err) {
+      // Item may not exist — ignore
+    }
+  }
+  _moveToGroupMenuItems = [];
+
+  try {
+    const groups = await browser.tabGroups.query({});
+    const managedGroups = _managedGroupIds
+      ? groups.filter(g => _managedGroupIds.has(g.id))
+      : [];
+
+    if (managedGroups.length === 0) {
+      // Show a disabled placeholder so users know the feature exists
+      const itemId = 'tabtamer-move-to-none';
+      await browser.contextMenus.create({
+        id: itemId,
+        parentId: 'tabtamer-move-to-group',
+        title: 'No groups yet',
+        contexts: ['tab'],
+        enabled: false
+      });
+      _moveToGroupMenuItems.push(itemId);
+      return;
+    }
+
+    for (const group of managedGroups) {
+      if (!group.title) continue;
+      const encodedName = encodeURIComponent(group.title);
+      const itemId = `tabtamer-move-to-${encodedName}`;
+      try {
+        await browser.contextMenus.create({
+          id: itemId,
+          parentId: 'tabtamer-move-to-group',
+          title: group.title,
+          contexts: ['tab']
+        });
+        _moveToGroupMenuItems.push(itemId);
+      } catch (err) {
+        console.warn(`TabTamer: could not create menu item for "${group.title}"`, err);
+      }
+    }
+  } catch (err) {
+    console.warn('TabTamer: rebuildMoveToGroupMenu error', err);
+  }
 }
 
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -1629,6 +1699,43 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 
     // Trigger fresh classification of the tab
     runWithConcurrencyLimit(() => handleTab(tab.id, url, tab.title));
+  }
+
+  // T10.10: Handle "Move to group…" child menu item clicks
+  if (info.menuItemId.startsWith('tabtamer-move-to-') && info.menuItemId !== 'tabtamer-move-to-group') {
+    if (!tab || !tab.id) {
+      console.log('TabTamer: move-to-group — no tab available');
+      return;
+    }
+
+    // Decode the group name from the item ID
+    const encodedName = info.menuItemId.replace('tabtamer-move-to-', '');
+    let groupName;
+    try {
+      groupName = decodeURIComponent(encodedName);
+    } catch (decodeErr) {
+      console.warn('TabTamer: move-to-group — could not decode group name', decodeErr);
+      return;
+    }
+
+    if (!groupName) {
+      console.log('TabTamer: move-to-group — empty group name');
+      return;
+    }
+
+    console.log(`TabTamer: move-to-group — one-time override, moving tab ${tab.id} to "${groupName}"`);
+
+    // Move the tab to the selected group WITHOUT updating cache or creating a rule
+    // This is a one-time override — the domain→group mapping is not cached
+    try {
+      await assignToGroup(tab.id, groupName);
+    } catch (err) {
+      if (err.message && err.message.includes('Invalid tab ID')) {
+        console.log('TabTamer: move-to-group — tab closed before move completed');
+        return;
+      }
+      console.error('TabTamer: move-to-group — error moving tab', err);
+    }
   }
 });
 
@@ -1653,6 +1760,9 @@ browser.runtime.onStartup.addListener(async () => {
   await assignColorsToGroups();
   // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
   startupScan();
+  // T10.10: Rebuild the "Move to group…" context submenu with current groups
+  rebuildMoveToGroupMenu();
+
   // Phase 2: Create periodic alarms (includes hibernation alarm)
   createAlarms();
 });
@@ -1689,6 +1799,9 @@ browser.runtime.onInstalled.addListener(async (details) => {
 
     // T9.15: Load recent classifications from storage
     await loadRecentClassifications();
+
+    // T10.10: Rebuild the "Move to group…" context submenu with current groups
+    await rebuildMoveToGroupMenu();
 
     // T5.6: Assign colors to existing groups without one (one-time migration)
     await assignColorsToGroups();

@@ -95,6 +95,7 @@ function createCommandsMocks() {
 function createContextMenusMocks() {
   return {
     create: sinon.stub().resolves(),
+    remove: sinon.stub().resolves(),
     onClicked: { addListener: sinon.stub() },
   };
 }
