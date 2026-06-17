@@ -35,6 +35,10 @@ const cacheTableBody = document.getElementById('cache-table-body');
 const cacheEmptyMessage = document.getElementById('cache-empty-message');
 const dashboardCacheCount = document.getElementById('dashboard-cache-count');
 
+// ─── Tab Hibernation DOM refs (T9.19) ──────────────────────────────────────
+
+const hibernateAfterSelect = document.getElementById('hibernate-after');
+
 // ─── Group Colors Cache ────────────────────────────────────────────
 // T8.11: Load custom group colors for color picker rendering
 
@@ -195,6 +199,7 @@ async function loadSettings() {
     modelSelect.value = settings.model || 'deepseek-v4-flash';
     themeSelect.value = settings.theme || 'system';
     enabledCheckbox.checked = settings.enabled !== false; // default enabled
+    hibernateAfterSelect.value = settings.hibernateAfterMinutes != null ? String(settings.hibernateAfterMinutes) : '30';
     applyTheme(themeSelect.value);
   } catch (err) {
     console.error('TabTamer: failed to load settings', err);
@@ -237,6 +242,7 @@ async function saveSettings(e) {
     model: modelSelect.value,
     theme,
     enabled,
+    hibernateAfterMinutes: hibernateAfterSelect.value === 'never' ? 'never' : parseInt(hibernateAfterSelect.value, 10),
   };
 
   try {
@@ -284,6 +290,15 @@ async function loadCacheDashboard() {
     const entries = Object.entries(cache);
     const searchTerm = cacheSearch.value.trim().toLowerCase();
 
+    // Load hibernation opt-out list for per-group checkbox display
+    let hibernateOptOut = [];
+    try {
+      const optResult = await browser.storage.local.get(HIBERNATE_OPT_OUT_KEY);
+      hibernateOptOut = optResult[HIBERNATE_OPT_OUT_KEY] || [];
+    } catch (optErr) {
+      console.warn('TabTamer: failed to load hibernation opt-out list', optErr);
+    }
+
     // Update entry count
     dashboardCacheCount.textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`;
 
@@ -308,7 +323,7 @@ async function loadCacheDashboard() {
 
     if (filtered.length === 0) {
       // No results match the search
-      cacheTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted);">No matching entries</td></tr>`;
+      cacheTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">No matching entries</td></tr>`;
       return;
     }
 
@@ -326,6 +341,7 @@ async function loadCacheDashboard() {
         <option value="" ${currentColor === '' ? 'selected' : ''}>Auto</option>
         ${colorOptions}
       </select>`;
+      const noHibernateChecked = hibernateOptOut.includes(escapedGroup) ? 'checked' : '';
       return `<tr data-domain="${escapedDomain}" data-group="${escapedGroup}">
         <td style="padding: 6px 8px; word-break: break-all;" class="cache-domain-cell">${escapedDomain}</td>
         <td style="padding: 6px 8px; word-break: break-all;" class="cache-group-cell">
@@ -336,6 +352,10 @@ async function loadCacheDashboard() {
                         border-radius: 4px; color: var(--text);">
         </td>
         <td style="padding: 6px 8px; text-align: center; vertical-align: middle;">${colorPicker}</td>
+        <td style="padding: 6px 8px; text-align: center; vertical-align: middle;">
+          <input type="checkbox" class="no-hibernate-checkbox" ${noHibernateChecked}
+                 style="accent-color: var(--primary); cursor: pointer;">
+        </td>
         <td style="padding: 6px 8px; text-align: right; white-space: nowrap;">
           <button class="btn-cache-action btn-cache-edit" data-action="edit">Edit</button>
           <button class="btn-cache-action btn-cache-save" data-action="save" style="display:none;">Save</button>
@@ -496,23 +516,61 @@ function setupCacheDashboardEvents() {
   // T8.11: Color picker change handler
   cacheTableBody.addEventListener('change', async (event) => {
     const select = event.target.closest('.color-picker');
-    if (!select) return;
+    if (select) {
+      const row = select.closest('tr');
+      if (!row) return;
 
-    const row = select.closest('tr');
-    if (!row) return;
+      const groupName = row.dataset.group;
+      const color = select.value;
 
-    const groupName = row.dataset.group;
-    const color = select.value;
+      if (color) {
+        _groupColors[groupName] = color;
+      } else {
+        delete _groupColors[groupName];
+      }
 
-    if (color) {
-      _groupColors[groupName] = color;
-    } else {
-      delete _groupColors[groupName];
+      await saveGroupColors();
+      const colorLabel = color ? color : 'auto (deterministic)';
+      showToast(`Color for "${groupName}" set to ${colorLabel}`, 'success');
+      return;
     }
 
-    await saveGroupColors();
-    const colorLabel = color ? color : 'auto (deterministic)';
-    showToast(`Color for "${groupName}" set to ${colorLabel}`, 'success');
+    // T9.19: No Hibernate checkbox change handler
+    const checkbox = event.target.closest('.no-hibernate-checkbox');
+    if (checkbox) {
+      const row = checkbox.closest('tr');
+      if (!row) return;
+
+      const groupName = row.dataset.group;
+      try {
+        const optResult = await browser.storage.local.get(HIBERNATE_OPT_OUT_KEY);
+        const optOut = optResult[HIBERNATE_OPT_OUT_KEY] || [];
+
+        if (checkbox.checked) {
+          if (!optOut.includes(groupName)) {
+            optOut.push(groupName);
+          }
+        } else {
+          const idx = optOut.indexOf(groupName);
+          if (idx !== -1) {
+            optOut.splice(idx, 1);
+          }
+        }
+
+        await browser.storage.local.set({ [HIBERNATE_OPT_OUT_KEY]: optOut });
+        showToast(
+          checkbox.checked
+            ? `Hibernation disabled for "${groupName}"`
+            : `Hibernation enabled for "${groupName}"`,
+          'success'
+        );
+      } catch (err) {
+        console.error('TabTamer: failed to update hibernation opt-out', err);
+        showToast('Failed to update hibernation opt-out', 'error');
+        // Revert checkbox
+        checkbox.checked = !checkbox.checked;
+      }
+    }
   });
 }
 

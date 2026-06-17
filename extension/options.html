@@ -558,6 +558,24 @@
 
         <div class="separator"></div>
 
+        <!-- ─── Tab Hibernation (T9.19) ──────────────────────────── -->
+        <div class="card-header" style="margin-top: 8px;">Tab Hibernation</div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+          Automatically discard idle tabs in managed groups to save memory.
+          Discarded tabs remain visible but are unloaded until clicked.
+        </p>
+        <div class="field">
+          <label for="hibernate-after">Discard idle tabs after</label>
+          <select id="hibernate-after" name="hibernateAfterMinutes">
+            <option value="15">15 minutes</option>
+            <option value="30" selected>30 minutes</option>
+            <option value="60">60 minutes</option>
+            <option value="never">Never</option>
+          </select>
+        </div>
+
+        <div class="separator"></div>
+
         <button type="submit" class="btn btn-primary" id="save-btn" style="width:100%;">Save</button>
       </form>
     </section>
@@ -630,9 +648,10 @@
           <table id="cache-table" style="width: 100%; border-collapse: collapse; font-size: 13px; display: none;">
             <thead>
               <tr style="border-bottom: 1px solid var(--border);">
-                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 35%;">Domain</th>
-                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 30%;">Group</th>
-                <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 15%;">Color</th>
+                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 30%;">Domain</th>
+                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 25%;">Group</th>
+                <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 12%;">Color</th>
+                <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 13%;">No Hibernate</th>
                 <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 20%;">Actions</th>
               </tr>
             </thead>

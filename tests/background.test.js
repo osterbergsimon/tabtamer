@@ -125,3 +125,99 @@ describe('assignToGroup', () => {
     assert.deepStrictEqual(browser.tabs.group.firstCall.args[0], { tabIds: [1], groupId: 7 });
   });
 });
+
+describe('hibernation', () => {
+  it('updateLastAccess does not throw', () => {
+    updateLastAccess(123);
+    assert.ok(true, 'updateLastAccess completed without throwing');
+  });
+
+  it('hibernateIdleTabs returns early when hibernateAfterMinutes is "never"', async () => {
+    await browser.storage.local.set({ tabtamerSettings: { hibernateAfterMinutes: 'never' } });
+    await hibernateIdleTabs();
+    assert.ok(browser.tabs.discard.notCalled);
+  });
+
+  it('hibernateIdleTabs returns early when no managed groups', async () => {
+    await browser.storage.local.set({ tabtamerSettings: { hibernateAfterMinutes: 30 } });
+    await hibernateIdleTabs();
+    assert.ok(browser.tabs.discard.notCalled);
+  });
+
+  it('hibernateIdleTabs discards idle tabs in managed groups', async () => {
+    // Set up managed groups in storage and load them
+    await browser.storage.local.set({
+      tabtamerSettings: { hibernateAfterMinutes: 15, enabled: true },
+      'tabtamerManagedGroups': [1],
+    });
+    await loadManagedGroups();
+
+    browser.tabGroups.query.resolves([{ id: 1, title: 'Code' }]);
+    browser.windows.getAll.resolves([{ tabs: [{ id: 200, active: true }] }]);
+
+    // Tab 201 has no access time recorded (falls back to 0 → very old → idle)
+    browser.tabs.query.resolves([
+      { id: 200, groupId: 1, url: 'https://active.com', title: 'Active', pinned: false, audible: false, discarded: false },
+      { id: 201, groupId: 1, url: 'https://stale.com', title: 'Stale', pinned: false, audible: false, discarded: false },
+    ]);
+
+    // Mark active tab as recently accessed
+    updateLastAccess(200);
+
+    await hibernateIdleTabs();
+
+    // Tab 201 has no access time (undefined → 0) so it's idle → discarded
+    assert.ok(browser.tabs.discard.calledOnce);
+    assert.deepStrictEqual(browser.tabs.discard.firstCall.args[0], [201]);
+  });
+
+  it('hibernateIdleTabs does not discard recently accessed tabs', async () => {
+    await browser.storage.local.set({
+      tabtamerSettings: { hibernateAfterMinutes: 15, enabled: true },
+      'tabtamerManagedGroups': [1],
+    });
+    await loadManagedGroups();
+
+    browser.tabGroups.query.resolves([{ id: 1, title: 'Code' }]);
+    browser.windows.getAll.resolves([{ tabs: [] }]);
+
+    browser.tabs.query.resolves([
+      { id: 300, groupId: 1, url: 'https://recent.com', title: 'Recent', pinned: false, audible: false, discarded: false },
+    ]);
+
+    // Mark tab as recently accessed
+    updateLastAccess(300);
+
+    await hibernateIdleTabs();
+
+    // Recently accessed tab should NOT be discarded
+    assert.ok(browser.tabs.discard.notCalled);
+  });
+
+  it('hibernateIdleTabs respects per-group opt-out', async () => {
+    await browser.storage.local.set({
+      tabtamerSettings: { hibernateAfterMinutes: 15, enabled: true },
+      'tabtamerManagedGroups': [1, 2],
+      'tabtamerHibernateOptOut': ['OptedOut'],
+    });
+    await loadManagedGroups();
+
+    browser.tabGroups.query.resolves([
+      { id: 1, title: 'Code' },
+      { id: 2, title: 'OptedOut' },
+    ]);
+    browser.windows.getAll.resolves([{ tabs: [] }]);
+
+    browser.tabs.query.resolves([
+      { id: 301, groupId: 1, url: 'https://code.com', title: 'CodeTab', pinned: false, audible: false, discarded: false },
+      { id: 302, groupId: 2, url: 'https://opted-out.com', title: 'OptedOutTab', pinned: false, audible: false, discarded: false },
+    ]);
+
+    // Both tabs have no access time → both idle
+    await hibernateIdleTabs();
+
+    // Only tab in non-opted-out group should be discarded
+    assert.ok(browser.tabs.discard.calledOnce);
+    assert.deepStrictEqual(browser.tabs.discard.firstCall.args[0], [301]);
+  });
+});
