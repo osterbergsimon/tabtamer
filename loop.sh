@@ -69,7 +69,6 @@ while true; do
   phase=$((phase + 1))
   status_line "$phase" "BUILD"
 
-  local before after
   before=$(git log -1 --format=%H -- . 2>/dev/null || echo "")
 
   run_iteratr "Build" specs/SPEC.md
@@ -77,16 +76,14 @@ while true; do
   after=$(git log -1 --format=%H -- . 2>/dev/null || echo "")
 
   # ── Archive old spec ──
-  local archive_name="SPEC-phase$(printf '%02d' "$phase")-$(date +%Y%m%d-%H%M%S).md"
+  archive_name="SPEC-phase$(printf '%02d' "$phase")-$(date +%Y%m%d-%H%M%S).md"
   if [[ -f specs/SPEC.md ]]; then
     cp specs/SPEC.md "specs/archive/$archive_name"
     echo "  Archived spec → specs/archive/$archive_name"
   fi
 
   # ── Status summary ──
-  local ver
   ver=$(grep -oP '"version":\s*"\K[^"]+' extension/manifest.json 2>/dev/null || echo "?")
-  local commit_count
   commit_count=$(git log --oneline -- . ':!.iteratr' ':!specs/archive' 2>/dev/null | wc -l)
   echo "  Version: $ver | Commits: $commit_count | Phases: $phase/$MAX_PHASES"
 
