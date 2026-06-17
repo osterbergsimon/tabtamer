@@ -92,7 +92,8 @@ async function retryWithBackoff(fetchFn, options = {}) {
       // Handle rate limiting (429) — respect Retry-After header
       if (response.status === 429) {
         const retryAfter = response.headers.get('Retry-After');
-        const waitSeconds = retryAfter ? parseInt(retryAfter, 10) || delay : delay;
+        const retryAfterParsed = retryAfter !== null ? parseInt(retryAfter, 10) : NaN;
+        const waitSeconds = !isNaN(retryAfterParsed) ? retryAfterParsed : delay;
         console.warn(`TabTamer: ${label} — rate limited, waiting ${waitSeconds}s (attempt ${attempt})`);
         await sleep(waitSeconds * 1000);
         continue;
@@ -947,8 +948,8 @@ async function classifyAndAssign(tabId, url, title, domain) {
 
 async function notifyMissingApiKey() {
   try {
-    const result = await browser.storage.local.get('tabtamerNotifiedNoApiKey');
-    if (result.tabtamerNotifiedNoApiKey) {
+    const result = await browser.storage.local.get(NO_API_KEY_NOTIFIED_KEY);
+    if (result[NO_API_KEY_NOTIFIED_KEY]) {
       return; // Already notified once
     }
 
@@ -959,7 +960,7 @@ async function notifyMissingApiKey() {
       message: 'Set your API key in TabTamer options to enable auto-grouping.'
     });
 
-    await browser.storage.local.set({ tabtamerNotifiedNoApiKey: true });
+    await browser.storage.local.set({ [NO_API_KEY_NOTIFIED_KEY]: true });
     console.log('TabTamer: notified user about missing API key');
   } catch (err) {
     console.error('TabTamer: notifyMissingApiKey error', err);
@@ -1439,7 +1440,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 browser.runtime.onStartup.addListener(async () => {
   console.log('TabTamer: browser started — running startup scan');
   // T3.5: Clear the "notified no API key" flag so users get one fresh reminder per session
-  await browser.storage.local.remove('tabtamerNotifiedNoApiKey');
+  await browser.storage.local.remove(NO_API_KEY_NOTIFIED_KEY);
   // T4.2: Load managed group IDs from storage BEFORE startup scan
   await loadManagedGroups();
   // T8.11: Load custom group colors
