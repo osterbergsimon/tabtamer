@@ -298,6 +298,9 @@ async function loadManagedGroups() {
 }
 
 async function markGroupManaged(groupId) {
+  if (_managedGroupIds.has(groupId)) {
+    return; // Already tracked — skip redundant storage write (T11.5)
+  }
   _managedGroupIds.add(groupId);
   try {
     await browser.storage.local.set({
