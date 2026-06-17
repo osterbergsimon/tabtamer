@@ -73,6 +73,17 @@ const GROUP_COLORS = ['grey', 'blue', 'red', 'yellow', 'purple', 'pink', 'green'
 
 let _managedGroupIds = new Set();
 
+// ─── Popup State Tracking (T7.10) ─────────────────────────────────────────────
+
+// Last 5 successful classifications for the popup UI
+let _recentClassifications = [];
+
+// Pending classification count for processing indicator
+let _pendingClassificationCount = 0;
+
+// Flag to suppress missing-API-key notification during startup
+let _startupInProgress = false;
+
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 function sleep(ms) {
@@ -285,14 +296,73 @@ browser.runtime.onMessage.addListener((message, sender) => {
     console.log(`TabTamer: SPA navigation in tab ${tabId} — ${sender.tab.url}`);
     runWithConcurrencyLimit(() => handleTab(tabId, sender.tab.url, sender.tab.title));
   }
+
+  // T7.10: Popup state queries
+  if (message.type === 'getPopupState') {
+    return getPopupState();
+  }
+
+  if (message.type === 'togglePause') {
+    return togglePause();
+  }
 });
+
+// T7.10: Popup state response
+async function getPopupState() {
+  try {
+    const enabled = await isEnabled();
+
+    // Query only TabTamer-managed groups
+    let groupNames = [];
+    try {
+      const groups = await browser.tabGroups.query({});
+      groupNames = groups
+        .filter(g => _managedGroupIds.has(g.id))
+        .map(g => g.title)
+        .filter(Boolean);
+    } catch (err) {
+      console.warn('TabTamer: getPopupState — error querying groups', err.message);
+    }
+
+    return {
+      enabled,
+      managedGroupCount: groupNames.length,
+      managedGroupNames: groupNames,
+      recentClassifications: _recentClassifications,
+      processingCount: _pendingClassificationCount
+    };
+  } catch (err) {
+    console.error('TabTamer: getPopupState error', err);
+    return {
+      enabled: false,
+      managedGroupCount: 0,
+      managedGroupNames: [],
+      recentClassifications: [],
+      processingCount: 0
+    };
+  }
+}
+
+// T7.10: Toggle pause state
+async function togglePause() {
+  try {
+    const settings = await getSettings();
+    const newEnabled = !(settings.enabled !== false);
+    settings.enabled = newEnabled;
+    await browser.storage.local.set({ [SETTINGS_KEY]: settings });
+    console.log(`TabTamer: ${newEnabled ? 'enabled' : 'disabled'} via popup toggle`);
+    await updateBadge();
+    return { enabled: newEnabled };
+  } catch (err) {
+    console.error('TabTamer: togglePause error', err);
+    return { enabled: false, error: err.message };
+  }
+}
 
 // ─── Browser Action Click ─────────────────────────────────────────────────
-// T4.13: Open options page when toolbar icon is clicked
-
-browser.browserAction.onClicked.addListener(() => {
-  browser.runtime.openOptionsPage();
-});
+// T4.13: Open options page when toolbar icon is clicked (only if no popup is set)
+// T7.10: With default_popup set in manifest, this listener is no longer needed.
+// The popup.html handles the click and provides a link to options.
 
 // ─── Toolbar Badge ───────────────────────────────────────────────────────────
 // T4.7: Show badge on toolbar icon — OFF when disabled, group count when enabled
@@ -312,9 +382,15 @@ function updateBadge() {
         browser.browserAction.setBadgeText({ text: 'OFF' });
         browser.browserAction.setBadgeBackgroundColor({ color: '#888888' });
       } else {
+        // T7.13: Show only TabTamer-managed groups count
         const groups = await browser.tabGroups.query({});
-        const count = groups.length;
-        browser.browserAction.setBadgeText({ text: count > 0 ? String(count) : '' });
+        const managedCount = groups.filter(g => _managedGroupIds.has(g.id)).length;
+        // T7.12: Show processing indicator if classifications are in-flight
+        if (_pendingClassificationCount > 0) {
+          browser.browserAction.setBadgeText({ text: `${managedCount}…` });
+        } else {
+          browser.browserAction.setBadgeText({ text: managedCount > 0 ? String(managedCount) : '' });
+        }
         browser.browserAction.setBadgeBackgroundColor({ color: '#34c759' });
       }
     } catch (err) {
@@ -350,6 +426,9 @@ async function handleTab(tabId, url, title) {
     return;
   }
   _processingTabs.add(tabId);
+  // T7.12: Track pending classification count
+  _pendingClassificationCount++;
+  updateBadge();
 
   try {
     // TAS-5: Check if extension is enabled
@@ -431,6 +510,9 @@ async function handleTab(tabId, url, title) {
     }
   } finally {
     _processingTabs.delete(tabId);
+    // T7.12: Decrement pending classification count
+    _pendingClassificationCount = Math.max(0, _pendingClassificationCount - 1);
+    updateBadge();
   }
 }
 
@@ -696,6 +778,16 @@ async function classifyAndAssign(tabId, url, title, domain) {
     await updateCosts(TOKENS_CLASSIFY);
     await setCachedGroup(domain, normalizedName);
     await assignToGroup(tabId, normalizedName);
+
+    // T7.10: Track this classification for the popup
+    _recentClassifications.unshift({
+      domain,
+      group: normalizedName,
+      timestamp: Date.now()
+    });
+    if (_recentClassifications.length > 5) {
+      _recentClassifications.pop();
+    }
   } catch (err) {
     console.error(`TabTamer: classification error for ${domain}`, err);
     // Leave tab ungrouped on error

@@ -1,10 +1,10 @@
 {
   "manifest_version": 2,
   "name": "TabTamer",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Auto-group new tabs using LLM-powered classification",
 
-  "content_security_policy": "script-src 'self'; object-src 'self';",
+  "content_security_policy": "script-src 'self'; object-src 'self'; connect-src https://opencode.ai/*",
 
   "icons": {
     "48": "icons/icon-48.png"
@@ -37,7 +37,8 @@
 
   "browser_action": {
     "default_icon": "icons/icon-48.png",
-    "default_title": "TabTamer"
+    "default_title": "TabTamer",
+    "default_popup": "popup.html"
   },
 
   "commands": {

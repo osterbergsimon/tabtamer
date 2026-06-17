@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TabTamer</title>
+  <style>
+    /* ─── Reset & Base ───────────────────────────────────────────── */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #ffffff;
+      --surface: #f5f5f7;
+      --border: #d1d1d6;
+      --text: #1c1c1e;
+      --text-muted: #6c6c70;
+      --primary: #007aff;
+      --primary-hover: #0062cc;
+      --danger: #ff3b30;
+      --success: #34c759;
+      --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1e;
+        --surface: #2c2c2e;
+        --border: #48484a;
+        --text: #f5f5f7;
+        --text-muted: #98989e;
+        --primary: #0a84ff;
+        --primary-hover: #409cff;
+        --success: #30d158;
+      }
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      width: 320px;
+      min-height: 200px;
+      font-size: 13px;
+      line-height: 1.4;
+      overflow-x: hidden;
+    }
+
+    /* ─── Header ────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header h1 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    /* ─── Main Toggle ────────────────────────────────────────────── */
+    .toggle-section {
+      padding: 12px 14px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toggle-label {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch.active {
+      background: var(--success);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .toggle-switch.active::after {
+      transform: translateX(20px);
+    }
+
+    /* ─── Processing Indicator ──────────────────────────────────── */
+    .processing-indicator {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px 8px;
+      font-size: 12px;
+      color: var(--primary);
+    }
+
+    .processing-indicator.visible {
+      display: flex;
+    }
+
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ─── Stats ─────────────────────────────────────────────────── */
+    .stats-section {
+      padding: 4px 14px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 0;
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .stat-value {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    /* ─── Group List ─────────────────────────────────────────────── */
+    .group-list {
+      padding: 4px 14px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .group-list-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .group-names {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .group-tag {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .group-list-empty {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* ─── Recent Classifications ────────────────────────────────── */
+    .recent-section {
+      padding: 4px 14px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .recent-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .recent-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 0;
+      font-size: 12px;
+    }
+
+    .recent-domain {
+      color: var(--text-muted);
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .recent-group {
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--primary);
+    }
+
+    .recent-empty {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* ─── Footer ────────────────────────────────────────────────── */
+    .footer {
+      padding: 8px 14px 12px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .footer-btn {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .footer-btn:hover {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    /* ─── Error State ───────────────────────────────────────────── */
+    .error-state {
+      padding: 20px;
+      text-align: center;
+      color: var(--danger);
+      font-size: 13px;
+    }
+
+    /* ─── Loading State ─────────────────────────────────────────── */
+    .loading-state {
+      padding: 30px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .loading-state .spinner {
+      margin: 0 auto 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>TabTamer</h1>
+    <span id="enabled-status" style="font-size: 12px; color: var(--text-muted);">…</span>
+  </div>
+
+  <!-- Toggle -->
+  <div class="toggle-section">
+    <span class="toggle-label">Auto-grouping</span>
+    <div id="toggle-switch" class="toggle-switch" role="switch" aria-checked="true" tabindex="0"></div>
+  </div>
+
+  <!-- Processing Indicator -->
+  <div id="processing-indicator" class="processing-indicator">
+    <div class="spinner"></div>
+    <span id="processing-text">Classifying tabs…</span>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-section">
+    <div class="stat-row">
+      <span class="stat-label">Managed Groups</span>
+      <span id="group-count" class="stat-value">0</span>
+    </div>
+  </div>
+
+  <!-- Group Names -->
+  <div class="group-list">
+    <div class="group-list-title">Groups</div>
+    <div id="group-names-container" class="group-names">
+      <span class="group-list-empty">No TabTamer-managed groups yet</span>
+    </div>
+  </div>
+
+  <!-- Recent Classifications -->
+  <div class="recent-section">
+    <div class="recent-title">Recent Classifications</div>
+    <div id="recent-list"></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <a href="#" class="footer-btn" id="options-link">Open Settings</a>
+    <button class="footer-btn" id="refresh-btn">Refresh</button>
+  </div>
+
+  <div id="error-state" class="error-state" style="display:none;"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
