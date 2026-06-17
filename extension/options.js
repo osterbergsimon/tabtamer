@@ -16,6 +16,7 @@ const costPerMillionInput = document.getElementById('cost-per-million');
 const fetchPricingBtn = document.getElementById('fetch-pricing-btn');
 const themeSelect = document.getElementById('theme');
 const enabledCheckbox = document.getElementById('enabled');
+const batchClusteringCheckbox = document.getElementById('batch-clustering');
 const saveBtn = document.getElementById('save-btn');
 const testApiKeyBtn = document.getElementById('test-api-key-btn');
 const clearCacheBtn = document.getElementById('clear-cache-btn');
@@ -268,6 +269,7 @@ async function loadSettings() {
     costPerMillionInput.value = settings.costPerMillionTokens != null ? String(settings.costPerMillionTokens) : '1.00';
     themeSelect.value = settings.theme || 'system';
     enabledCheckbox.checked = settings.enabled !== false; // default enabled
+    batchClusteringCheckbox.checked = settings.batchClusteringEnabled !== false; // default enabled
     hibernateAfterSelect.value = settings.hibernateAfterMinutes != null ? String(settings.hibernateAfterMinutes) : '30';
     applyTheme(themeSelect.value);
     
@@ -324,6 +326,7 @@ async function saveSettings(e) {
   const costPerMillionTokens = parseFloat(costPerMillionInput.value) || 0;
   const theme = themeSelect.value;
   const enabled = enabledCheckbox.checked;
+  const batchClusteringEnabled = batchClusteringCheckbox.checked;
 
   // ─── Validation ────────────────────────────────────────────────
 
@@ -359,6 +362,7 @@ async function saveSettings(e) {
     costPerMillionTokens,
     theme,
     enabled,
+    batchClusteringEnabled,
     hibernateAfterMinutes: hibernateAfterSelect.value === 'never' ? 'never' : parseInt(hibernateAfterSelect.value, 10),
   };
 
@@ -1746,7 +1750,7 @@ function loadVersion() {
 
 // ─── Unsaved Changes Warning: mark dirty on form field changes (T9.17) ──
 
-[apiKeyInput, providerPresetSelect, customEndpointInput, modelInput, costPerMillionInput, themeSelect, enabledCheckbox, hibernateAfterSelect].forEach(el => {
+[apiKeyInput, providerPresetSelect, customEndpointInput, modelInput, costPerMillionInput, themeSelect, enabledCheckbox, batchClusteringCheckbox, hibernateAfterSelect].forEach(el => {
   const eventType = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
   el.addEventListener(eventType, _markDirty);
 });

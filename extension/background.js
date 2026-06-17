@@ -341,6 +341,268 @@ async function getUngroupedTabs() {
 // ─── Startup Scan ─────────────────────────────────────────────────────────────
 // Phase 2: Classify all ungrouped tabs on browser start or install
 
+// T11.9: Pre-LLM classification check — runs rules and cache matching only.
+// Returns { matched: true } if the tab was assigned via rule or cache.
+// Returns { matched: false, domain } if LLM classification is needed.
+async function _classifyTabPreLLM(tabId, url, title) {
+  // Check if extension is enabled
+  if (!(await isEnabled())) return { matched: true };
+
+  // Skip tabs in manually-managed groups
+  try {
+    const tabInfo = await browser.tabs.get(tabId);
+    if (tabInfo.groupId > 0 && _managedGroupIds !== null && !_managedGroupIds.has(tabInfo.groupId)) {
+      console.log(`TabTamer: tab ${tabId} in manually-managed group — skipping`);
+      return { matched: true };
+    }
+  } catch (tabErr) {
+    if (tabErr.message && tabErr.message.includes('Invalid tab ID')) {
+      return { matched: true };
+    }
+  }
+
+  // Extract domain
+  const domain = extractDomain(url);
+  if (!domain) return { matched: true };
+
+  // Skip excluded domains
+  if (await isDomainExcluded(domain)) {
+    console.log(`TabTamer: domain excluded — ${domain}, skipping classification`);
+    return { matched: true };
+  }
+
+  // Check rules — first match wins
+  const ruleGroup = await TabTamerRules.matchRules(domain);
+  if (ruleGroup) {
+    console.log(`TabTamer: startup pre-LLM rule match — "${ruleGroup}" for ${domain}`);
+    try {
+      await assignToGroup(tabId, ruleGroup);
+    } catch (err) {
+      if (err.message && err.message.includes('Invalid tab ID')) return { matched: true };
+      throw err;
+    }
+    _addRecentClassification({
+      domain,
+      group: ruleGroup,
+      timestamp: Date.now()
+    });
+    return { matched: true };
+  }
+
+  // Check cache
+  const cachedGroup = await getCachedGroup(domain);
+  if (cachedGroup) {
+    console.log(`TabTamer: startup pre-LLM cache hit — "${cachedGroup}" for ${domain}`);
+
+    // Skip if tab is already in a group with the cached name
+    try {
+      const tab = await browser.tabs.get(tabId);
+      if (tab.groupId && tab.groupId > 0) {
+        const groups = await browser.tabGroups.query({ id: tab.groupId });
+        if (groups.length > 0 && groups[0].title === cachedGroup) {
+          console.log(`TabTamer: tab ${tabId} already in group "${cachedGroup}" — skipping`);
+          return { matched: true };
+        }
+      }
+    } catch (err) {
+      if (err.message && err.message.includes('Invalid tab ID')) {
+        return { matched: true };
+      }
+    }
+
+    try {
+      await assignToGroup(tabId, cachedGroup);
+    } catch (err) {
+      if (err.message && err.message.includes('Invalid tab ID')) return { matched: true };
+      throw err;
+    }
+    _addRecentClassification({
+      domain,
+      group: cachedGroup,
+      timestamp: Date.now()
+    });
+    return { matched: true };
+  }
+
+  // Neither rule nor cache matched — needs LLM
+  return { matched: false, domain };
+}
+
+// T11.9: Batch classify all ungrouped tabs in a single LLM call for
+// coherent, cost-efficient grouping during startup scan.
+async function batchClassifyTabs(tabEntries) {
+  // tabEntries = [{ tabId, url, title, domain }, ...]
+  if (!tabEntries || tabEntries.length === 0) return;
+
+  try {
+    // Check API key
+    const settings = await getSettings();
+    const apiKey = settings.apiKey;
+
+    if (!apiKey) {
+      console.warn('TabTamer: batch classify — API key not set, falling back to individual');
+      for (const entry of tabEntries) {
+        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+      }
+      return;
+    }
+
+    const model = resolveModel(settings);
+    const endpoint = resolveEndpoint(settings);
+
+    if (!endpoint || !model) {
+      console.warn('TabTamer: batch classify — no endpoint/model, falling back to individual');
+      for (const entry of tabEntries) {
+        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+      }
+      return;
+    }
+
+    // Gather existing groups for the prompt (prefer reuse)
+    const existingGroups = await browser.tabGroups.query({});
+    const allTabs = await browser.tabs.query({});
+    const tabCountByGroupId = {};
+    for (const tab of allTabs) {
+      if (tab.groupId > 0) {
+        tabCountByGroupId[tab.groupId] = (tabCountByGroupId[tab.groupId] || 0) + 1;
+      }
+    }
+
+    const groupsWithTitles = existingGroups.filter(g => g.title);
+    groupsWithTitles.sort((a, b) => (tabCountByGroupId[b.id] || 0) - (tabCountByGroupId[a.id] || 0));
+
+    let promptGroupList = '';
+    if (groupsWithTitles.length > 0) {
+      const topGroups = groupsWithTitles.slice(0, MAX_GROUP_NAMES_IN_PROMPT);
+      promptGroupList = topGroups.map(g => g.title).join(', ');
+      if (groupsWithTitles.length > MAX_GROUP_NAMES_IN_PROMPT) {
+        const remaining = groupsWithTitles.length - MAX_GROUP_NAMES_IN_PROMPT;
+        promptGroupList += `, ...and ${remaining} more`;
+      }
+    }
+
+    // Build the batch prompt with all tab URLs and titles
+    const tabsListStr = tabEntries.map((t, i) =>
+      `[${i}] URL: ${t.url}\nTitle: ${t.title || '(no title)'}`
+    ).join('\n\n');
+
+    const systemPrompt = 'You are a tab grouping assistant. Given a list of tabs with URLs and titles, '
+      + 'group them into 3-7 coherent groups. Prefer reusing existing groups if applicable. '
+      + (promptGroupList ? `Existing groups: [${promptGroupList}]. ` : '')
+      + 'Return JSON only: {"groups": [{"name": "Group Name", "tabIndices": [0, 3, 7]}, ...]}';
+
+    const userMessage = `List of tabs to group:\n\n${tabsListStr}`;
+
+    console.log(`TabTamer: batch classify — sending ${tabEntries.length} tabs in single LLM call`);
+
+    const response = await retryWithBackoff(() => fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        max_tokens: 500,
+        temperature: 0,
+        response_format: { type: 'json_object' }
+      })
+    }), { label: 'batch classification', maxRetries: 3 });
+
+    if (!response) {
+      console.warn('TabTamer: batch classify — LLM call failed after retries, falling back to individual');
+      for (const entry of tabEntries) {
+        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+      }
+      return;
+    }
+
+    const data = await response.json();
+    const usageActual = data.usage?.total_tokens;
+    const content = data.choices?.[0]?.message?.content?.trim();
+
+    // Track cost estimate
+    const estimatedTokens = Math.ceil((systemPrompt.length + userMessage.length) / 4);
+    await updateCosts(estimatedTokens, usageActual);
+
+    if (!content) {
+      console.warn('TabTamer: batch classify — empty response, falling back to individual');
+      for (const entry of tabEntries) {
+        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+      }
+      return;
+    }
+
+    let result;
+    try {
+      result = JSON.parse(content);
+    } catch (parseErr) {
+      console.error('TabTamer: batch classify — invalid JSON parse, falling back to individual', parseErr);
+      for (const entry of tabEntries) {
+        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+      }
+      return;
+    }
+
+    if (!result || !Array.isArray(result.groups)) {
+      console.warn('TabTamer: batch classify — response missing groups array, falling back to individual');
+      for (const entry of tabEntries) {
+        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+      }
+      return;
+    }
+
+    // Assign tabs to groups based on the LLM response
+    const assigned = new Set();
+    for (const group of result.groups) {
+      if (!group.name || !Array.isArray(group.tabIndices)) continue;
+      const normalizedName = normalizeGroupName(group.name);
+      if (!normalizedName) continue;
+
+      for (const idx of group.tabIndices) {
+        if (typeof idx !== 'number' || idx < 0 || idx >= tabEntries.length || assigned.has(idx)) continue;
+        assigned.add(idx);
+        try {
+          await assignToGroup(tabEntries[idx].tabId, normalizedName);
+          await setCachedGroup(tabEntries[idx].domain, normalizedName);
+          _addRecentClassification({
+            domain: tabEntries[idx].domain,
+            group: normalizedName,
+            timestamp: Date.now()
+          });
+          // Show rule suggestion for this domain
+          _showRuleSuggestion(tabEntries[idx].domain, normalizedName).catch(() => {});
+        } catch (err) {
+          console.error(`TabTamer: batch classify — assign error for tab ${tabEntries[idx].tabId}`, err);
+        }
+      }
+    }
+
+    // Fallback: classify any unassigned tabs individually
+    for (let i = 0; i < tabEntries.length; i++) {
+      if (!assigned.has(i)) {
+        console.log(`TabTamer: batch classify — tab ${i} (${tabEntries[i].domain}) not assigned, classifying individually`);
+        await classifyAndAssign(tabEntries[i].tabId, tabEntries[i].url, tabEntries[i].title, tabEntries[i].domain);
+      }
+    }
+
+    console.log(`TabTamer: batch classify — complete, ${assigned.size}/${tabEntries.length} tabs assigned in batch`);
+  } catch (err) {
+    console.error('TabTamer: batch classify error, falling back to individual', err);
+    for (const entry of tabEntries) {
+      try {
+        await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+      } catch (innerErr) {
+        console.error(`TabTamer: batch classify fallback error for tab ${entry.tabId}`, innerErr);
+      }
+    }
+  }
+}
+
 async function startupScan() {
   // T5.10: Show processing indicator in toolbar badge during startup scan
   // The first handleTab() call will set up the processing indicator
@@ -359,12 +621,20 @@ async function startupScan() {
     let processedCount = 0;
     _startupProgress = { processed: 0, total: totalCount };
 
-    // Process each ungrouped tab with concurrency limiting
-    // Each handleTab() call increments _pendingClassificationCount
-    // and calls updateBadge(true) for the processing indicator
-    const promises = ungroupedTabs.map(tab =>
+    // T11.9: Check if batch clustering is enabled (default: true)
+    const settings = await getSettings();
+    const batchEnabled = settings.batchClusteringEnabled !== false;
+
+    // Phase 1: Process all tabs through rules and cache (no LLM)
+    // Collect tabs that need LLM classification for batch processing
+    const tabsNeedingLLM = [];
+
+    const preLLMPromises = ungroupedTabs.map(tab =>
       runWithConcurrencyLimit(async () => {
-        await handleTab(tab.id, tab.url, tab.title);
+        const result = await _classifyTabPreLLM(tab.id, tab.url, tab.title);
+        if (!result.matched && result.domain) {
+          tabsNeedingLLM.push({ tabId: tab.id, url: tab.url, title: tab.title, domain: result.domain });
+        }
         processedCount++;
         _startupProgress = { processed: processedCount, total: totalCount };
 
@@ -380,7 +650,32 @@ async function startupScan() {
         }).catch(() => {});
       })
     );
-    await Promise.all(promises);
+    await Promise.all(preLLMPromises);
+
+    // Phase 2: Classify tabs that need LLM — batch or individual
+    if (tabsNeedingLLM.length > 0) {
+      console.log(`TabTamer: startup scan — ${tabsNeedingLLM.length} tabs need LLM classification`);
+
+      if (batchEnabled) {
+        await batchClassifyTabs(tabsNeedingLLM);
+      } else {
+        // Fallback to individual classification (existing behavior)
+        const individualPromises = tabsNeedingLLM.map(entry =>
+          runWithConcurrencyLimit(async () => {
+            _pendingClassificationCount++;
+            updateBadge(true);
+            try {
+              await classifyAndAssign(entry.tabId, entry.url, entry.title, entry.domain);
+            } finally {
+              _pendingClassificationCount = Math.max(0, _pendingClassificationCount - 1);
+              updateBadge(_pendingClassificationCount > 0);
+            }
+          })
+        );
+        await Promise.all(individualPromises);
+      }
+    }
+
     console.log(`TabTamer: startup scan complete — ${totalCount} tabs processed`);
   } catch (err) {
     console.error('TabTamer: startup scan error', err);
