@@ -37,6 +37,11 @@ let _lastAccessStorageTimer = null;
 // Count of tabs hibernated in this session
 let _hibernatedCount = 0;
 
+// ─── Domain Exclusion List (T9.3) ─────────────────────────────────────────────
+// In-memory lookup structures for O(1) exact-match and O(n) wildcard matching
+let _exactExcludedDomains = new Set();
+let _wildcardExcludedDomains = [];
+
 // ─── Retry with Backoff ──────────────────────────────────────────────────────────
 // T5.5: Unified retry loop with exponential backoff, rate-limit handling
 
@@ -122,6 +127,27 @@ async function loadCustomGroupColors() {
   } catch (err) {
     console.warn('TabTamer: loadCustomGroupColors — storage read failed', err);
     _customGroupColors = {};
+  }
+}
+
+// T9.3: Load excluded domains from storage into in-memory lookup structures
+async function loadExcludedDomains() {
+  try {
+    const result = await browser.storage.local.get(EXCLUDED_DOMAINS_KEY);
+    const excluded = result[EXCLUDED_DOMAINS_KEY] || [];
+    _exactExcludedDomains = new Set();
+    _wildcardExcludedDomains = [];
+    for (const pattern of excluded) {
+      if (pattern.startsWith('*.')) {
+        _wildcardExcludedDomains.push(pattern.slice(1)); // store suffix (e.g. '.domain.com')
+      } else {
+        _exactExcludedDomains.add(pattern);
+      }
+    }
+  } catch (err) {
+    console.warn('TabTamer: loadExcludedDomains — storage read failed', err);
+    _exactExcludedDomains = new Set();
+    _wildcardExcludedDomains = [];
   }
 }
 
@@ -568,20 +594,14 @@ async function handleTab(tabId, url, title) {
 
 async function isDomainExcluded(domain) {
   try {
-    const result = await browser.storage.local.get(EXCLUDED_DOMAINS_KEY);
-    const excluded = result[EXCLUDED_DOMAINS_KEY] || [];
-    for (const pattern of excluded) {
-      if (pattern.startsWith('*.')) {
-        // Wildcard match: *.domain.com matches sub.domain.com, foo.bar.domain.com, etc.
-        const suffix = pattern.slice(1); // remove the '*'
-        if (domain.endsWith(suffix)) {
-          return true;
-        }
-      } else {
-        // Exact match
-        if (domain === pattern) {
-          return true;
-        }
+    // T9.3: O(1) Set lookup for exact matches, O(n) for wildcard patterns
+    if (_exactExcludedDomains.has(domain)) {
+      return true;
+    }
+    for (const suffix of _wildcardExcludedDomains) {
+      // Wildcard match: '.domain.com' matches sub.domain.com, foo.bar.domain.com, etc.
+      if (domain.endsWith(suffix)) {
+        return true;
       }
     }
     return false;
@@ -678,6 +698,21 @@ browser.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'local' && changes[GROUP_COLORS_KEY]) {
     _customGroupColors = changes[GROUP_COLORS_KEY].newValue || {};
     console.log('TabTamer: custom group colors updated from storage change');
+  }
+
+  // T9.3: Refresh excluded domain lookup structures when user changes them
+  if (areaName === 'local' && changes[EXCLUDED_DOMAINS_KEY]) {
+    const excluded = changes[EXCLUDED_DOMAINS_KEY].newValue || [];
+    _exactExcludedDomains = new Set();
+    _wildcardExcludedDomains = [];
+    for (const pattern of excluded) {
+      if (pattern.startsWith('*.')) {
+        _wildcardExcludedDomains.push(pattern.slice(1));
+      } else {
+        _exactExcludedDomains.add(pattern);
+      }
+    }
+    console.log('TabTamer: excluded domains updated from storage change');
   }
 });
 
@@ -1281,6 +1316,8 @@ browser.runtime.onStartup.addListener(async () => {
   await loadCustomGroupColors();
   // T9.19: Load tab access times for hibernation tracking
   await loadAccessTimes();
+  // T9.3: Load excluded domains into in-memory lookup structures
+  await loadExcludedDomains();
   // T5.6: Assign colors to existing groups without one
   await assignColorsToGroups();
   // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
@@ -1315,6 +1352,9 @@ browser.runtime.onInstalled.addListener(async (details) => {
 
     // T9.19: Load tab access times for hibernation tracking
     await loadAccessTimes();
+
+    // T9.3: Load excluded domains into in-memory lookup structures
+    await loadExcludedDomains();
 
     // T5.6: Assign colors to existing groups without one (one-time migration)
     await assignColorsToGroups();
