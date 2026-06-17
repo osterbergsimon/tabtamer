@@ -7072,4 +7072,93 @@ All 16 tests pass. Let me update the task and write the summary.All 16 tests pas
 
 [tool: iteratr-tools__task-update] ...
 
-[tool: iteratr-tool
+[tool: iteratr-tools__iteration-summary] ...
+
+[tool: iteratr-tools__iteration-summary] ...
+[tool: iteratr-tools__task-update] ✓ (output: 37 bytes)
+[tool: iteratr-tools__iteration-summary] ✓ (output: 34 bytes)
+The task is complete. Let me stop here as per the workflow rules - one task per iteration.Task T7.17 is complete. The shared utilities have been extracted to `lib/utils.js` with the case-insensitive acronym matching fix applied. All 16 tests pass.
+</parameter>
+--- Agent finished: end_turn | Duration: 2m21.303s | Model: opencode-go/deepseek-v4-flash | Tokens: in=53185 out=9389 cache_read=959232 cache_write=0 ---
+The user wants me to commit the modified files with a clear conventional commit message. Let me stage and commit.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 197 bytes)
+Committed successfully:
+
+```
+55a0c50 refactor: extract shared utilities to lib/utils.js with case-insensitive acronym fix
+```
+
+6 files staged, 560 insertions, 76 deletions — includes the new `extension/lib/utils.js` file.
+--- Agent finished: end_turn | Duration: 7.462s | Model: opencode-go/deepseek-v4-flash | Tokens: in=928 out=273 cache_read=124544 cache_write=0 ---
+
+✓ Iteration #10 complete
+
+Let me pick the next highest priority unblocked task. Let me look at the remaining tasks:
+
+1. T7.7 (P2) - Strengthen excluded domain validation
+2. T7.8 (P2) - Suppress notifyMissingApiKey during startup scan
+3. T7.19 (P3) - Update DESIGN.md
+4. T7.6 (P2) - Fix stale title in onUpdated listener
+5. T7.21 (P3) - Add documentation for custom LLM endpoints
+6. T7.2 (P2) - Fix cost undercounting for empty/parseable LLM responses
+7. T7.4 (P2) - Fix loadManagedGroups silent failure
+8. T7.18 (P2) - Fix empty catch in isEnabled()
+9. T7.22 (P4) - Meta: Do nothing
+10. T7.3 (P2) - Fix stale overwrite count in importCache
+11. T7.5 (P2) - Fix content.js monkey-patch fragility
+12. T7.20 (P3) - Update README.md
+
+I should pick one ready task. Let me check which are unblocked and highest priority.
+
+All P2 tasks seem independent. Let me pick T7.7: Strengthen excluded domain validation.
+
+Wait, let me first check the current state of things by looking at the files I'll need to modify.
+
+Let me pick T7.7 - it's P2 and should be straightforward.
+[tool: iteratr-tools__task-next] ...
+
+[tool: iteratr-tools__task-next] ...
+[tool: iteratr-tools__task-next] ✓ (output: 194 bytes)
+The next task according to priority is T7.18 (P2). But there are several P2 tasks. Let me pick T7.7 since it's also P2 and seems independent. Actually, the task-next tool picked T7.18. Let me check what that task entails and if it's ready.
+
+Wait, the task-next tool returned T7.18. Let me look at it more carefully.
+
+T7.18: Fix empty catch in isEnabled() — don't silently default to true. Log error with console.warn() and return sensible default.
+
+Let me check the current state of background.js to find the empty catch in isEnabled().
+
+Actually, looking at the rules, the instruction says "Pick ONE ready task (highest priority, no blockers) using task-next tool" - so the system already picked T7.18 for me. Let me proceed with that.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 39 bytes)
+Let me find the empty catch in isEnabled() in background.js.Let me explore the relevant code first.
+[tool: grep] ...
+
+[tool: grep] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1410 bytes)
+[tool: grep] ✓ (output: 2021 bytes)
+I can see the issue clearly. In `isEnabled()` (lines 532-540), the catch block at line 537 is empty - it just has `return true;` without logging the error. According to T7.18, I need to add a `console.warn()` with error details and return a sensible default.
+
+Let me fix this.Found the empty catch block. Let me fix it:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 571 bytes)
+Now let me verify the fix looks correct and run the tests.Now let me verify the fix and run the tests:
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: read] ✓ (output: 795 bytes)
+[tool: 

@@ -534,8 +534,9 @@ async function isEnabled() {
     const result = await browser.storage.local.get(SETTINGS_KEY);
     const settings = result[SETTINGS_KEY] || {};
     return settings.enabled !== false; // default enabled
-  } catch {
-    return true;
+  } catch (err) {
+    console.warn('TabTamer: isEnabled — storage error, defaulting to enabled', err);
+    return true; // safe default: extension stays enabled
   }
 }
 
