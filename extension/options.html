@@ -429,6 +429,26 @@
       </div>
     </div>
 
+    <!-- ─── Excluded Domains (T6.9) ─────────────────────────────────-- -->
+    <div class="card" id="excluded-domains-card">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Excluded Domains</span>
+        <span style="font-size: 12px; color: var(--text-muted);">Privacy</span>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+        Domains listed here will never be sent to the LLM for classification.
+        One per line. Use <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">*.domain.com</code> for wildcard subdomain matching.
+      </p>
+      <textarea id="excluded-domains-input"
+                style="width: 100%; min-height: 80px; padding: 10px 12px; font-size: 13px;
+                       background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+                       color: var(--text); outline: none; resize: vertical; font-family: monospace;"
+                placeholder="e.g.&#10;bank.example.com&#10;*.internal.corp&#10;localhost"></textarea>
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <button type="button" class="btn btn-primary" id="save-excluded-domains-btn" style="flex: 1;">Save</button>
+      </div>
+    </div>
+
     <!-- ─── Domain Cache Dashboard ────────────────────────────────── -->
     <div class="card" id="cache-dashboard-card">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">

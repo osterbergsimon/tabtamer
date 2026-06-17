@@ -4,6 +4,7 @@
 const SETTINGS_KEY = 'tabtamerSettings';
 const CACHE_KEY = 'domainGroupCache';
 const COSTS_KEY = 'tabtamerCosts';
+const EXCLUDED_DOMAINS_KEY = 'tabtamerExcludedDomains';
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,11 @@ const resetCostsBtn = document.getElementById('reset-costs-btn');
 const costCalls = document.getElementById('cost-calls');
 const costTokens = document.getElementById('cost-tokens');
 const toast = document.getElementById('toast');
+
+// ─── Excluded Domains DOM refs (T6.9) ──────────────────────────────────────────
+
+const excludedDomainsInput = document.getElementById('excluded-domains-input');
+const saveExcludedDomainsBtn = document.getElementById('save-excluded-domains-btn');
 
 // ─── Cache Dashboard DOM refs ────────────────────────────────────────────────
 
@@ -672,6 +678,50 @@ async function loadShortcuts() {
   }
 }
 
+// ─── Excluded Domains (T6.9) ───────────────────────────────────────────────
+
+async function loadExcludedDomains() {
+  try {
+    const result = await browser.storage.local.get(EXCLUDED_DOMAINS_KEY);
+    const excluded = result[EXCLUDED_DOMAINS_KEY] || [];
+    excludedDomainsInput.value = excluded.join('\n');
+  } catch (err) {
+    console.error('TabTamer: failed to load excluded domains', err);
+    showToast('Failed to load excluded domains', 'error');
+  }
+}
+
+async function saveExcludedDomains() {
+  setButtonLoading(saveExcludedDomainsBtn, true, 'Saving…');
+
+  // Split by newlines, trim whitespace, filter out empty lines
+  const lines = excludedDomainsInput.value.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Basic validation: no empty strings, no IP addresses (optional, just a sanity check)
+  const valid = lines.filter(d => {
+    if (!d) return false;
+    // Must not contain spaces
+    if (d.includes(' ')) return false;
+    return true;
+  });
+
+  if (valid.length !== lines.length) {
+    showToast('Invalid domain format — domains must not contain spaces', 'error');
+    setButtonLoading(saveExcludedDomainsBtn, false);
+    return;
+  }
+
+  try {
+    await browser.storage.local.set({ [EXCLUDED_DOMAINS_KEY]: valid });
+    showToast(`Excluded domains saved (${valid.length} entr${valid.length === 1 ? 'y' : 'ies'})`, 'success');
+  } catch (err) {
+    console.error('TabTamer: failed to save excluded domains', err);
+    showToast('Failed to save excluded domains', 'error');
+  } finally {
+    setButtonLoading(saveExcludedDomainsBtn, false);
+  }
+}
+
 // ─── Event listeners ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -682,6 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadShortcuts();
   loadCacheDashboard();
   setupCacheDashboardEvents();
+  loadExcludedDomains();
 });
 // ─── Version display ────────────────────────────────────────────────────────────
 
@@ -698,3 +749,4 @@ importCacheBtn.addEventListener('click', () => cacheFileInput.click());
 cacheFileInput.addEventListener('change', handleCacheFileSelected);
 resetCostsBtn.addEventListener('click', resetCosts);
 testApiKeyBtn.addEventListener('click', testApiKey);
+saveExcludedDomainsBtn.addEventListener('click', saveExcludedDomains);

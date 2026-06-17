@@ -12,6 +12,7 @@ const CACHE_KEY = 'domainGroupCache';
 const SETTINGS_KEY = 'tabtamerSettings';
 const COSTS_KEY = 'tabtamerCosts';
 const MANAGED_GROUPS_KEY = 'tabtamerManagedGroups';
+const EXCLUDED_DOMAINS_KEY = 'tabtamerExcludedDomains';
 
 // ─── Magic Number Constants ────────────────────────────────────────────────────
 
@@ -375,6 +376,12 @@ async function handleTab(tabId, url, title) {
       return;
     }
 
+    // T6.9: Skip classification for excluded domains (privacy)
+    if (await isDomainExcluded(domain)) {
+      console.log(`TabTamer: domain excluded — ${domain}, skipping classification`);
+      return;
+    }
+
     // TAS-2: Check cache
     const cachedGroup = await getCachedGroup(domain);
     if (cachedGroup) {
@@ -439,6 +446,34 @@ function extractDomain(url) {
     return null; // non-http(s) protocol → skip
   } catch {
     return null; // malformed URL → skip
+  }
+}
+
+// ─── Domain Exclusion List (T6.9) ───────────────────────────────────────────
+// Privacy feature: skip classification for sensitive domains
+
+async function isDomainExcluded(domain) {
+  try {
+    const result = await browser.storage.local.get(EXCLUDED_DOMAINS_KEY);
+    const excluded = result[EXCLUDED_DOMAINS_KEY] || [];
+    for (const pattern of excluded) {
+      if (pattern.startsWith('*.')) {
+        // Wildcard match: *.domain.com matches sub.domain.com, foo.bar.domain.com, etc.
+        const suffix = pattern.slice(1); // remove the '*'
+        if (domain.endsWith(suffix)) {
+          return true;
+        }
+      } else {
+        // Exact match
+        if (domain === pattern) {
+          return true;
+        }
+      }
+    }
+    return false;
+  } catch (err) {
+    console.error('TabTamer: isDomainExcluded error', err);
+    return false;
   }
 }
 
