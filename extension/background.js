@@ -253,6 +253,11 @@ browser.runtime.onMessage.addListener((message, sender) => {
     runWithConcurrencyLimit(() => handleTab(tabId, sender.tab.url, sender.tab.title));
   }
 
+  // T8.9: Classify-this-tab button in popup
+  if (message.type === 'classifyNow' && message.tabId) {
+    runWithConcurrencyLimit(() => handleTab(message.tabId, message.url, message.title));
+  }
+
   // T7.10: Popup state queries
   if (message.type === 'getPopupState') {
     return getPopupState();

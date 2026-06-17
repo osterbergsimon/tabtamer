@@ -8,6 +8,7 @@ const enabledStatus = document.getElementById('enabled-status');
 const groupCount = document.getElementById('group-count');
 const groupNamesContainer = document.getElementById('group-names-container');
 const recentList = document.getElementById('recent-list');
+const classifyBtn = document.getElementById('classify-btn');
 const optionsLink = document.getElementById('options-link');
 const refreshBtn = document.getElementById('refresh-btn');
 const processingIndicator = document.getElementById('processing-indicator');
@@ -157,6 +158,27 @@ toggleSwitch.addEventListener('keydown', (e) => {
     handleToggle();
   }
 });
+
+// ─── Classify Active Tab ───────────────────────────────────────────────────
+
+async function handleClassifyNow() {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tabs.length === 0) return;
+    const tab = tabs[0];
+    await browser.runtime.sendMessage({
+      type: 'classifyNow',
+      tabId: tab.id,
+      url: tab.url,
+      title: tab.title
+    });
+    window.close();
+  } catch (err) {
+    console.error('TabTamer popup: classify failed', err);
+  }
+}
+
+classifyBtn.addEventListener('click', handleClassifyNow);
 
 refreshBtn.addEventListener('click', loadPopupState);
 
