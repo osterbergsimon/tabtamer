@@ -51,6 +51,7 @@ async function loadPopupState() {
     popupState = response;
     renderState(response);
     hideError();
+    hideLoading();
   } catch (err) {
     console.error('TabTamer popup: failed to load state', err);
     showError('Failed to load state. Try refreshing.');
@@ -145,10 +146,32 @@ async function handleToggle() {
 // ─── UI Helpers ───────────────────────────────────────────────────────────────
 
 function showLoading() {
-  // We keep existing content but show a subtle loading state
+  // Show loading spinner, hide main content
+  document.getElementById('loading-state').classList.add('visible');
+  document.getElementById('loading-state').style.display = 'block';
+  document.querySelector('.toggle-section').style.display = 'none';
+  document.querySelector('.processing-indicator').style.display = 'none';
+  document.querySelector('.stats-section').style.display = 'none';
+  document.querySelector('.group-list').style.display = 'none';
+  document.querySelector('.recent-section').style.display = 'none';
+  document.querySelector('.footer').style.display = 'none';
+  errorState.style.display = 'none';
+}
+
+function hideLoading() {
+  // Hide loading spinner, show main content
+  document.getElementById('loading-state').classList.remove('visible');
+  document.getElementById('loading-state').style.display = 'none';
+  document.querySelector('.toggle-section').style.display = '';
+  document.querySelector('.stats-section').style.display = '';
+  document.querySelector('.group-list').style.display = '';
+  document.querySelector('.recent-section').style.display = '';
+  document.querySelector('.footer').style.display = '';
+  // The processing indicator visibility is handled by renderState
 }
 
 function showError(message) {
+  hideLoading();
   errorState.textContent = message;
   errorState.style.display = 'block';
 }

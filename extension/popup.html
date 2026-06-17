@@ -307,6 +307,11 @@
       text-align: center;
       color: var(--text-muted);
       font-size: 13px;
+      display: none;
+    }
+
+    .loading-state.visible {
+      display: block;
     }
 
     .loading-state .spinner {
@@ -363,6 +368,11 @@
     <button class="footer-btn" id="classify-btn">Classify Tab</button>
     <a href="#" class="footer-btn" id="options-link">Settings</a>
     <button class="footer-btn" id="refresh-btn">Refresh</button>
+  </div>
+
+  <div id="loading-state" class="loading-state" style="display:none;">
+    <div class="spinner"></div>
+    Loading…
   </div>
 
   <div id="error-state" class="error-state" style="display:none;"></div>
