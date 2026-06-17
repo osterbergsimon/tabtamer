@@ -1058,6 +1058,33 @@ async function handleRulesFileSelected(event) {
   }
 }
 
+// ─── Tab Navigation (T7.14) ──────────────────────────────────────
+// Switch between General, Rules, Cache, Privacy, and Info tabs.
+
+function switchTab(tabName) {
+  // Update tab button states
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const isActive = btn.dataset.tab === tabName;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+
+  // Show selected tab content, hide others
+  document.querySelectorAll('.tab-content').forEach(section => {
+    const isActive = section.id === 'tab-' + tabName;
+    section.classList.toggle('active', isActive);
+  });
+}
+
+function setupTabNavigation() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.dataset.tab;
+      if (tabName) switchTab(tabName);
+    });
+  });
+}
+
 // ─── Event listeners ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1071,6 +1098,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadExcludedDomains();
   loadRulesTable();
   setupRulesTableEvents();
+  setupTabNavigation();
 });
 // ─── Version display ────────────────────────────────────────────────────────────
 

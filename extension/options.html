@@ -86,7 +86,7 @@
 
     /* ─── Layout ────────────────────────────────────────────────── */
     .container {
-      max-width: 480px;
+      max-width: 520px;
       width: 100%;
     }
 
@@ -100,7 +100,64 @@
     .subtitle {
       color: var(--text-muted);
       font-size: 14px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
+    }
+
+    /* ─── Tab Navigation ────────────────────────────────────────── */
+    .tab-nav {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-btn {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-btn:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: -2px;
+      border-radius: 4px 4px 0 0;
+    }
+
+    /* ─── Tab Content ───────────────────────────────────────────── */
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     /* ─── Card ──────────────────────────────────────────────────── */
@@ -114,6 +171,26 @@
 
     .card + .card {
       margin-top: 16px;
+    }
+
+    .card-header {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-header .badge {
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--primary);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 8px;
     }
 
     /* ─── Form Fields ───────────────────────────────────────────── */
@@ -299,11 +376,6 @@
       border: 1px solid color-mix(in srgb, #ff9f0a 30%, transparent);
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-4px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
     /* ─── Cache Stats ───────────────────────────────────────────── */
     .cache-stats {
       margin-top: 12px;
@@ -400,6 +472,34 @@
       gap: 10px;
       justify-content: flex-end;
     }
+
+    /* ─── Info section styles ───────────────────────────────────── */
+    .cost-display {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    .shortcut-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .shortcut-item:last-child {
+      border-bottom: none;
+    }
+
+    kbd {
+      background: var(--bg);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      border: 1px solid var(--border);
+    }
   </style>
 </head>
 <body>
@@ -407,168 +507,205 @@
     <h1>TabTamer</h1>
     <p class="subtitle">Auto-group your tabs with LLM-powered classification <span id="version-display"></span></p>
 
-    <!-- ─── Settings Form ────────────────────────────────────────── -->
-    <form id="settings-form" class="card">
-      <div class="field">
-        <label for="api-key">API Key</label>
-        <div class="input-row">
-          <input type="password" id="api-key" name="apiKey"
-                 placeholder="sk-..." autocomplete="off" spellcheck="false">
-          <button type="button" class="btn btn-test" id="test-api-key-btn">Test</button>
+    <!-- ─── Tab Navigation ──────────────────────────────────────── -->
+    <nav class="tab-nav" role="tablist">
+      <button class="tab-btn active" role="tab" aria-selected="true" data-tab="general">General</button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-tab="rules">Rules</button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-tab="cache">Cache</button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-tab="privacy">Privacy</button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-tab="info">Info</button>
+    </nav>
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- GENERAL TAB                                                  -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <section class="tab-content active" id="tab-general" role="tabpanel">
+      <form id="settings-form" class="card">
+        <div class="card-header">General Settings</div>
+
+        <div class="field">
+          <label for="api-key">API Key</label>
+          <div class="input-row">
+            <input type="password" id="api-key" name="apiKey"
+                   placeholder="sk-..." autocomplete="off" spellcheck="false">
+            <button type="button" class="btn btn-test" id="test-api-key-btn">Test</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="model">Model</label>
+          <select id="model" name="model">
+            <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+            <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <div class="checkbox-row">
+            <input type="checkbox" id="enabled" name="enabled" checked>
+            <label for="enabled">Extension enabled</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="theme">Theme</label>
+          <select id="theme" name="theme">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+
+        <div class="separator"></div>
+
+        <button type="submit" class="btn btn-primary" id="save-btn" style="width:100%;">Save</button>
+      </form>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- RULES TAB                                                    -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <section class="tab-content" id="tab-rules" role="tabpanel">
+      <!-- ─── Custom Group Rules (T7.9) ─────────────────────────── -->
+      <div class="card" id="rules-card">
+        <div class="card-header">
+          <span>Custom Group Rules</span>
+          <span style="font-size: 12px; color: var(--text-muted); font-weight: 400;">Bypass LLM for known domains</span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+          Define domain→group mappings that skip the LLM entirely. First matching rule wins.
+          Supports glob patterns: <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">*</code> matches any subdomain,
+          <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">?</code> matches any single character.
+        </p>
+
+        <!-- Add Rule Form -->
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <input type="text" id="rule-pattern-input" placeholder="e.g. github.com"
+                 style="flex: 1; padding: 8px 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none;">
+          <input type="text" id="rule-group-input" placeholder="Group name"
+                 style="flex: 0 0 140px; padding: 8px 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none;">
+          <button type="button" class="btn btn-primary" id="add-rule-btn" style="flex: none; font-size: 12px; padding: 8px 16px;">Add</button>
+        </div>
+
+        <!-- Rules Table -->
+        <div id="rules-table-container" style="max-height: 300px; overflow-y: auto;">
+          <table id="rules-table" style="width: 100%; border-collapse: collapse; font-size: 13px; display: none;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border);">
+                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 5%;">#</th>
+                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 30%;">Domain Pattern</th>
+                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 25%;">Group Name</th>
+                <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 15%;">Enabled</th>
+                <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 25%;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rules-table-body"></tbody>
+          </table>
+        </div>
+        <p id="rules-empty-message" style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">No rules defined yet. Add a rule above to skip LLM calls for specific domains.</p>
+        <p id="rules-validation-error" style="color: var(--danger); font-size: 12px; display: none; margin-top: 4px;"></p>
+
+        <div class="separator"></div>
+
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-test" id="export-rules-btn" style="flex: 1; font-size: 12px; padding: 8px 16px;">Export Rules</button>
+          <button type="button" class="btn btn-test" id="import-rules-btn" style="flex: 1; font-size: 12px; padding: 8px 16px;">Import Rules</button>
+        </div>
+        <input type="file" id="rules-file-input" accept=".json" style="display:none;">
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- CACHE TAB                                                    -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <section class="tab-content" id="tab-cache" role="tabpanel">
+      <!-- ─── Domain Cache Dashboard ────────────────────────────── -->
+      <div class="card" id="cache-dashboard-card">
+        <div class="card-header">
+          <span>Domain Cache</span>
+          <span id="dashboard-cache-count" style="font-size: 12px; color: var(--text-muted); font-weight: 400;"></span>
+        </div>
+        <input type="text" id="cache-search" placeholder="Search domain or group…" style="width: 100%; padding: 8px 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none; margin-bottom: 12px;">
+        <div id="cache-table-container" style="max-height: 300px; overflow-y: auto;">
+          <table id="cache-table" style="width: 100%; border-collapse: collapse; font-size: 13px; display: none;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border);">
+                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 40%;">Domain</th>
+                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 40%;">Group</th>
+                <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 20%;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="cache-table-body"></tbody>
+          </table>
+        </div>
+        <p id="cache-empty-message" style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">No cached domains yet</p>
+
+        <div class="separator"></div>
+
+        <p id="cache-stats" class="cache-stats"></p>
+
+        <div class="button-group">
+          <button type="button" class="btn btn-danger" id="clear-cache-btn">Clear Cache</button>
+        </div>
+        <div class="button-group">
+          <button type="button" class="btn btn-test" id="export-cache-btn">Export Cache</button>
+          <button type="button" class="btn btn-test" id="import-cache-btn">Import Cache</button>
+        </div>
+        <input type="file" id="cache-file-input" accept=".json" style="display:none;">
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- PRIVACY TAB                                                  -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <section class="tab-content" id="tab-privacy" role="tabpanel">
+      <!-- ─── Excluded Domains (T6.9) ───────────────────────────── -->
+      <div class="card" id="excluded-domains-card">
+        <div class="card-header">
+          <span>Excluded Domains</span>
+          <span id="excluded-count-badge" class="badge" style="display:none;">0</span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+          Domains listed here will never be sent to the LLM for classification.
+          One per line. Use <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">*.domain.com</code> for wildcard subdomain matching.
+        </p>
+        <textarea id="excluded-domains-input"
+                  style="width: 100%; min-height: 120px; padding: 10px 12px; font-size: 13px;
+                         background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+                         color: var(--text); outline: none; resize: vertical; font-family: monospace;"
+                  placeholder="e.g.&#10;bank.example.com&#10;*.internal.corp&#10;localhost"></textarea>
+        <div style="margin-top: 12px; display: flex; gap: 8px;">
+          <button type="button" class="btn btn-primary" id="save-excluded-domains-btn" style="flex: 1;">Save</button>
         </div>
       </div>
+    </section>
 
-      <div class="field">
-        <label for="model">Model</label>
-        <select id="model" name="model">
-          <option value="deepseek-v4-flash">deepseek-v4-flash</option>
-          <option value="deepseek-v4-pro">deepseek-v4-pro</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <div class="checkbox-row">
-          <input type="checkbox" id="enabled" name="enabled" checked>
-          <label for="enabled">Extension enabled</label>
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- INFO TAB                                                     -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <section class="tab-content" id="tab-info" role="tabpanel">
+      <!-- ─── Cost Tracking ─────────────────────────────────────── -->
+      <div class="card" id="cost-card">
+        <div class="card-header">
+          <span>API Usage</span>
+          <button type="button" class="btn btn-danger" id="reset-costs-btn" style="flex: none; font-size: 12px; padding: 6px 14px;">Reset costs</button>
         </div>
+        <p class="cost-display">
+          <span id="cost-calls">0</span> calls &middot; ~<span id="cost-tokens">0</span> tokens
+        </p>
       </div>
 
-      <div class="field">
-        <label for="theme">Theme</label>
-        <select id="theme" name="theme">
-          <option value="system">System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </div>
-
-      <div class="separator"></div>
-
-      <div class="button-group">
-        <button type="submit" class="btn btn-primary" id="save-btn">Save</button>
-        <button type="button" class="btn btn-danger" id="clear-cache-btn">Clear Cache</button>
-      </div>
-      <div class="button-group">
-        <button type="button" class="btn btn-test" id="export-cache-btn">Export Cache</button>
-        <button type="button" class="btn btn-test" id="import-cache-btn">Import Cache</button>
-      </div>
-      <input type="file" id="cache-file-input" accept=".json" style="display:none;">
-      <p id="cache-stats" class="cache-stats"></p>
-    </form>
-
-    <!-- ─── Custom Group Rules (T7.9) ─────────────────────────────── -->
-    <div class="card" id="rules-card">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Custom Group Rules</span>
-        <span style="font-size: 12px; color: var(--text-muted);">Bypass LLM for known domains</span>
-      </div>
-      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
-        Define domain→group mappings that skip the LLM entirely. First matching rule wins.
-        Supports glob patterns: <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">*</code> matches any subdomain,
-        <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">?</code> matches any single character.
-      </p>
-
-      <!-- Add Rule Form -->
-      <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-        <input type="text" id="rule-pattern-input" placeholder="e.g. github.com"
-               style="flex: 1; padding: 8px 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none;">
-        <input type="text" id="rule-group-input" placeholder="Group name"
-               style="flex: 0 0 140px; padding: 8px 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none;">
-        <button type="button" class="btn btn-primary" id="add-rule-btn" style="flex: none; font-size: 12px; padding: 8px 16px;">Add</button>
-      </div>
-
-      <!-- Rules Table -->
-      <div id="rules-table-container" style="max-height: 300px; overflow-y: auto;">
-        <table id="rules-table" style="width: 100%; border-collapse: collapse; font-size: 13px; display: none;">
-          <thead>
-            <tr style="border-bottom: 1px solid var(--border);">
-              <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 5%;">#</th>
-              <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 30%;">Domain Pattern</th>
-              <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 25%;">Group Name</th>
-              <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 15%;">Enabled</th>
-              <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 25%;">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="rules-table-body"></tbody>
-        </table>
-      </div>
-      <p id="rules-empty-message" style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">No rules defined yet. Add a rule above to skip LLM calls for specific domains.</p>
-      <p id="rules-validation-error" style="color: var(--danger); font-size: 12px; display: none; margin-top: 4px;"></p>
-
-      <div class="separator"></div>
-
-      <div style="display: flex; gap: 8px;">
-        <button type="button" class="btn btn-test" id="export-rules-btn" style="flex: 1; font-size: 12px; padding: 8px 16px;">Export Rules</button>
-        <button type="button" class="btn btn-test" id="import-rules-btn" style="flex: 1; font-size: 12px; padding: 8px 16px;">Import Rules</button>
-      </div>
-      <input type="file" id="rules-file-input" accept=".json" style="display:none;">
-    </div>
-
-    <!-- ─── Cost Tracking ─────────────────────────────────────────── -->
-    <div class="card" id="cost-card">
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <div>
-          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">API Usage</span>
-          <p style="font-size: 24px; font-weight: 700; margin-top: 4px;">
-            <span id="cost-calls">0</span> calls &middot; ~<span id="cost-tokens">0</span> tokens
-          </p>
+      <!-- ─── Keyboard Shortcuts ────────────────────────────────── -->
+      <div class="card" id="shortcuts-card">
+        <div class="card-header">Keyboard Shortcuts</div>
+        <div id="shortcuts-list" style="font-size: 14px;">
+          <p style="color: var(--text-muted);">Loading…</p>
         </div>
-        <button type="button" class="btn btn-danger" id="reset-costs-btn" style="flex: none; font-size: 12px; padding: 6px 14px;">Reset costs</button>
+        <p style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+          You can change these in <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">about:addons</code> → TabTamer → gear icon → Manage Extension Shortcuts
+        </p>
       </div>
-    </div>
-
-    <!-- ─── Excluded Domains (T6.9) ─────────────────────────────────-- -->
-    <div class="card" id="excluded-domains-card">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Excluded Domains</span>
-        <span style="font-size: 12px; color: var(--text-muted);">Privacy</span>
-      </div>
-      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
-        Domains listed here will never be sent to the LLM for classification.
-        One per line. Use <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">*.domain.com</code> for wildcard subdomain matching.
-      </p>
-      <textarea id="excluded-domains-input"
-                style="width: 100%; min-height: 80px; padding: 10px 12px; font-size: 13px;
-                       background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-                       color: var(--text); outline: none; resize: vertical; font-family: monospace;"
-                placeholder="e.g.&#10;bank.example.com&#10;*.internal.corp&#10;localhost"></textarea>
-      <div style="margin-top: 12px; display: flex; gap: 8px;">
-        <button type="button" class="btn btn-primary" id="save-excluded-domains-btn" style="flex: 1;">Save</button>
-      </div>
-    </div>
-
-    <!-- ─── Domain Cache Dashboard ────────────────────────────────── -->
-    <div class="card" id="cache-dashboard-card">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Domain Cache</span>
-        <span id="dashboard-cache-count" style="font-size: 12px; color: var(--text-muted);"></span>
-      </div>
-      <input type="text" id="cache-search" placeholder="Search domain or group…" style="width: 100%; padding: 8px 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none; margin-bottom: 12px;">
-      <div id="cache-table-container" style="max-height: 300px; overflow-y: auto;">
-        <table id="cache-table" style="width: 100%; border-collapse: collapse; font-size: 13px; display: none;">
-          <thead>
-            <tr style="border-bottom: 1px solid var(--border);">
-              <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 40%;">Domain</th>
-              <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 40%;">Group</th>
-              <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 20%;">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="cache-table-body"></tbody>
-        </table>
-      </div>
-      <p id="cache-empty-message" style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">No cached domains yet</p>
-    </div>
-
-    <!-- ─── Keyboard Shortcuts ────────────────────────────────────── -->
-    <div class="card" id="shortcuts-card">
-      <p style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px;">Keyboard Shortcuts</p>
-      <div id="shortcuts-list" style="font-size: 14px;">
-        <p style="color: var(--text-muted);">Loading…</p>
-      </div>
-      <p style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
-        You can change these in <code style="background: var(--bg); padding: 1px 4px; border-radius: 3px;">about:addons</code> → TabTamer → gear icon → Manage Extension Shortcuts
-      </p>
-    </div>
+    </section>
 
     <!-- ─── Confirm Modal ────────────────────────────────────────── -->
     <div id="confirm-modal" class="modal-overlay" style="display: none;">

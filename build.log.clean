@@ -4826,4 +4826,610 @@ Wait, the rules say:
 - Write iteration-summary before stopping
 - Call session-complete only when ALL tasks done
 
-Since T7.13 is already done, I should mark it complete and s
+Since T7.13 is already done, I should mark it complete and stop. But also, since all remaining tasks aren't done, I shouldn't call session-complete. Let me just stop here.
+
+Actually, the rules say:
+"STOP (do not pick another task)"
+
+So I should stop after writing the iteration-summary. Let me not pick another task for now.
+
+But wait, looking at the rules more carefully:
+"5. Write iteration-summary using iteration-summary tool
+6. STOP (do not pick another task)"
+
+I've completed step 5. I should now stop.Task T7.13 is already correctly implemented in the code. The badge shows only TabTamer-managed groups count, using the `_managedGroupIds.has(g.id)` filter. No code changes were needed.
+
+**Iteration #6 complete.**
+--- Agent finished: end_turn | Duration: 52.115s | Model: opencode-go/deepseek-v4-flash | Tokens: in=26944 out=3286 cache_read=149376 cache_write=0 ---
+The user wants me to commit `build.log.clean` with a commit message about T7.13 completion. Let me stage and commit.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 11 bytes)
+Now let me create the commit.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 120 bytes)
+Done. The commit was created successfully with `build.log.clean` staged and committed.Committed `build.log.clean` with message:
+
+```
+T7.13: Fix badge to show only TabTamer-managed groups
+
+Verified that updateBadge() already correctly filters to show only
+_managedGroupIds groups count. All setBadgeText() calls use the
+filtered managedCount. No code changes needed.
+```
+--- Agent finished: end_turn | Duration: 8.489s | Model: opencode-go/deepseek-v4-flash | Tokens: in=653 out=301 cache_read=96128 cache_write=0 ---
+
+✓ Iteration #6 complete
+
+Let me analyze the current state. I've completed several tasks already (T7.9, T7.1, T7.11, T7.12, T7.13). Now I need to pick the next highest priority unblocked task.
+
+Let me use task-next to see what's ready.
+[tool: iteratr-tools__task-next] ...
+
+[tool: iteratr-tools__task-next] ...
+[tool: iteratr-tools__task-next] ✓ (output: 182 bytes)
+The next highest priority task is T7.14: Options page — add sections/tabs for navigation. Let me first read the current state of the files I need to modify.
+
+Let me look at the current options.html and options.js to understand the structure.Let me start by examining the current state of the codebase to understand what I'm working with.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 25101 bytes)
+[tool: read] ✓ (output: 48438 bytes)
+OK, so I can see the current state. The options page is a single long scroll with cards stacked vertically. I need to implement T7.14: Add sections/tabs for navigation.
+
+Let me also look at the background.js to understand constants and the rules-engine.js, since I need to be careful about the tab navigation system.
+
+Let me plan the implementation:
+
+1. Add tab navigation UI to `options.html`:
+   - A tab bar with buttons: General, Rules, Cache, Privacy, Info
+   - Content sections wrapped in divs with IDs matching each tab
+   - CSS for tab styling
+
+2. Update `options.js`:
+   - Add tab switching logic
+   - Keep all existing functionality but organize it into sections
+   - Ensure the tab state is handled properly
+
+Let me look at what constants are being used and what shared modules exist, to understand dependencies.
+
+I also need to check the background.js to understand the current state and what's been extracted so far.Let me examine additional files to understand the full picture before implementing.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1443 bytes)
+[tool: read] ✓ (output: 1930 bytes)
+[tool: read] ✓ (output: 1055 bytes)
+[tool: read] ✓ (output: 2081 bytes)
+Now I understand the full picture. Let me plan T7.14: Options page — add sections/tabs for navigation.
+
+I need to:
+1. Restructure `options.html` to have sections wrapped in tab-content divs
+2. Add a tab navigation bar with buttons
+3. Add CSS for the tabs
+4. Update `options.js` to add tab switching logic
+5. Split the sections into: General, Rules, Cache, Privacy, Info
+
+Let me identify which sections go where:
+
+**General** (Tab 1):
+- API Key input
+- Model select
+- Theme select
+- Extension enabled checkbox
+- Save button
+- Test API Key button
+
+**Rules** (Tab 2):
+- Custom group rules (the whole rules card)
+
+**Cache** (Tab 3):
+- Cache dashboard (search, table, edit/delete)
+- Clear cache, Export, Import buttons
+- Cache stats
+
+Wait, looking at the current layout more carefully:
+
+Cards currently:
+1. Settings form (API key, model, enabled, theme, save, clear cache, export/import cache, cache stats)
+2. Custom Group Rules
+3. API Usage (costs)
+4. Excluded Domains
+5. Domain Cache (dashboard with search/table/edit)
+6. Keyboard Shortcuts
+
+The spec says:
+- **General**: API key, model, theme, pause toggle
+- **Rules**: custom group rules table (from T7.9)
+- **Cache**: cache dashboard (search, edit, delete, import/export)
+- **Privacy**: excluded domains list
+- **Info**: version, costs, keyboard shortcuts
+
+So I need to:
+1. Restructure the content into 5 sections
+2. Move "Clear Cache", "Export Cache", "Import Cache" buttons to Cache tab
+3. Move "API Usage" (costs) card to Info tab
+4. Move "Keyboard Shortcuts" card to Info tab
+5. Move "Excluded Domains" card to Privacy tab
+6. Keep the General settings (API key, model, theme, enabled) in General tab
+7. Keep Rules in Rules tab
+8. Keep Cache dashboard in Cache tab
+
+Let me also think about what to do with the "Clear Cache" button - it's currently in the settings form card. I need to move it to the Cache section.
+
+Let me structure the HTML:
+
+```html
+<!-- Tab Navigation -->
+<div class="tab-nav">
+  <button class="tab-btn active" data-tab="general">General</button>
+  <button class="tab-btn" data-tab="rules">Rules</button>
+  <button class="tab-btn" data-tab="cache">Cache</button>
+  <button class="tab-btn" data-tab="privacy">Privacy</button>
+  <button class="tab-btn" data-tab="info">Info</button>
+</div>
+
+<!-- General Tab -->
+<div class="tab-content" id="tab-general">
+  ... settings form (api key, model, theme, enabled, save) ...
+  ... test API key ...
+</div>
+
+<!-- Rules Tab -->
+<div class="tab-content" id="tab-rules" style="display:none">
+  ... custom group rules ...
+</div>
+
+<!-- Cache Tab -->
+<div class="tab-content" id="tab-cache" style="display:none">
+  ... cache dashboard ...
+  ... clear cache, export/import cache buttons ...
+  ... cache stats ...
+</div>
+
+<!-- Privacy Tab -->
+<div class="tab-content" id="tab-privacy" style="display:none">
+  ... excluded domains ...
+</div>
+
+<!-- Info Tab -->
+<div class="tab-content" id="tab-info" style="display:none">
+  ... costs ...
+  ... keyboard shortcuts ...
+  ... version ...
+</div>
+```
+
+Let me now implement this. I need to be careful about:
+- Keeping all existing IDs so JavaScript still works
+- Moving DOM elements to appropriate tabs
+- Not breaking any event listeners
+- Adding tab CSS
+- Adding tab switching JS
+- Making sure the confirm modal and toast are outside tab content
+
+Let me also check the current constants.ts and utils.ts to see what's been done for T7.16 and T7.17.
+
+Wait, from the read command, constants.js and utils.js don't exist yet. So those tasks haven't been done. But I need to be careful about references. The current options.js uses hardcoded SETTINGS_KEY, CACHE_KEY, etc. So I should keep using those for now but in proper tab sections.
+
+Let me now write the implementation. I'll:
+
+1. Rewrite `options.html` with tab structure
+2. Update `options.js` with tab switching logic
+
+Let me design the CSS for tabs first. I'll make it look nice with the existing theme variables.
+
+For the tab navigation, I'll use a horizontal tab bar at the top, similar to browser tabs. Each tab button will have a data-tab attribute. The content sections will be divs with matching IDs.
+
+Let me write the implementation now.
+
+Actually, I also need to check: does the current options.html have everything properly structured? Let me re-examine.
+
+The current options page has:
+1. Title + version
+2. Settings form (card) - API key, model, enabled, theme, save/clear/export/import buttons, cache stats
+3. Rules card
+4. Costs card (API Usage)
+5. Excluded Domains card
+6. Cache Dashboard card
+7. Keyboard Shortcuts card
+8. Confirm Modal
+9. Toast
+
+For the new structure:
+
+**General tab:**
+- Settings form with: API key, model, enabled, theme, Save button
+- Test API key button
+- Import/Export/clear cache will move to Cache tab
+
+**Rules tab:**
+- Rules card (no change)
+
+**Cache tab:**
+- Cache dashboard (search, table, edit/delete)
+- Clear cache button
+- Export/Import cache buttons
+- Cache stats
+
+**Privacy tab:**
+- Excluded domains card
+
+**Info tab:**
+- API Usage (costs) card
+- Keyboard Shortcuts card
+- Version display
+
+Since I need to restructure the DOM significantly, I should be careful not to break any existing event listeners.
+
+Let me think about the approach:
+
+Option A: Complete rewrite of options.html (simpler to get the structure right)
+Option B: Edit-in-place (more precise, but harder to get right with overlapping edits)
+
+I'll go with Option A - a complete rewrite of options.html since almost everything is changing structure. For options.js, I'll add the tab switching logic via edits.
+
+Actually, let me think more carefully. The options.js has many event listeners that reference DOM elements by ID. If I restructure the HTML but keep all the IDs the same, the JS should work fine. The key is:
+- Keep all existing IDs
+- Move elements to their tab sections
+- Add the tab bar and tab content wrappers
+- Add CSS for tabs
+- Add tab switching JS
+
+Let me plan the HTML rewrite carefully.
+
+For the tab switching JS, I'll add it to options.js. Let me write a `switchTab(tabName)` function and setup tab button click handlers.
+
+Let me now implement.
+
+First, let me check the options.js to understand all the DOM refs I need to preserve:
+
+From options.js DOM refs:
+- settings-form, api-key, model, theme, enabled, save-btn, test-api-key-btn
+- clear-cache-btn, export-cache-btn, import-cache-btn, cache-file-input, cache-stats
+- reset-costs-btn, cost-calls, cost-tokens
+- toast
+- excluded-domains-input, save-excluded-domains-btn
+- cache-search, cache-table, cache-table-body, cache-empty-message, dashboard-cache-count
+- rule-pattern-input, rule-group-input, add-rule-btn, rules-table, rules-table-body, rules-empty-message, rules-validation-error, export-rules-btn, import-rules-btn, rules-file-input
+- confirm-modal, confirm-modal-message, confirm-modal-ok, confirm-modal-cancel
+- shortcuts-list
+- version-display
+
+All these IDs need to be preserved in the new HTML.
+
+Let me also think about whether `options_ui.open_in_tab = true` affects the design. Since the options page opens in a tab, it has more room, so tabs work well.
+
+Let me write the implementation now.Now I have a clear picture of the current state. Let me implement T7.14: options page tabs/sections. I'll restructure the HTML with tab navigation and add tab switching logic to the JS.
+[tool: iteratr-tools__task-update] ...
+
+[tool: iteratr-tools__task-update] ...
+[tool: iteratr-tools__task-update] ✓ (output: 39 bytes)
+Let me now write the complete options.html with tab navigation.Let me rewrite `options.html` with the tab navigation structure, preserving all existing IDs:
+[tool: write] ...
+
+[tool: write] ...
+[tool: write] ✓ (output: 43 bytes)
+Now I need to update `options.js` to add the tab switching functionality. I need to add:
+
+1. `switchTab(tabName)` function — shows/hides tab content, updates tab button active state
+2. Tab button click event listeners
+3. Setup in `DOMContentLoaded`
+
+I also want to add the excluded count badge update to the privacy tab header (T7.15's requirement for showing excluded domain count as a badge).
+
+Let me also make sure the existing event listeners still work. Since all IDs are preserved, they should be fine.
+
+Let me add the tab switching code to options.js. I'll add it after the DOMContentLoaded event setup section, and add the tab event listener setup.
+
+I also need to make sure the `setupRulesTableEvents` gets properly initialized - since the rules table is now inside a tab-content which starts hidden (only General is active), I need to make sure the delegated event handlers still work (they should, since events bubble up from the document).
+
+Actually, looking more carefully at the initialization in DOMContentLoaded:
+```javascript
+document.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
+  loadCosts();
+  loadCacheStats();
+  loadVersion();
+  loadShortcuts();
+  loadCacheDashboard();
+  setupCacheDashboardEvents();
+  loadExcludedDomains();
+  loadRulesTable();
+  setupRulesTableEvents();
+});
+```
+
+All these should still work. The DOM elements are all present in the page (just some are hidden). Event delegation via `addEventListener` on elements that exist in the document should work even if they're in hidden sections.
+
+Let me add the tab switching code.Now let me add the tab switching functionality to `options.js`:
+[tool: edit] ...
+
+[tool: edit] ...
+The old_text didn't match exactly. Let me read the relevant portion of options.js to see the exact text.Let me check the exact text around the DOMContentLoaded section:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 2315 bytes)
+I see the exact text now. The old text needs to match exactly including the comment style and spacing. Let me use the exact text from the file.Now I'll apply the edit with the exact matching text:
+[tool: edit] ...
+
+[tool: edit] ...
+[tool: edit] ✓ (output: 1769 bytes)
+Wait, looking at the edit result, it seems like there's an extra `}` added. Let me check the file around the edited area to make sure it's correct. The edit added the new functions and the `setupTabNavigation()` call, but I need to verify the existing code wasn't duplicated.
+
+Actually, looking more carefully at the edit result, I see the issue. The edit replaced the comment and DOMContentLoaded section but it seems to have removed the matching closing brace of `handleRulesFileSelected`. Let me check the file now.Let me verify the file structure is correct after the edit:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 2517 bytes)
+The file structure looks correct. The `handleRulesFileSelected` function properly closes at line 1059, and the new tab navigation functions are added after it. The DOMContentLoaded event listener now includes `setupTabNavigation()`.
+
+Let me also check the rest of the file to make sure the event listeners at the bottom are intact.Good, the structure is clean. Let me verify the bottom of the file is intact:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 1338 bytes)
+All event listeners are intact. Now let me test the implementation by doing a quick syntax check on the files.
+
+Let me also check if there's an issue with the DOMContentLoaded handler - currently the event listeners for `form.addEventListener('submit', ...)` etc. are registered at the top level of the script (not inside DOMContentLoaded). Since options.js is loaded at the end of `<body>` (via `<script src="options.js">`), the DOM elements should already be parsed. But I should double-check that all DOM refs at the top of the file still work.
+
+The DOM refs at the top of options.js:
+```javascript
+const form = document.getElementById('settings-form');
+const apiKeyInput = document.getElementById('api-key');
+...
+```
+
+These are all at the top level of the script, executed when the script loads. Since the script is at the end of `<body>`, all elements should be available. Good.
+
+Now let me also add the excluded domains count badge update. The spec says "Show excluded domain count as a badge on the 'Excluded Domains' section header" in T7.15. But that's a separate task. However, I added the badge element in the HTML (id="excluded-count-badge"), so I should wire it up now since it's a small addition that fits naturally with the tab restructure.
+
+Actually, let me focus on T7.14 first - the tab navigation. Let me verify the implementation is correct by testing the HTML syntax.Let me verify the HTML syntax and JS syntax are correct:
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+
+[tool: bash] ...
+Node is not available. Let me try using nix-shell or find the node binary.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 431 bytes)
+The JS syntax is OK. Now let me also verify the HTML is well-formed using python or something.JS syntax is valid. Let me also check the HTML structure:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 120 bytes)
+All HTML tags are balanced. Now let me also verify the HTML structure visually by checking a few key things:
+
+1. The tab navigation is properly structured with 5 buttons
+2. Each tab content section exists
+3. The confirm modal and toast are outside tab contents
+4. All the elements referenced by options.js are present
+
+Let me also check the complete file to ensure everything looks right.
+
+Actually, let me also check if the `excluded-count-badge` element is properly referenced in the JS (for T7.15's exclude count badge). I added it in the HTML but it's not wired up in JS yet. But that's T7.15's task, not T7.14, so I'll leave it for now. Actually, I might as well wire it up since it's a simple addition that leverages the new tab structure.
+
+Wait, let me not scope-creep. T7.14 is about tab navigation, and the badge count is T7.15. Let me focus on what's needed for T7.14.
+
+Actually, I notice the T7.15 task says "Show excluded domain count as a badge on the 'Excluded Domains' section header" which is basically the same as what I described. Adding the badge count is minimal and fits naturally. But I'll keep it for T7.15.
+
+Let me now verify my implementation works end-to-end by checking that all the pieces are correct:
+
+1. The HTML now has tab buttons + tab content sections - ✓
+2. The CSS supports the tab styling - ✓
+3. The JS has switchTab() and setupTabNavigation() - ✓
+4. DOMContentLoaded calls setupTabNavigation() - ✓
+5. All existing IDs preserved - ✓
+
+Let me also make sure the event listeners for elements inside hidden tabs still work. Since event delegation is used for the cache dashboard and rules table (they use event delegation on table bodies), they should work fine. The direct event listeners (like `clearCacheBtn.addEventListener`) are on elements that exist in the DOM regardless of tab visibility.
+
+Let me also check a potential issue: the `rules-table-body` delegated events. The event listeners for `setupRulesTableEvents()` attach to `rulesTableBody` which is inside the rules tab. But since it's a delegated event (click on the tbody), it works even if the tbody is hidden because event listeners are on the element itself, not on a visible region.
+
+Wait, actually `setupRulesTableEvents()` uses event delegation on `rulesTableBody`:
+```javascript
+rulesTableBody.addEventListener('click', async (event) => {
+```
+
+This is fine because the element exists in the DOM (it's just hidden via `display:none` on the parent `.tab-content`).
+
+Similarly, `setupCacheDashboardEvents()` uses delegation on `cacheTableBody`.
+
+All other event listeners are on specific elements by ID, which exist in the DOM.
+
+So everything should work fine.
+
+Let me also verify that the `clear-cache-btn` and other buttons that were moved from the settings form to the cache tab still have their event listeners. Looking at the bottom of options.js:
+
+```javascript
+clearCacheBtn.addEventListener('click', clearCache);
+exportCacheBtn.addEventListener('click', exportCache);
+importCacheBtn.addEventListener('click', () => cacheFileInput.click());
+cacheFileInput.addEventListener('change', handleCacheFileSelected);
+```
+
+These are all registered on elements that still exist in the DOM (moved to the cache tab section). ✓
+
+One thing I want to double-check: the `form.addEventListener('submit', saveSettings)` event listener. The form element with id `settings-form` is now inside the general tab, which has `display:none` initially via the `.tab-content:not(.active)` or `.tab-content` default display. But since the general tab is the one with class `active`, it's visible by default. ✓
+
+Let me also verify the `cache-stats` element is now in the cache tab. It was previously at the bottom of the settings form. Now it's in the cache tab section. ✓
+
+I think the implementation is complete. Let me do a final check on the brace/paren balance of options.js.All tags are balanced. Let me do a final brace/paren balance check on the JS:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 98 bytes)
+Everything is balanced. Let me also check the background.js to make sure it's unaffected by my changes (I didn't modify it, but just to be safe).
+
+Let me also think about whether I need to update the `loadExcludedDomains` function to update the badge count. The spec for T7.15 mentions showing the excluded domain count as a badge. But that's a separate task. However, I already added the badge element in the HTML. Let me not wire it up now since it's out of scope.
+
+Actually, I want to double-check one thing: the `loadVersion()` function references `document.getElementById('version-display')`. In the new HTML, this span is inside the subtitle paragraph, which is outside any tab content. So it's always visible. ✓
+
+Let me now run a test to make sure the options page loads correctly by checking for any issues with the nix-shell test environment.
+
+Actually, I should also check that the test environment works. Let me look at what testing infrastructure is available.Let me check the test environment to make sure everything works:
+[tool: find] ...
+
+[tool: find] ...
+
+[tool: find] ...
+
+[tool: find] ...
+[tool: find] ✓ (output: 11 bytes)
+[tool: find] ✓ (output: 12 bytes)
+Let me check the test file and AGENTS.md to understand testing conventions.
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 3959 bytes)
+[tool: read] ✓ (output: 10693 bytes)
+I see the testing instructions. Let me also run the unit tests to make sure nothing is broken. Let me check if there are unit tests for the options page and run them.
+
+Actually, looking at AGENTS.md: "npm test # 16 unit tests via Node.js built-in runner". Let me run the tests to verify nothing is broken.
+
+But first, let me also check if there's a specific test for the options page.Let me run the existing tests to verify my changes don't break anything:
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 3285 bytes)
+All 16 tests pass. The changes are clean.
+
+Now let me also verify that I haven't missed any edge cases in the implementation. Let me think about what could go wrong:
+
+1. The tab buttons use `data-tab` attribute - each button has `data-tab="general"`, etc. ✓
+2. The tab content sections have `id="tab-general"`, `id="tab-rules"`, etc. ✓
+3. `switchTab()` maps `tabName` to `id="tab-" + tabName` - this matches. ✓
+4. The `active` class is managed on both buttons and content sections. ✓
+5. `aria-selected` is updated on tab buttons. ✓
+6. `role` attributes: `tablist` on nav, `tab` on buttons, `tabpanel` on sections. ✓
+
+One thing I should verify: the initial state. The first tab (General) should have `class="tab-btn active"` and `aria-selected="true"`, and the general tab content section should have `class="tab-content active"`. All other tabs should have `display:none` via `.tab-content` default style.
+
+Looking at the HTML I wrote:
+- First tab button: `<button class="tab-btn active" role="tab" aria-selected="true" data-tab="general">`
+- First tab content: `<section class="tab-content active" id="tab-general" role="tabpanel">`
+- Others: `<button class="tab-btn" role="tab" aria-selected="false" data-tab="...">`
+- Other content: `<section class="tab-content" id="tab-..." role="tabpanel" style="display:none">`
+
+Wait, I didn't add `style="display:none"` to the other tab-content sections. Let me check the CSS:
+
+```css
+.tab-content {
+  display: none;
+  animation: fadeIn 0.2s ease;
+}
+
+.tab-content.active {
+  display: block;
+}
+```
+
+The default CSS hides all `.tab-content` elements, and the `.active` class shows only the active one. So I don't need inline `display:none`. That's cleaner. ✓
+
+Let me also check that the tab switching animation works correctly. The `fadeIn` animation applies when `.tab-content` is shown. When switching tabs, we toggle the `active` class, which changes `display` from `none` to `block`, triggering the animation. ✓
+
+Let me also look for any potential issues with the `fadeIn` animation. Since `display: none` → `display: block` doesn't animate in CSS (elements need to be visible for animation to work), the `fadeIn` might not trigger. Let me think... 
+
+Actually, when `display` changes from `none` to `block`, the animation does play because the element becomes visible. The `@keyframes fadeIn` starts from `opacity: 0; transform: translateY(-4px);`. So the animation should work fine. ✓
+
+Now, let me also verify that I haven't introduced any issues with the `setupRulesTableEvents` function. The rules table is inside the rules tab which is hidden initially. The event delegation on `rulesTableBody` (a `<tbody>`) should work because the element exists in the DOM even if its parent is hidden. Let me double check...
+
+Actually, `rulesTableBody` is defined at the top of options.js:
+```javascript
+const rulesTableBody = document.getElementById('rules-table-body');
+```
+
+This element is inside `<section class="tab-content" id="tab-rules" role="tabpanel">`. Since `getElementById` works regardless of parent visibility, the reference is valid. And `addEventListener` on a hidden element works fine - events still fire when they bubble up from child elements. ✓
+
+I'm satisfied the implementation is correct. Let me now write the iteration summary.
+
+Wait, I also want to check one more thing - the `shortcuts-list` element. It was previously inside a card with id `shortcuts-card`. Let me verify it's still in the HTML...
+
+Yes, I have it in the Info tab:
+```html
+<div class="card" id="shortcuts-card">
+  <div class="card-header">Keyboard Shortcuts</div>
+  <div id="shortcuts-list" style="font-size: 14px;">
+```
+
+The `shortcuts-list` element is present and will be populated by `loadShortcuts()`. Since `setupTabNavigation()` is called in `DOMContentLoaded`, and `loadShortcuts()` is also called there, the shortcuts should be loaded when the page loads (even though the Info tab is hidden). ✓
+
+One more thing: the `version-display` element. It's now outside any tab, in the header area:
+```html
+<p class="subtitle">Auto-group your tabs with LLM-powered classification <span id="version-display"></span></p>
+```
+
+And `loadVersion()` updates it:
+```javascript
+function loadVersion() {
+  const manifest = browser.runtime.getManifest();
+  document.getElementById('version-display').textContent = `v${manifest.version}`;
+}
+```
+
+This will work since the element is always visible. ✓
+
+I'm confident the implementation is correct and complete. Let me finalize.All 16 tests pass. Let me also verify the complete JavaScript functionality by checking the brace balance in the HTML:
+[tool: bash] ...
+
+[tool: bash] ...
+Python escaping issue with the raw string. Let me fix that.
+[tool: bash] ...
+
+[tool: bash] ...
+[tool: bash] ✓ (output: 237 bytes)
+The `input` tag mismatch is expected - `<input>` is a self-closing tag in HTML (void element), so it doesn't have a closing `</input>` tag. That's correct HTML behavior. All other tags are balanced.
+
+Everything looks good. Let me now write the iteration summary and mark the task as completed.
+
+Let me also check if there are any issues I've overlooked by reviewing the HTML one more time for correctness.
+
+Actually, let me re-read the options.html to make sure the structure is clean.The `input` mismatch is expected - it's a self-closing void element. Everything else is balanced. Let me do a final review of the complete HTML now that all pieces are in place:
+[tool: read] ...
+
+[tool: read] ...
+[tool: read] ✓ (output: 31192 bytes)
+The HTML looks clean and correct. Let me verify the complete list of changes I made, and verify everything is consistent:
+
+1. **options.html** - Complete restructure:
+   - Tab navigation bar with 5 buttons (General, Rules, Cache, Privacy, Info)
+   - Tab content sections with appropriate roles/attributes
+   - Moved all cards into appropriate tab sections
+   - Moved cache-related actions (clear, export/import) from General form to Cache tab
+   - Move
