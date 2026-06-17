@@ -292,6 +292,52 @@ navigation events that wouldn't fire `tabs.onUpdated`:
 Messages are sent to background.js, which applies debounce (1.5s per tab) to
 avoid re-classifying during rapid redirects (e.g. OAuth flows).
 
+### 11. Content-Based Classification (Future)
+
+**Classify by topic, not just domain.** The current system only sees the URL
+and page title. This limits it to domain-level grouping — every `github.com`
+tab goes to "Code", whether it's a Python library or a Rust compiler. By
+reading the page's actual content (headlines, headings, first paragraphs), the
+LLM can classify by *theme* instead.
+
+**Example: AG Grid ecosystem**
+```
+ag-grid.com/docs              → "AG Grid" (docs site)
+github.com/ag-grid/ag-grid   → "AG Grid" (repo)
+stackoverflow.com/.../ag-grid → "AG Grid" (forum)
+```
+Three different domains, one group — because the page content is about the
+same library.
+
+**How it works:**
+- `content.js` extracts the page's `<title>`, `<h1>`, and first 500 chars of
+  visible text, avoiding nav/sidebar/footer noise
+- The extracted text is sent alongside the URL to the LLM prompt
+- The LLM returns a *topic-based* group name, not a domain-based one
+- Caching stays domain-based, but rules can be content-aware (e.g. glob on
+  URL path + domain, not just domain)
+
+**Opt-in**: Content extraction is heavier than URL-only. Users should be able
+to toggle it per-classification or globally. Domains already matched by rules
+skip content extraction entirely.
+
+### 12. Group Splitting (Future)
+
+**When a group grows too large, split it.** A "Code" group with 40 tabs isn't
+useful — it needs to become "AG Grid", "Rust", "Dotfiles", etc. The LLM can
+periodically audit large groups and suggest splits.
+
+**How it works:**
+- Set a threshold (e.g. 15 tabs) — groups above it are candidates for splitting
+- The LLM receives the titles/URLs of all tabs in the oversized group
+- It returns 2–5 suggested sub-group names with tab assignments
+- The user approves or adjusts via a notification or the popup
+- New groups are created, tabs moved, colors assigned
+
+**Naming**: Split sub-groups inherit the parent name as context. A "Code"
+group splitting into theme-based sub-groups might produce "Code / AG Grid",
+"Code / Rust", "Code / Dotfiles" — keeping the hierarchy visible.
+
 ## Flow
 
 ### New tab classification
@@ -300,11 +346,11 @@ avoid re-classifying during rapid redirects (e.g. OAuth flows).
 1. tabs.onUpdated fires (or spaNavigate message from content script)
 2. Parse URL → extract domain
 3. Check rules engine: first enabled rule matching domain wins
-   ├─ Match → use rule's group name (skip LLM entirely)
+   ├─ Match → use rule's group name (skip LLM and content extraction)
    └─ No match → continue
 4. Check storage.local cache for domain
    ├─ Hit  → use cached group name
-   └─ Miss → call LLM API
+   └─ Miss → extract page content (title, h1, first 500 chars) + call LLM
 5. Look up or create native tab group with that name
 6. tabs.group({ tabId, groupId })
 7. Save domain→group in cache (unless matched by rule with "don't cache")

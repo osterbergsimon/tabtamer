@@ -794,14 +794,15 @@ function setupCacheDashboardEvents() {
   });
 
   // Search input: debounced filtering
+  let _debounceTimer;
   cacheSearch.addEventListener('input', () => {
     // Simple debounce via setTimeout
-    if (cacheSearch._debounceTimer) {
-      clearTimeout(cacheSearch._debounceTimer);
+    if (_debounceTimer) {
+      clearTimeout(_debounceTimer);
     }
-    cacheSearch._debounceTimer = setTimeout(() => {
+    _debounceTimer = setTimeout(() => {
       loadCacheDashboard();
-    }, 200);
+    }, SEARCH_DEBOUNCE_MS);
   });
 
   // T8.11: Color picker change handler
