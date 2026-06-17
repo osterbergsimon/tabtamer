@@ -676,7 +676,14 @@ async function assignToGroup(tabId, groupName) {
       console.log(`TabTamer: found existing group "${groupName}" (id: ${groupId})`);
     } else {
       // Create new group in the tab's window with deterministic color
-      const tab = await browser.tabs.get(tabId);
+      // T7.1: Wrap inner tabs.get in try/catch — tab may close between outer guard and here
+      let tab;
+      try {
+        tab = await browser.tabs.get(tabId);
+      } catch (getErr) {
+        console.log(`TabTamer: tab ${tabId} closed before group creation`);
+        return;
+      }
       const groupColor = getGroupColor(groupName);
       const newGroup = await browser.tabGroups.create({
         title: groupName,
