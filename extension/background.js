@@ -742,8 +742,9 @@ browser.runtime.onMessage.addListener((message, sender) => {
   }
 
   // T8.9: Classify-this-tab button in popup
+  // T11.11: Return promise so popup can await classification result
   if (message.type === 'classifyNow' && message.tabId) {
-    runWithConcurrencyLimit(() => handleTab(message.tabId, message.url, message.title));
+    return runWithConcurrencyLimit(() => handleTab(message.tabId, message.url, message.title));
   }
 
   // T10.9: LLM-assisted rule creation — batch cache scanning

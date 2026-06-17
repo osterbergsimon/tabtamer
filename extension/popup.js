@@ -274,21 +274,32 @@ async function handleClassifyNow() {
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     if (tabs.length === 0) return;
     const tab = tabs[0];
-    // T10.14: Show 'Classifying…' state for 500ms before closing
+    // T11.11: Show 'Classifying…' state and await result
     classifyBtn.textContent = 'Classifying…';
     classifyBtn.disabled = true;
+    hideError();
+
     await browser.runtime.sendMessage({
       type: 'classifyNow',
       tabId: tab.id,
       url: tab.url,
       title: tab.title
     });
-    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // T11.11: Success — show green checkmark, then close
+    classifyBtn.textContent = '\u2713 Done!';
+    classifyBtn.style.color = 'var(--success)';
+    classifyBtn.style.borderColor = 'var(--success)';
+    await new Promise(resolve => setTimeout(resolve, 1500));
     window.close();
   } catch (err) {
     console.error('TabTamer popup: classify failed', err);
+    // T11.11: Failure — keep popup open, show error message
     classifyBtn.textContent = 'Classify Tab';
     classifyBtn.disabled = false;
+    classifyBtn.style.color = '';
+    classifyBtn.style.borderColor = '';
+    showError(`Classification failed: ${err.message || 'Unknown error'}`);
   }
 }
 
