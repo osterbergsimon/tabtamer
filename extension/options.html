@@ -655,7 +655,8 @@
                 <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 30%;">Domain Pattern</th>
                 <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 25%;">Group Name</th>
                 <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 15%;">Enabled</th>
-                <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 25%;">Actions</th>
+                <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 10%;">Hits</th>
+                <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 20%;">Actions</th>
               </tr>
             </thead>
             <tbody id="rules-table-body"></tbody>
@@ -675,6 +676,7 @@
         <div style="display: flex; gap: 8px;">
           <button type="button" class="btn btn-test" id="export-rules-btn" style="flex: 1; font-size: 12px; padding: 8px 16px;">Export Rules</button>
           <button type="button" class="btn btn-test" id="import-rules-btn" style="flex: 1; font-size: 12px; padding: 8px 16px;">Import Rules</button>
+          <button type="button" class="btn btn-test" id="reset-hit-counts-btn" style="flex: 0 0 auto; font-size: 12px; padding: 8px 16px;" title="Reset all rule hit counts to zero">Reset hits</button>
         </div>
         <input type="file" id="rules-file-input" accept=".json" style="display:none;">
       </div>

@@ -124,7 +124,24 @@ async function reorderRules(fromIndex, toIndex) {
 
 // ─── Matching ─────────────────────────────────────────────────────────────────
 // Match a domain against all enabled rules. Returns the first matching group name
-// or null if no rule matches.
+// or null if no rule matches. Also tracks hit counts per rule.
+
+async function _loadHitCounts() {
+  try {
+    const result = await browser.storage.local.get(RULE_HIT_COUNTS_KEY);
+    return result[RULE_HIT_COUNTS_KEY] || {};
+  } catch (err) {
+    return {};
+  }
+}
+
+async function _saveHitCounts(hitCounts) {
+  try {
+    await browser.storage.local.set({ [RULE_HIT_COUNTS_KEY]: hitCounts });
+  } catch (err) {
+    console.error('TabTamer: failed to save rule hit counts', err);
+  }
+}
 
 async function matchRules(domain) {
   try {
@@ -134,6 +151,11 @@ async function matchRules(domain) {
       try {
         const regex = globToRegex(rule.pattern);
         if (regex.test(domain)) {
+          // T11.15: Track hit count for this rule (keyed by pattern|groupName)
+          const hitCounts = await _loadHitCounts();
+          const key = rule.pattern + '|' + rule.groupName;
+          hitCounts[key] = (hitCounts[key] || 0) + 1;
+          await _saveHitCounts(hitCounts);
           return rule.groupName;
         }
       } catch (regexErr) {
@@ -166,6 +188,17 @@ async function importRules(rules) {
   return rules;
 }
 
+// ─── Hit Counts ────────────────────────────────────────────────────────────────
+// T11.15: Track hit counts per rule to help users identify which rules are most active.
+
+async function getHitCounts() {
+  return await _loadHitCounts();
+}
+
+async function resetAllHitCounts() {
+  await _saveHitCounts({});
+}
+
 // ─── Module Exports ───────────────────────────────────────────────────────────
 // In Firefox extensions, we share code via importScripts or direct inclusion.
 // This module provides a global object for use in background.js and options.js.
@@ -183,6 +216,8 @@ const TabTamerRules = {
   updateRule,
   reorderRules,
   matchRules,
+  getHitCounts,
+  resetAllHitCounts,
   exportRules,
   importRules
 };

@@ -1341,6 +1341,7 @@ function hideRulesValidationError() {
 async function loadRulesTable() {
   try {
     const rules = await TabTamerRules.loadRules();
+    const hitCounts = await TabTamerRules.getHitCounts();
 
     const bulkActions = document.getElementById('rules-bulk-actions');
 
@@ -1360,6 +1361,8 @@ async function loadRulesTable() {
       const escapedPattern = (rule.pattern || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const escapedGroup = (rule.groupName || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const checkedAttr = rule.enabled !== false ? 'checked' : '';
+      const key = rule.pattern + '|' + rule.groupName;
+      const hitCount = hitCounts[key] || 0;
       return `<tr data-index="${index}">
         <td style="padding: 6px 8px; text-align: center; vertical-align: middle;">
           <input type="checkbox" class="rule-select" data-index="${index}" style="accent-color: var(--primary); cursor: pointer;">
@@ -1369,6 +1372,7 @@ async function loadRulesTable() {
         <td style="padding: 6px 8px; text-align: center; vertical-align: middle;">
           <input type="checkbox" class="rule-toggle" ${checkedAttr} style="accent-color: var(--primary); cursor: pointer;">
         </td>
+        <td style="padding: 6px 8px; text-align: center; vertical-align: middle; font-size: 12px; color: var(--text-muted);">${hitCount}</td>
         <td style="padding: 6px 8px; text-align: right; white-space: nowrap; vertical-align: middle;">
           <button class="btn-cache-action btn-rule-move-up" ${index === 0 ? 'disabled style="opacity:0.3"' : ''} title="Move up">▲</button>
           <button class="btn-cache-action btn-rule-move-down" ${index === rules.length - 1 ? 'disabled style="opacity:0.3"' : ''} title="Move down">▼</button>
@@ -1891,3 +1895,20 @@ ruleGroupInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.p
 exportRulesBtn.addEventListener('click', exportRules);
 importRulesBtn.addEventListener('click', () => rulesFileInput.click());
 rulesFileInput.addEventListener('change', handleRulesFileSelected);
+
+// T11.15: Reset hit counts button
+const resetHitCountsBtn = document.getElementById('reset-hit-counts-btn');
+if (resetHitCountsBtn) {
+  resetHitCountsBtn.addEventListener('click', async () => {
+    const confirmed = await showConfirmModal('Reset all rule hit counts to zero?');
+    if (!confirmed) return;
+    try {
+      await TabTamerRules.resetAllHitCounts();
+      await loadRulesTable();
+      showToast('Rule hit counts reset', 'success');
+    } catch (err) {
+      console.error('TabTamer: failed to reset hit counts', err);
+      showToast('Failed to reset hit counts', 'error');
+    }
+  });
+}

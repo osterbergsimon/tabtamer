@@ -16,6 +16,7 @@ const COSTS_KEY = 'tabtamerCosts';
 const MANAGED_GROUPS_KEY = 'tabtamerManagedGroups';
 const EXCLUDED_DOMAINS_KEY = 'tabtamerExcludedDomains';
 const RULES_KEY = 'tabtamerRules';
+const RULE_HIT_COUNTS_KEY = 'ruleHitCounts';
 const GROUP_COLORS_KEY = 'tabtamerGroupColors';
 const NO_API_KEY_NOTIFIED_KEY = 'tabtamerNotifiedNoApiKey';
 
