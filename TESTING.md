@@ -78,14 +78,14 @@
 1. Disconnect from network, open a new tab
 2. **Expected logs**:
    ```
-   TabTamer: request error for <domain>, retrying in 1s (attempt 1)
-   TabTamer: request error for <domain>, retrying in 2s (attempt 2)
+   TabTamer: request — request error, retrying in 1s (attempt 1)
+   TabTamer: request — request error, retrying in 2s (attempt 2)
    ...
-   TabTamer: request error for <domain>, giving up after 5 attempts
+   TabTamer: request — request error, giving up after 5 attempts
    ```
 3. Tab remains ungrouped
 
-## Test 7: Startup Scan (Phase 2)
+## Test 7: Startup Scan
 
 1. Open the Browser Console (Ctrl+Shift+J)
 2. Close and reload the extension (click "Reload" next to TabTamer in `about:debugging`)
@@ -99,7 +99,7 @@
 4. Any previously ungrouped tabs (not assigned to a group) should be classified and moved to tab groups
 5. **Expected**: Existing grouped tabs are not re-processed
 
-## Test 8: Periodic Cleanup (Phase 2)
+## Test 8: Periodic Cleanup
 
 1. Open the Browser Console
 2. Open a new tab to a domain that hasn't been cached yet
@@ -113,25 +113,29 @@
    ```
 4. Any tabs that were not classified when first opened (e.g., due to a transient error) should be classified during this cycle
 
-## Test 9: Group Merge (Phase 2)
+## Test 9: Group Merge
 
 *Prerequisite: At least 2 tab groups with similar names (e.g., "Development" and "Dev work")*
 
 1. Open the Browser Console
 2. Wait up to 60 minutes for the group merge alarm to fire
    - Or check the console for: `TabTamer: alarm fired — group merge`
-3. **Expected logs**:
+3. **Expected logs** (when similar groups found and merged):
    ```
    TabTamer: alarm fired — group merge
    TabTamer: group merge — analyzing <n> groups: [GroupA, GroupB, ...]
-   TabTamer: group merge — renamed "<old name>" to "<new name>"
-   TabTamer: group merge — complete, <n> group(s) renamed
+   TabTamer: group merge — moved <n> tab(s) from "<old name>" to "<new name>"
+   TabTamer: group merge — complete, <n> group(s) merged/renamed
    ```
-4. **Alternative if groups are not similar**:
+4. **If groups are renamed but no tabs moved (no target group)**:
+   ```
+   TabTamer: group merge — renamed "<old name>" to "<new name>" (no target group to merge into)
+   ```
+5. **Alternative if groups are not similar**:
    ```
    TabTamer: group merge — no merges needed
    ```
-5. **If extension is disabled or no API key**:
+6. **If extension is disabled or no API key**:
    ```
    TabTamer: group merge — extension disabled, skipping
    ```
@@ -140,7 +144,7 @@
    TabTamer: group merge — no API key, skipping
    ```
 
-## Test 10: Cost Tracking Display (Phase 2)
+## Test 10: Cost Tracking Display
 
 1. Open the options page
 2. **Expected**: The "API Usage" card is visible below the settings form, showing:
@@ -153,7 +157,7 @@
 6. Reload the options page
 7. **Expected**: Counters show the values from storage (starting at 0 after reset)
 
-## Test 11: Theme Selector (Phase 2)
+## Test 11: Theme Selector
 
 1. Open the options page
 2. **Expected**: A "Theme" dropdown with three options: System, Light, Dark
@@ -222,7 +226,7 @@ The following have been verified automatically:
 | background.js compiles | ✅ |
 | options.js compiles | ✅ |
 | options.html well-formed | ✅ |
-| Storage keys consistent | ✅ (`tabtamerSettings`, `domainGroupCache`, `tabtamerCosts`) |
+| Storage keys consistent | ✅ (`tabtamerSettings`, `domainGroupCache`, `tabtamerCosts`, `tabtamerManagedGroups`, `tabtamerExcludedDomains`); `_notifiedNoApiKey` pending rename to `tabtamerNotifiedNoApiKey` (T6.7) |
 | All required functions defined | ✅ |
 | All API permissions match usage | ✅ |
 | Icon file (48×48 PNG) exists | ✅ |
