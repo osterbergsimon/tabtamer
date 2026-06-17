@@ -190,4 +190,20 @@ optionsLink.addEventListener('click', (e) => {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', loadPopupState);
+document.addEventListener('DOMContentLoaded', async () => {
+  // T8.8: Load user theme setting from storage
+  try {
+    const result = await browser.storage.local.get('tabtamerSettings');
+    const theme = result.tabtamerSettings?.theme || 'system';
+    if (theme === 'system') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+  } catch (err) {
+    // Default to system preference
+    document.documentElement.removeAttribute('data-theme');
+  }
+
+  await loadPopupState();
+});

@@ -216,6 +216,62 @@
 6. **Expected**: Tab count in the target group increases by the number of tabs moved from the source group
 7. **Alternative if no similar groups**: `TabTamer: group merge — no merges needed`
 
+## Test 16: Smart Tab Search (Quick Switcher)
+
+*Requires: Ctrl+Shift+K keyboard shortcut (configurable in `manifest.json`)*
+
+1. Open the Browser Console (Ctrl+Shift+J)
+2. Press `Ctrl+Shift+K` to open the Smart Tab Search
+3. **Expected**: A new tab opens with the search UI (`search.html`), showing:
+   - A text input at the top with placeholder text
+   - A scrollable list of all open tabs across all windows
+   - Each row showing: tab title, truncated URL, and group name tag
+4. Type in the search input to filter tabs
+5. **Expected**: The list filters as you type (fuzzy substring matching)
+6. Press the Up/Down arrow keys to navigate the list
+7. **Expected**: The selection highlight moves up/down through the results
+8. Press Enter with a tab selected
+9. **Expected**: The browser switches to the selected tab and the search tab closes
+10. Test with no tabs matching the search query
+11. **Expected**: A "No tabs found" message is displayed
+12. Test the search UI in both light and dark theme (via options theme selector)
+13. **Expected**: The search UI respects the theme setting
+
+## Test 17: Group Color Customization
+
+*Requires: At least one cached domain→group mapping in the options page cache dashboard*
+
+1. Open the options page
+2. Navigate to the Cache Dashboard section
+3. **Expected**: Each cache entry row has a "Color" column with a dropdown selector
+4. **Expected**: The dropdown shows 9 color options: grey, blue, red, yellow, purple, pink, green, orange, cyan, plus "Auto" (for deterministic color)
+5. Select a different color for a cache entry (e.g., change "GitHub" from "Auto" to "blue")
+6. **Expected**: The color change persists immediately (saved to storage)
+7. Reload the options page
+8. **Expected**: The color dropdown still shows the selected color
+9. Open the popup and check the group list
+10. **Expected**: The group name tag color matches the selected color
+11. Rename a cache entry's group name (edit the group name cell)
+12. **Expected**: The custom color migrates to the new group name
+13. Reset the color back to "Auto"
+14. **Expected**: The group returns to its deterministic djb2 hash color
+
+## Test 18: Popup Classify-This-Tab Button
+
+1. Open the Browser Console (Ctrl+Shift+J)
+2. Open a tab to any website (e.g., `https://example.com`)
+3. Open the TabTamer popup by clicking the toolbar icon
+4. **Expected**: A "Classify Tab" button is visible in the popup footer
+5. Click "Classify Tab"
+6. **Expected**:
+   - The popup closes
+   - The Browser Console logs show classification activity for the active tab
+   - The tab is assigned to a group (cache miss → LLM call → group assignment)
+7. Re-open the popup
+8. **Expected**: The new classification appears in "Recent Classifications" list
+9. Test with the extension disabled (toggle off in popup)
+10. **Expected**: Clicking "Classify Tab" still sends the message but classification is skipped (extension disabled log)
+
 ## Automated Verification Summary
 
 The following have been verified automatically:

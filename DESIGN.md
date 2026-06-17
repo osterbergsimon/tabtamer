@@ -51,6 +51,10 @@ Permissions needed:
 - `tabs` — detect new tabs
 - `tabGroups` — create / manage Firefox native tab groups
 - `storage` — cache domain→group mappings, settings
+- `alarms` — periodic cleanup and merge alarms
+- `notifications` — API key reminder notifications
+- `contextMenus` — right-click re-classify
+- `windows` — enumerate windows for cache rename operations
 - `https://opencode.ai/*` — call the LLM API
 
 ### 2. LLM API
@@ -82,6 +86,38 @@ Stored in `browser.storage.local`:
 ```
 
 Cache is cleared when the extension updates or manually via options page.
+
+### 4. Smart Tab Search (Quick Switcher)
+
+A command-palette-style tab switcher (`search.html` + `search.js`) activated via
+`Ctrl+Shift+K` (configurable in `manifest.json` commands).
+
+**Features:**
+- Lists all open tabs across all windows with title, URL, and group name
+- Fuzzy substring filtering as the user types (no library needed — small search space)
+- Enter key switches to the selected tab and closes the search UI
+- Theme-aware styling matching the options page (light/dark from settings)
+- Opens as a dedicated tab when the keyboard shortcut is triggered
+
+**Architecture:**
+- `background.js` listens for the `tabtamer-search` command and opens `search.html`
+- `search.js` queries `browser.tabs.query({})` and `browser.tabGroups.query({})` to build the tab list
+- The search UI selects the tab via `browser.tabs.update()` and closes itself
+
+### 5. Group Color Customization
+
+Users can override the deterministic djb2 hash color for any TabTamer-managed group
+via the options page cache dashboard.
+
+**Storage:**
+- Key: `tabtamerGroupColors` (flat object, e.g. `{"GitHub": "blue", "Email": "purple"}`)
+- Colors: one of the 9 Firefox-supported tab group colors (grey, blue, red, yellow,
+  purple, pink, green, orange, cyan)
+
+**Behavior:**
+- `getGroupColor()` in `background.js` checks custom colors first, falls back to djb2 hash
+- Custom colors persist across sessions and survive group renames (migrated to new name)
+- The options page cache dashboard shows a color dropdown picker next to each cache entry
 
 ## Flow
 
@@ -166,5 +202,5 @@ All open questions from earlier phases have been addressed in Phases 2 and 3:
 
 ## Open questions
 
-1. **Manifest v3 migration** — Firefox is phasing out manifest v2. Migrating will require replacing `background.html` scripts with service workers (no DOM access, no `window`).
+1. **Manifest v3 migration** — Firefox is phasing out manifest v2. Migrating will require replacing `background.html` scripts with service workers (no DOM access, no `window`). **Deferred**: tracked separately, not in scope for Phase 8.
 2. **Group naming conflicts** — When the LLM assigns a tab to a group that doesn't exist, a new group is created. Over time this can produce near-duplicates ("GitHub" vs "Github"). A name normalization step (T4.8) now trims and Title Cases names before group creation, which largely mitigates this. The periodic merge (`mergeSimilarGroups()`) catches any remaining overlaps.

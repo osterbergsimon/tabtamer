@@ -26,9 +26,6 @@ let _pendingClassificationCount = 0;
 // Custom group colors override (group name → color)
 let _customGroupColors = null;
 
-// Flag to suppress missing-API-key notification during startup
-let _startupInProgress = false;
-
 // ─── Retry with Backoff ──────────────────────────────────────────────────────────
 // T5.5: Unified retry loop with exponential backoff, rate-limit handling
 
@@ -906,8 +903,12 @@ async function mergeSimilarGroups() {
 
     const model = settings.model || 'deepseek-v4-flash';
 
-    // Query all groups
-    const groups = await browser.tabGroups.query({});
+    // T8.2: Filter to TabTamer-managed groups only
+    if (!_managedGroupIds) {
+      console.log('TabTamer: group merge — managed group IDs unavailable, skipping');
+      return;
+    }
+    const groups = (await browser.tabGroups.query({})).filter(g => _managedGroupIds.has(g.id));
 
     if (groups.length <= 1) {
       console.log('TabTamer: group merge — only 1 group, skipping');
@@ -1034,7 +1035,12 @@ async function mergeSimilarGroups() {
 // T5.6: One-time migration — assign colors to existing groups that lack one
 async function assignColorsToGroups() {
   try {
-    const groups = await browser.tabGroups.query({});
+    // T8.2: Filter to managed groups only
+    if (!_managedGroupIds) {
+      console.log('TabTamer: assignColorsToGroups — no managed group IDs, skipping');
+      return;
+    }
+    const groups = (await browser.tabGroups.query({})).filter(g => _managedGroupIds.has(g.id));
     let updatedCount = 0;
     for (const group of groups) {
       if (!group.color && group.title) {

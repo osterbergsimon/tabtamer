@@ -27,7 +27,7 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      :root {
+      :root:not([data-theme]) {
         --bg: #1c1c1e;
         --surface: #2c2c2e;
         --border: #48484a;
@@ -37,6 +37,29 @@
         --primary-hover: #409cff;
         --success: #30d158;
       }
+    }
+
+    /* ─── Forced Theme Overrides ────────────────────────────────── */
+    :root[data-theme="light"] {
+      --bg: #ffffff;
+      --surface: #f5f5f7;
+      --border: #d1d1d6;
+      --text: #1c1c1e;
+      --text-muted: #6c6c70;
+      --primary: #007aff;
+      --primary-hover: #0062cc;
+      --success: #34c759;
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #1c1c1e;
+      --surface: #2c2c2e;
+      --border: #48484a;
+      --text: #f5f5f7;
+      --text-muted: #98989e;
+      --primary: #0a84ff;
+      --primary-hover: #409cff;
+      --success: #30d158;
     }
 
     body {
