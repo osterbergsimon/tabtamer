@@ -291,22 +291,31 @@ browser.browserAction.onClicked.addListener(() => {
 
 // ─── Toolbar Badge ───────────────────────────────────────────────────────────
 // T4.7: Show badge on toolbar icon — OFF when disabled, group count when enabled
+// T6.6: Debounce updateBadge calls — trailing 500ms to coalesce rapid bursts
 
-async function updateBadge() {
-  try {
-    const enabled = await isEnabled();
-    if (!enabled) {
-      browser.browserAction.setBadgeText({ text: 'OFF' });
-      browser.browserAction.setBadgeBackgroundColor({ color: '#888888' });
-    } else {
-      const groups = await browser.tabGroups.query({});
-      const count = groups.length;
-      browser.browserAction.setBadgeText({ text: count > 0 ? String(count) : '' });
-      browser.browserAction.setBadgeBackgroundColor({ color: '#34c759' });
-    }
-  } catch (err) {
-    console.error('TabTamer: updateBadge error', err);
+let _badgeDebounceTimer = null;
+
+function updateBadge() {
+  if (_badgeDebounceTimer) {
+    clearTimeout(_badgeDebounceTimer);
   }
+  _badgeDebounceTimer = setTimeout(async () => {
+    _badgeDebounceTimer = null;
+    try {
+      const enabled = await isEnabled();
+      if (!enabled) {
+        browser.browserAction.setBadgeText({ text: 'OFF' });
+        browser.browserAction.setBadgeBackgroundColor({ color: '#888888' });
+      } else {
+        const groups = await browser.tabGroups.query({});
+        const count = groups.length;
+        browser.browserAction.setBadgeText({ text: count > 0 ? String(count) : '' });
+        browser.browserAction.setBadgeBackgroundColor({ color: '#34c759' });
+      }
+    } catch (err) {
+      console.error('TabTamer: updateBadge error', err);
+    }
+  }, 500);
 }
 
 // ─── Keyboard Shortcuts ────────────────────────────────────────────────────
