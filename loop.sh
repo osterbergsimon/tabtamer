@@ -123,6 +123,10 @@ while true; do
   if [[ $((phase % REVIEW_INTERVAL)) -eq 0 ]]; then
     status_line "$phase" "REVIEWER"
     run_iteratr "Reviewer" specs/SPEC-review.md "opencode-go/deepseek-v4-pro"
+    if [[ -f specs/.review-summary ]]; then
+      cat specs/.review-summary
+      rm -f specs/.review-summary
+    fi
     if [[ -f specs/.review-warning ]]; then
       echo "WARNING: reviewer flagged issues:"
       cat specs/.review-warning

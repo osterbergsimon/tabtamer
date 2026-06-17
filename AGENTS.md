@@ -13,6 +13,8 @@ Firefox extension (manifest v2) that auto-groups tabs via LLM. Source in `extens
 - The loop stops when the spec-writer outputs the sentinel `# TabTamer — Complete`.
 - To stop early: `touch .loop-quit` or Ctrl+C (clean trap).
 - Max 20 phases; reviewer runs every 5 phases.
+- Reviewer writes `specs/.review-summary` (printed to terminal by loop.sh)
+  and `specs/.review-warning` (pauses loop) when needed.
 
 **Stale state kills the loop**: always `rm -rf .iteratr` before starting, or the script's `--reset` handles it. If the loop dies mid-phase, nuke `.iteratr` and restart.
 

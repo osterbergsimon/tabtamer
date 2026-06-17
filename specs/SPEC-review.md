@@ -40,12 +40,26 @@ You are evaluating the LOOP, not the code. Your job is to check:
   4. Is the extension noticeably better than v1.0.0?
   5. Is the loop still productive, or is it spinning on trivia?
 
-  If the loop is clearly making good progress — note that in the summary
-  and call session-complete. This is an FYI for the user.
+  After analysis, write a concise summary to `specs/.review-summary`.
+  This is the user-visible report. Use this format:
+
+  ```
+  # TabTamer Loop Review — Phase N (vX.Y.Z)
+  ## Since last review
+  - Bullet list of new features, fixes, and notable changes
+  ## Loop health
+  - One sentence: productive / spinning / needs attention
+  ## Recommendation
+  - Continue / pause / adjust focus
+  ```
+
+  Keep it under 15 lines. The shell loop prints this file to the terminal
+  so the user sees it immediately.
+
+  If the loop is clearly making good progress — write the summary
+  and call session-complete.
 
   If the loop is spinning (trivial commits, no-op builds, same tasks
-  repeating) — write a file called `specs/.review-warning` with a brief
+  repeating) — also write a file called `specs/.review-warning` with a brief
   explanation of what's wrong. Then call session-complete. `loop.sh` will
-  detect this file and pause for user intervention.
-
-  Do NOT modify any source files. Read-only analysis.
+  detect both files: the summary is printed, the warning pauses the loop.
