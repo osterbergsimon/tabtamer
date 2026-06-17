@@ -986,22 +986,28 @@ async function loadRulesTable() {
   try {
     const rules = await TabTamerRules.loadRules();
 
+    const bulkActions = document.getElementById('rules-bulk-actions');
+
     if (rules.length === 0) {
       rulesTable.style.display = 'none';
       rulesEmptyMessage.style.display = 'block';
       rulesTableBody.innerHTML = '';
+      if (bulkActions) bulkActions.style.display = 'none';
       return;
     }
 
     rulesTable.style.display = 'table';
     rulesEmptyMessage.style.display = 'none';
+    if (bulkActions) bulkActions.style.display = 'flex';
 
     const rows = rules.map((rule, index) => {
       const escapedPattern = (rule.pattern || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const escapedGroup = (rule.groupName || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const checkedAttr = rule.enabled !== false ? 'checked' : '';
       return `<tr data-index="${index}">
-        <td style="padding: 6px 8px; color: var(--text-muted); font-size: 11px; vertical-align: middle;">${index + 1}</td>
+        <td style="padding: 6px 8px; text-align: center; vertical-align: middle;">
+          <input type="checkbox" class="rule-select" data-index="${index}" style="accent-color: var(--primary); cursor: pointer;">
+        </td>
         <td style="padding: 6px 8px; word-break: break-all; vertical-align: middle;"><code style="background: var(--bg); padding: 1px 4px; border-radius: 3px; font-size: 12px;">${escapedPattern}</code></td>
         <td style="padding: 6px 8px; vertical-align: middle;">${escapedGroup}</td>
         <td style="padding: 6px 8px; text-align: center; vertical-align: middle;">
@@ -1136,6 +1142,91 @@ function setupRulesTableEvents() {
       await handleToggleRule(index, enabled);
     }
   });
+
+  // T10.18: Select All / Deselect All
+  const selectAllCheckbox = document.getElementById('rules-select-all');
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', () => {
+      const checked = selectAllCheckbox.checked;
+      document.querySelectorAll('.rule-select').forEach(cb => {
+        cb.checked = checked;
+      });
+    });
+  }
+
+  // T10.18: Bulk action handlers
+  const bulkDelete = document.getElementById('rules-bulk-delete');
+  const bulkDisable = document.getElementById('rules-bulk-disable');
+  const bulkEnable = document.getElementById('rules-bulk-enable');
+
+  async function getSelectedIndices() {
+    const checkboxes = document.querySelectorAll('.rule-select:checked');
+    return Array.from(checkboxes).map(cb => parseInt(cb.dataset.index, 10)).filter(i => !isNaN(i));
+  }
+
+  if (bulkDelete) {
+    bulkDelete.addEventListener('click', async () => {
+      const indices = await getSelectedIndices();
+      if (indices.length === 0) {
+        showToast('No rules selected', 'warning');
+        return;
+      }
+      const confirmed = await showConfirmModal(`Delete ${indices.length} selected rule${indices.length !== 1 ? 's' : ''}?`);
+      if (!confirmed) return;
+      // Delete in reverse order to preserve index stability
+      indices.sort((a, b) => b - a);
+      for (const idx of indices) {
+        try {
+          await TabTamerRules.removeRule(idx);
+        } catch (err) {
+          console.error('TabTamer: bulk delete failed for rule', idx, err);
+        }
+      }
+      await loadRulesTable();
+      _markClean();
+      showToast(`Deleted ${indices.length} rule${indices.length !== 1 ? 's' : ''}`, 'success');
+    });
+  }
+
+  if (bulkDisable) {
+    bulkDisable.addEventListener('click', async () => {
+      const indices = await getSelectedIndices();
+      if (indices.length === 0) {
+        showToast('No rules selected', 'warning');
+        return;
+      }
+      for (const idx of indices) {
+        try {
+          await TabTamerRules.updateRule(idx, { enabled: false });
+        } catch (err) {
+          console.error('TabTamer: bulk disable failed for rule', idx, err);
+        }
+      }
+      await loadRulesTable();
+      _markClean();
+      showToast(`Disabled ${indices.length} rule${indices.length !== 1 ? 's' : ''}`, 'success');
+    });
+  }
+
+  if (bulkEnable) {
+    bulkEnable.addEventListener('click', async () => {
+      const indices = await getSelectedIndices();
+      if (indices.length === 0) {
+        showToast('No rules selected', 'warning');
+        return;
+      }
+      for (const idx of indices) {
+        try {
+          await TabTamerRules.updateRule(idx, { enabled: true });
+        } catch (err) {
+          console.error('TabTamer: bulk enable failed for rule', idx, err);
+        }
+      }
+      await loadRulesTable();
+      _markClean();
+      showToast(`Enabled ${indices.length} rule${indices.length !== 1 ? 's' : ''}`, 'success');
+    });
+  }
 }
 
 // ─── Rules Export / Import ─────────────────────────────────────────────────

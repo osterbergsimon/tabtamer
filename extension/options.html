@@ -610,7 +610,9 @@
           <table id="rules-table" style="width: 100%; border-collapse: collapse; font-size: 13px; display: none;">
             <thead>
               <tr style="border-bottom: 1px solid var(--border);">
-                <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 5%;">#</th>
+                <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 5%;">
+                  <input type="checkbox" id="rules-select-all" style="accent-color: var(--primary); cursor: pointer;">
+                </th>
                 <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 30%;">Domain Pattern</th>
                 <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 25%;">Group Name</th>
                 <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: var(--text-muted); width: 15%;">Enabled</th>
@@ -619,6 +621,12 @@
             </thead>
             <tbody id="rules-table-body"></tbody>
           </table>
+        </div>
+        <!-- T10.18: Bulk actions toolbar -->
+        <div id="rules-bulk-actions" style="display: none; gap: 6px; margin-top: 8px;">
+          <button type="button" class="btn btn-test" id="rules-bulk-delete" style="font-size: 11px; padding: 4px 10px;">Delete Selected</button>
+          <button type="button" class="btn btn-test" id="rules-bulk-disable" style="font-size: 11px; padding: 4px 10px;">Disable Selected</button>
+          <button type="button" class="btn btn-test" id="rules-bulk-enable" style="font-size: 11px; padding: 4px 10px;">Enable Selected</button>
         </div>
         <p id="rules-empty-message" style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">No rules defined yet. Add a rule above to skip LLM calls for specific domains.</p>
         <p id="rules-validation-error" style="color: var(--danger); font-size: 12px; display: none; margin-top: 4px;"></p>
