@@ -5,7 +5,14 @@ const { resetMocks, mockStorage, mockTabGroups, mockTabs } = require('./setup');
 
 // Run background.js in global scope (like a <script> tag would)
 // Functions like extractDomain, getCachedGroup etc. become global
-eval(fs.readFileSync(require.resolve('../extension/background.js'), 'utf8'));
+// Must load constants.js and rules-engine.js first (dependencies)
+// Concatenate files so const declarations from dependencies are visible
+const moduleCode = [
+  fs.readFileSync(require.resolve('../extension/lib/constants.js'), 'utf8'),
+  fs.readFileSync(require.resolve('../extension/lib/rules-engine.js'), 'utf8'),
+  fs.readFileSync(require.resolve('../extension/background.js'), 'utf8'),
+].join('\n');
+eval(moduleCode);
 
 beforeEach(() => {
   resetMocks();

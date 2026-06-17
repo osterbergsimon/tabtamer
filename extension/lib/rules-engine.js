@@ -8,7 +8,7 @@
 // Matching: glob → regex conversion. Always anchored (full domain match).
 // Priority: first matching enabled rule wins.
 
-const RULES_KEY = 'tabtamerRules';
+// ─── Constants are defined in lib/constants.js (loaded first via manifest / <script>) ────
 
 // ─── Glob to Regex ────────────────────────────────────────────────────────────
 // Convert a glob pattern to a RegExp for domain matching.

@@ -8,29 +8,8 @@
 // TAS-6: Onboarding
 // TAS-9: Error handling (exponential backoff, rate limiting, API key notification)
 
-const CACHE_KEY = 'domainGroupCache';
-const SETTINGS_KEY = 'tabtamerSettings';
-const COSTS_KEY = 'tabtamerCosts';
-const MANAGED_GROUPS_KEY = 'tabtamerManagedGroups';
-const EXCLUDED_DOMAINS_KEY = 'tabtamerExcludedDomains';
+// ─── Constants are defined in lib/constants.js (loaded first via manifest) ────
 
-// ─── Magic Number Constants ────────────────────────────────────────────────────
-
-const DEBOUNCE_MS = 500;
-const CONCURRENCY_POLL_MS = 100;
-// Per-call-type token estimates for accurate cost tracking
-// T6.8: Classification uses a short prompt + 5-word response (~150 tokens)
-// Merge uses a longer prompt with group list + JSON response (~500 tokens)
-const TOKENS_CLASSIFY = 150;
-const TOKENS_MERGE = 500;
-const CLEANUP_INTERVAL_MIN = 15;
-const MERGE_INTERVAL_MIN = 60;
-const COST_LOG_INTERVAL_MIN = 1440;
-const MAX_CONCURRENT = 2;
-const MAX_RETRIES = 5;
-
-// T6.1: Known acronyms to preserve during group name normalization
-// Map from uppercase form -> canonical display form
 const KNOWN_ACRONYMS = new Map([
   ['API', 'API'],
   ['URL', 'URL'],
@@ -771,7 +750,7 @@ async function classifyAndAssign(tabId, url, title, domain) {
     console.log(`TabTamer: calling LLM for ${domain} (model: ${model})`);
 
     // T5.5: Use unified retry-with-backoff instead of inline duplicate
-    const response = await retryWithBackoff(() => fetch('https://opencode.ai/zen/go/v1/chat/completions', {
+    const response = await retryWithBackoff(() => fetch(API_ENDPOINT, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -968,7 +947,7 @@ async function mergeSimilarGroups() {
     const userMessage = `Group names: [${groupNames.join(', ')}]`;
 
     // T5.5: Use unified retry-with-backoff instead of inline duplicate; use MAX_RETRIES constant
-    const response = await retryWithBackoff(() => fetch('https://opencode.ai/zen/go/v1/chat/completions', {
+    const response = await retryWithBackoff(() => fetch(API_ENDPOINT, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,

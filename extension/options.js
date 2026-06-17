@@ -1,10 +1,7 @@
 // TabTamer — Options page logic
 // TAS-8: Load settings, save on submit, clear cache
 
-const SETTINGS_KEY = 'tabtamerSettings';
-const CACHE_KEY = 'domainGroupCache';
-const COSTS_KEY = 'tabtamerCosts';
-const EXCLUDED_DOMAINS_KEY = 'tabtamerExcludedDomains';
+// ─── Constants are defined in lib/constants.js (loaded first via <script>) ────
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 
@@ -76,7 +73,7 @@ function showToast(message, type = 'success', duration) {
   window._toastTimer = setTimeout(() => {
     toast.classList.remove('show');
     toast.setAttribute('role', 'presentation');
-  }, duration || 3000);
+  }, duration || TOAST_DURATION_MS);
 }
 
 // ─── Confirm Modal (T7.11) ───────────────────────────────────────────
@@ -573,7 +570,7 @@ async function handleCacheFileSelected(event) {
         }
       }
       await browser.storage.local.set({ [CACHE_KEY]: existing });
-      showToast(`Imported: ${added} added, ${skipped} skipped (already existed)`, 'success', 5000);
+      showToast(`Imported: ${added} added, ${skipped} skipped (already existed)`, 'success', TOAST_IMPORT_MS);
     } else {
       // Overwrite — ask for confirmation
       const confirmOverwrite = await showConfirmModal(
@@ -585,7 +582,7 @@ async function handleCacheFileSelected(event) {
         return;
       }
       await browser.storage.local.set({ [CACHE_KEY]: imported });
-      showToast(`Cache overwritten with ${importedCount} entr${importedCount === 1 ? 'y' : 'ies'}`, 'success', 5000);
+      showToast(`Cache overwritten with ${importedCount} entr${importedCount === 1 ? 'y' : 'ies'}`, 'success', TOAST_IMPORT_MS);
     }
 
     loadCacheStats();
@@ -682,7 +679,7 @@ async function testApiKey() {
   setButtonLoading(testApiKeyBtn, true, 'Testing…');
 
   try {
-    const response = await fetch('https://opencode.ai/zen/go/v1/chat/completions', {
+    const response = await fetch(API_ENDPOINT, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -1046,7 +1043,7 @@ async function handleRulesFileSelected(event) {
       const existing = await TabTamerRules.loadRules();
       const merged = [...existing, ...imported];
       await TabTamerRules.saveRules(merged);
-      showToast(`Imported: ${imported.length} rule${imported.length !== 1 ? 's' : ''} merged`, 'success', 5000);
+      showToast(`Imported: ${imported.length} rule${imported.length !== 1 ? 's' : ''} merged`, 'success', TOAST_IMPORT_MS);
     } else {
       // Overwrite
       const confirmOverwrite = await showConfirmModal(
@@ -1057,7 +1054,7 @@ async function handleRulesFileSelected(event) {
         return;
       }
       await TabTamerRules.saveRules(imported);
-      showToast(`Rules overwritten with ${imported.length} rule${imported.length !== 1 ? 's' : ''}`, 'success', 5000);
+      showToast(`Rules overwritten with ${imported.length} rule${imported.length !== 1 ? 's' : ''}`, 'success', TOAST_IMPORT_MS);
     }
 
     await loadRulesTable();
