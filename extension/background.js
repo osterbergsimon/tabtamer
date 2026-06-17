@@ -799,11 +799,34 @@ async function classifyAndAssign(tabId, url, title, domain) {
 
     // System prompt: classify into 1-3 word group name, Title Case
     // T4.6: Include existing group names to reduce proliferation
+    // T9.5: Cap group names at MAX_GROUP_NAMES_IN_PROMPT, prioritize groups with most tabs
     const allGroups = await browser.tabGroups.query({});
-    const existingNames = allGroups.map(g => g.title).filter(Boolean);
 
-    const systemPrompt = existingNames.length > 0
-      ? `Classify the following tab URL into a short group name (1-3 words, Title Case). Prefer reusing an existing group if applicable. Existing groups: [${existingNames.join(', ')}]. Only create a new name if none fit. Return ONLY the group name.`
+    // Query all tabs once and count by groupId to sort groups by popularity
+    const allTabs = await browser.tabs.query({});
+    const tabCountByGroupId = {};
+    for (const tab of allTabs) {
+      if (tab.groupId > 0) {
+        tabCountByGroupId[tab.groupId] = (tabCountByGroupId[tab.groupId] || 0) + 1;
+      }
+    }
+
+    // Sort groups by tab count descending, cap at MAX_GROUP_NAMES_IN_PROMPT
+    const groupsWithTitles = allGroups.filter(g => g.title);
+    groupsWithTitles.sort((a, b) => (tabCountByGroupId[b.id] || 0) - (tabCountByGroupId[a.id] || 0));
+
+    let promptGroupList = '';
+    if (groupsWithTitles.length > 0) {
+      const topGroups = groupsWithTitles.slice(0, MAX_GROUP_NAMES_IN_PROMPT);
+      promptGroupList = topGroups.map(g => g.title).join(', ');
+      if (groupsWithTitles.length > MAX_GROUP_NAMES_IN_PROMPT) {
+        const remaining = groupsWithTitles.length - MAX_GROUP_NAMES_IN_PROMPT;
+        promptGroupList += `, ...and ${remaining} more`;
+      }
+    }
+
+    const systemPrompt = promptGroupList
+      ? `Classify the following tab URL into a short group name (1-3 words, Title Case). Prefer reusing an existing group if applicable. Existing groups: [${promptGroupList}]. Only create a new name if none fit. Return ONLY the group name.`
       : 'Classify the following tab URL into a short group name (1-3 words, Title Case). Respond with only the group name.';
     const userMessage = `URL: ${url}\nTitle: ${title || '(no title)'}`;
 
@@ -1109,12 +1132,24 @@ async function mergeSimilarGroups() {
       return;
     }
 
-    const groupNames = mergeableGroups.map(g => g.title);
-    console.log(`TabTamer: group merge — analyzing ${groupNames.length} groups: [${groupNames.join(', ')}]`);
+    // T9.5: Cap group names at MAX_GROUP_NAMES_IN_PROMPT to avoid token waste
+    // Sort by tab count descending so the most popular groups are included
+    const mergeableNamesSorted = mergeableGroups
+      .map(g => ({ title: g.title, count: tabCountByGroup[g.id] || 0 }))
+      .sort((a, b) => b.count - a.count);
+    const allNames = mergeableNamesSorted.map(x => x.title);
+    const displayNames = allNames.slice(0, MAX_GROUP_NAMES_IN_PROMPT);
+    let namesStr = displayNames.join(', ');
+    if (allNames.length > MAX_GROUP_NAMES_IN_PROMPT) {
+      const remaining = allNames.length - MAX_GROUP_NAMES_IN_PROMPT;
+      namesStr += `, ...and ${remaining} more`;
+    }
+
+    console.log(`TabTamer: group merge — analyzing ${allNames.length} groups: [${namesStr}]`);
 
     // Build the merge prompt
     const systemPrompt = 'You are merging similar tab groups. Given these group names, output a JSON object mapping each original name to either its original name (if no merge needed) or the merged name (if it should join another group). Example: {"GitHub PRs": "GitHub", "NixOS": "NixOS"}.';
-    const userMessage = `Group names: [${groupNames.join(', ')}]`;
+    const userMessage = `Group names: [${namesStr}]`;
 
     // T5.5: Use unified retry-with-backoff instead of inline duplicate; use MAX_RETRIES constant
     const response = await retryWithBackoff(() => fetch(API_ENDPOINT, {

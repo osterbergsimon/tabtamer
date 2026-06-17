@@ -86,6 +86,10 @@ const MAX_RECENT = 5;
 // Maximum tokens for LLM classification responses
 const CLASSIFY_MAX_TOKENS = 30;
 
+// Maximum number of group names to include in LLM prompts (prevents token waste)
+// T9.5: Prioritize groups with the most tabs, append "...and N more" if truncated
+const MAX_GROUP_NAMES_IN_PROMPT = 20;
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Tab Hibernation (T9.19)
 // ═══════════════════════════════════════════════════════════════════════════════
