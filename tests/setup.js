@@ -55,7 +55,10 @@ function createTabsMocks() {
 }
 
 function createNotificationsMocks() {
-  return { create: sinon.stub().resolves() };
+  return {
+    create: sinon.stub().resolves(),
+    onClicked: { addListener: sinon.stub() },
+  };
 }
 
 function createRuntimeMocks() {

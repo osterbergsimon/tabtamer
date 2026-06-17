@@ -26,6 +26,19 @@ let _lastClassifyFailureNotification = 0;
 // T10.10: Track context menu item IDs for the "Move to group…" submenu
 let _moveToGroupMenuItems = [];
 
+// T10.8: Per-session set of domains for which we've already shown a rule suggestion
+// Prevents showing the same suggestion multiple times in one browser session
+let _suggestedDomains = new Set();
+
+// T10.8: In-memory map of dismissed rule suggestions (domain → timestamp)
+// Loaded from storage on startup. Pruned of entries older than 30 days.
+let _dismissedRuleSuggestions = {};
+
+// T10.8: Map of active notification IDs to their suggestion data
+// notificationId → { domain, groupName, timestamp }
+// Used by the onClicked handler to approve rules
+let _pendingSuggestionNotificationIds = new Map();
+
 // T9.10: Helper to add a classification entry with overflow trim
 function _addRecentClassification(entry) {
   _recentClassifications.unshift(entry);
@@ -161,6 +174,39 @@ async function loadCustomGroupColors() {
   } catch (err) {
     console.warn('TabTamer: loadCustomGroupColors — storage read failed', err);
     _customGroupColors = {};
+  }
+}
+
+// T10.8: Load dismissed rule suggestions from storage
+async function loadDismissedSuggestions() {
+  try {
+    const result = await browser.storage.local.get(DISMISSED_RULE_SUGGESTIONS_KEY);
+    _dismissedRuleSuggestions = result[DISMISSED_RULE_SUGGESTIONS_KEY] || {};
+    // Prune entries older than 30 days
+    _pruneDismissedSuggestions(true);
+  } catch (err) {
+    console.warn('TabTamer: loadDismissedSuggestions — storage read failed', err);
+    _dismissedRuleSuggestions = {};
+  }
+}
+
+// T10.8: Prune dismissed rule suggestion entries older than 30 days
+// If persist is true, saves the pruned map to storage
+async function _pruneDismissedSuggestions(persist) {
+  const now = Date.now();
+  let changed = false;
+  for (const [domain, timestamp] of Object.entries(_dismissedRuleSuggestions)) {
+    if (now - timestamp > RULE_SUGGESTION_PRUNE_AGE_MS) {
+      delete _dismissedRuleSuggestions[domain];
+      changed = true;
+    }
+  }
+  if (changed && persist) {
+    try {
+      await browser.storage.local.set({ [DISMISSED_RULE_SUGGESTIONS_KEY]: _dismissedRuleSuggestions });
+    } catch (err) {
+      console.warn('TabTamer: _pruneDismissedSuggestions — storage write failed', err);
+    }
   }
 }
 
@@ -988,6 +1034,11 @@ async function classifyAndAssign(tabId, url, title, domain) {
     await setCachedGroup(domain, normalizedName);
     await assignToGroup(tabId, normalizedName);
 
+    // T10.8: Suggest saving this domain→group mapping as a permanent rule
+    _showRuleSuggestion(domain, normalizedName).catch(err =>
+      console.warn('TabTamer: _showRuleSuggestion failed', err)
+    );
+
     // T7.10: Track this classification for the popup
     _addRecentClassification({
       domain,
@@ -1203,6 +1254,126 @@ async function notifyMissingApiKey() {
     console.error('TabTamer: notifyMissingApiKey error', err);
   }
 }
+
+// ─── T10.8: Rule Suggestion Notification ─────────────────────────────────────
+// After a successful LLM classification, suggest saving the domain→group mapping
+// as a permanent rule. Clicking the notification approves the rule.
+
+async function _showRuleSuggestion(domain, groupName) {
+  try {
+    // Skip if we've already suggested a rule for this domain in this session
+    if (_suggestedDomains.has(domain)) {
+      return;
+    }
+
+    // Skip if there's already a rule matching this domain
+    const existingRule = await TabTamerRules.matchRules(domain);
+    if (existingRule) {
+      _suggestedDomains.add(domain);
+      return; // Rule already exists for this domain
+    }
+
+    // Skip if the user dismissed a suggestion for this domain within 30 days
+    const dismissedTimestamp = _dismissedRuleSuggestions[domain];
+    if (dismissedTimestamp && (Date.now() - dismissedTimestamp < RULE_SUGGESTION_COOLDOWN_MS)) {
+      _suggestedDomains.add(domain); // Also track per-session to avoid re-checking
+      return;
+    }
+
+    // Mark as suggested for this session
+    _suggestedDomains.add(domain);
+
+    // Create a notification with an encoded ID for the onClicked handler
+    // Use a simple ID pattern for tracking
+    const notificationId = `tabtamer-rule-suggest-${domain}`;
+
+    // Store the suggestion data for the onClicked handler
+    _pendingSuggestionNotificationIds.set(notificationId, {
+      domain,
+      groupName,
+      timestamp: Date.now()
+    });
+
+    await browser.notifications.create(notificationId, {
+      type: 'basic',
+      iconUrl: 'icons/icon-48.png',
+      title: 'TabTamer',
+      message: `Save "${domain}" → ${groupName} as a rule? Click to approve.`
+    });
+
+    console.log(`TabTamer: showed rule suggestion for ${domain} → ${groupName}`);
+
+    // Auto-clean up notification tracking after 30 seconds
+    // (notifications auto-dismiss, but we clean up our map)
+    setTimeout(() => {
+      if (_pendingSuggestionNotificationIds.has(notificationId)) {
+        // User didn't click — treat as dismissed
+        _dismissedRuleSuggestions[domain] = Date.now();
+        _pendingSuggestionNotificationIds.delete(notificationId);
+        // Persist dismissed suggestion
+        browser.storage.local.set({ [DISMISSED_RULE_SUGGESTIONS_KEY]: _dismissedRuleSuggestions })
+          .catch(err => console.warn('TabTamer: persist dismissed suggestion failed', err));
+        console.log(`TabTamer: rule suggestion for ${domain} timed out — marked as dismissed`);
+      }
+    }, 30000);
+  } catch (err) {
+    console.error('TabTamer: _showRuleSuggestion error', err);
+  }
+}
+
+// T10.8: Testability accessor — returns true if domain was already suggested this session
+function _isDomainSuggested(domain) {
+  return _suggestedDomains.has(domain);
+}
+
+// T10.8: Testability accessor — returns the dismissed rule suggestions map
+function _getDismissedSuggestions() {
+  return _dismissedRuleSuggestions;
+}
+
+// T10.8: Testability accessor — returns true if a suggestion notification is pending for this domain
+function _hasPendingSuggestion(domain) {
+  return _pendingSuggestionNotificationIds.has(`tabtamer-rule-suggest-${domain}`);
+}
+
+// T10.8: Reset suggestion state (for testing)
+function _resetSuggestionState() {
+  _suggestedDomains = new Set();
+  _dismissedRuleSuggestions = {};
+  _pendingSuggestionNotificationIds = new Map();
+}
+
+// T10.8: Handle notification clicks for rule suggestion approval
+async function _handleRuleSuggestionClick(notificationId) {
+  if (!notificationId.startsWith('tabtamer-rule-suggest-')) {
+    return; // Not one of our rule suggestion notifications
+  }
+
+  const suggestion = _pendingSuggestionNotificationIds.get(notificationId);
+  if (!suggestion) {
+    console.log('TabTamer: rule suggestion notification clicked but no pending data found');
+    return;
+  }
+
+  // Extract domain from notification ID
+  const domain = notificationId.replace('tabtamer-rule-suggest-', '');
+  console.log(`TabTamer: user approved rule suggestion for ${domain} → ${suggestion.groupName}`);
+
+  try {
+    // Add the rule
+    await TabTamerRules.addRule(domain, suggestion.groupName, true);
+    console.log(`TabTamer: rule created from suggestion — "${domain}" → "${suggestion.groupName}"`);
+
+    // Clean up tracking
+    _pendingSuggestionNotificationIds.delete(notificationId);
+    // Remove from dismissed if it was there (shouldn't be, but just in case)
+    delete _dismissedRuleSuggestions[domain];
+  } catch (err) {
+    console.error('TabTamer: failed to create rule from suggestion', err);
+  }
+}
+
+browser.notifications.onClicked.addListener(_handleRuleSuggestionClick);
 
 // ─── Classification Failure Notification (T9.16) ────────────────────────────
 // T9.16: Notify user when retryWithBackoff exhausts all retries for a
@@ -1829,6 +2000,8 @@ browser.runtime.onStartup.addListener(async () => {
   await loadExcludedDomains();
   // T9.15: Load recent classifications from storage
   await loadRecentClassifications();
+  // T10.8: Load dismissed rule suggestions
+  await loadDismissedSuggestions();
   // T5.6: Assign colors to existing groups without one
   await assignColorsToGroups();
   // T5.10: startupScan() sets badge to "…" and calls updateBadge() on completion
@@ -1872,6 +2045,9 @@ browser.runtime.onInstalled.addListener(async (details) => {
 
     // T9.15: Load recent classifications from storage
     await loadRecentClassifications();
+
+    // T10.8: Load dismissed rule suggestions
+    await loadDismissedSuggestions();
 
     // T10.10: Rebuild the "Move to group…" context submenu with current groups
     await rebuildMoveToGroupMenu();

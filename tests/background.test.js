@@ -1,6 +1,7 @@
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
+const sinon = require('sinon');
 const { resetMocks, mockStorage, mockTabGroups, mockTabs } = require('./setup');
 
 // Run background.js in global scope (like a <script> tag would)
@@ -219,5 +220,125 @@ describe('hibernation', () => {
     // Only tab in non-opted-out group should be discarded
     assert.ok(browser.tabs.discard.calledOnce);
     assert.deepStrictEqual(browser.tabs.discard.firstCall.args[0], [301]);
+  });
+});
+
+describe('rule suggestion (T10.8)', () => {
+  beforeEach(() => {
+    _resetSuggestionState();
+  });
+
+  it('_showRuleSuggestion shows notification for new domain', async () => {
+    await _showRuleSuggestion('github.com', 'Code');
+    assert.ok(browser.notifications.create.calledOnce);
+    const callArgs = browser.notifications.create.firstCall.args;
+    // First arg is notificationId
+    assert.strictEqual(callArgs[0], 'tabtamer-rule-suggest-github.com');
+    // Second arg is options
+    assert.strictEqual(callArgs[1].title, 'TabTamer');
+    assert.ok(callArgs[1].message.includes('github.com'));
+    assert.ok(callArgs[1].message.includes('Code'));
+    // Domain should be tracked per-session via accessor
+    assert.ok(_isDomainSuggested('github.com'));
+    // Pending map should have the entry via accessor
+    assert.ok(_hasPendingSuggestion('github.com'));
+  });
+
+  it('_showRuleSuggestion skips if domain already suggested in session', async () => {
+    // Call once — sets suggested
+    await _showRuleSuggestion('github.com', 'Code');
+    assert.ok(browser.notifications.create.calledOnce);
+
+    // Call again — should skip because domain already suggested
+    await _showRuleSuggestion('github.com', 'Dev');
+    assert.ok(browser.notifications.create.calledOnce); // still called only once
+  });
+
+  it('_showRuleSuggestion skips if domain matches existing rule', async () => {
+    // Add a rule to storage directly (use known key string)
+    await browser.storage.local.set({
+      'tabtamerRules': [{ pattern: 'github.com', groupName: 'Code', enabled: true }]
+    });
+    await _showRuleSuggestion('github.com', 'Dev');
+    // Should not show notification since a rule already exists
+    assert.ok(browser.notifications.create.notCalled);
+  });
+
+  it('_showRuleSuggestion skips if dismissed within 30 days', async () => {
+    // Set dismissed suggestion via storage and load
+    const oneHourAgo = Date.now() - 3600000;
+    await browser.storage.local.set({
+      'tabtamerDismissedRuleSuggestions': { 'github.com': oneHourAgo }
+    });
+    await loadDismissedSuggestions();
+
+    await _showRuleSuggestion('github.com', 'Code');
+    assert.ok(browser.notifications.create.notCalled);
+    // Domain should be tracked per-session
+    assert.ok(_isDomainSuggested('github.com'));
+  });
+
+  it('_showRuleSuggestion shows notification if dismissed more than 30 days ago', async () => {
+    // Set very old dismissed suggestion (40 days ago) via storage and load
+    const fortyDaysAgo = Date.now() - 40 * 24 * 60 * 60 * 1000;
+    await browser.storage.local.set({
+      'tabtamerDismissedRuleSuggestions': { 'github.com': fortyDaysAgo }
+    });
+    await loadDismissedSuggestions();
+
+    await _showRuleSuggestion('github.com', 'Code');
+    assert.ok(browser.notifications.create.calledOnce);
+  });
+
+  it('loadDismissedSuggestions loads from storage and prunes old entries', async () => {
+    const oldTimestamp = Date.now() - 40 * 24 * 60 * 60 * 1000; // 40 days ago
+    const recentTimestamp = Date.now() - 3600000; // 1 hour ago
+    await browser.storage.local.set({
+      'tabtamerDismissedRuleSuggestions': {
+        'old-domain.com': oldTimestamp,
+        'recent-domain.com': recentTimestamp,
+      }
+    });
+    await loadDismissedSuggestions();
+    const dismissed = _getDismissedSuggestions();
+    // Old entry should be pruned (older than 35 days)
+    assert.strictEqual(dismissed['old-domain.com'], undefined);
+    // Recent entry should remain
+    assert.strictEqual(dismissed['recent-domain.com'], recentTimestamp);
+  });
+
+  it('_handleRuleSuggestionClick approves rule suggestion', async () => {
+    // First show a suggestion to populate pending data
+    await _showRuleSuggestion('github.com', 'Code');
+    assert.ok(browser.notifications.create.calledOnce);
+
+    // Simulate clicking the notification by calling the handler directly
+    await _handleRuleSuggestionClick('tabtamer-rule-suggest-github.com');
+
+    // Check that a rule was created in storage
+    const storageResult = await browser.storage.local.get('tabtamerRules');
+    const rules = storageResult['tabtamerRules'] || [];
+    assert.strictEqual(rules.length, 1);
+    assert.strictEqual(rules[0].pattern, 'github.com');
+    assert.strictEqual(rules[0].groupName, 'Code');
+    assert.strictEqual(rules[0].enabled, true);
+
+    // Pending data should be cleaned up
+    assert.ok(!_hasPendingSuggestion('github.com'));
+  });
+
+  it('_handleRuleSuggestionClick ignores non-rule-suggestion IDs', async () => {
+    // Should not throw for unknown notification ID
+    await _handleRuleSuggestionClick('tabtamer-toggle');
+    // Should not throw for non-tabtamer notification
+    await _handleRuleSuggestionClick('some-other-notification');
+    assert.ok(true); // no crash = pass
+  });
+
+  it('_handleRuleSuggestionClick handles missing pending data gracefully', async () => {
+    // No pending data for this notification
+    await _handleRuleSuggestionClick('tabtamer-rule-suggest-unknown.com');
+    // Should not throw, just log a warning
+    assert.ok(console.log.calledWith(sinon.match(/no pending data found/)));
   });
 });

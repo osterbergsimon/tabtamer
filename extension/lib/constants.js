@@ -167,8 +167,17 @@ const CLASSIFY_FAILURE_COOLDOWN_MS = 300000;
 // Storage key for cache of recent classifications (T9.15 — persists across restarts)
 const RECENT_CLASSIFICATIONS_KEY = 'tabtamerRecentClassifications';
 
+// Storage key for dismissed rule suggestions (T10.8 — domain → timestamp)
+const DISMISSED_RULE_SUGGESTIONS_KEY = 'tabtamerDismissedRuleSuggestions';
+
 // Storage key for per-group hibernation opt-out (array of group names)
 const HIBERNATE_OPT_OUT_KEY = 'tabtamerHibernateOptOut';
 
 // Throttle interval for persisting access times to storage (ms)
 const STORAGE_THROTTLE_MS = 15000;
+
+// Duration after which a dismissed rule suggestion can be re-prompted (30 days in ms)
+const RULE_SUGGESTION_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
+
+// Max age for pruning dismissed rule suggestion entries (35 days to be generous)
+const RULE_SUGGESTION_PRUNE_AGE_MS = 35 * 24 * 60 * 60 * 1000;
